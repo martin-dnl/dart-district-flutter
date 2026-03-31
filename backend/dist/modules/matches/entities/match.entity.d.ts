@@ -1,0 +1,27 @@
+import { MatchPlayer } from './match-player.entity';
+import { Set } from './set.entity';
+import { Territory } from '../../territories/entities/territory.entity';
+export declare class Match {
+    id: string;
+    mode: string;
+    finish: string;
+    status: string;
+    total_sets: number;
+    legs_per_set: number;
+    inviter_id: string | null;
+    invitee_id: string | null;
+    invitation_status: string | null;
+    invitation_created_at: Date | null;
+    territory_id: string | null;
+    is_territorial: boolean;
+    tournament_id: string | null;
+    is_offline: boolean;
+    validated_by_home: boolean;
+    validated_by_away: boolean;
+    started_at: Date | null;
+    ended_at: Date | null;
+    created_at: Date;
+    players: MatchPlayer[];
+    sets: Set[];
+    territory: Territory;
+}

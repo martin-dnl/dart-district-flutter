@@ -35,6 +35,11 @@ migrate_working_dir/
 
 # Local Flutter environment defines (used with --dart-define-from-file)
 /config/flutter.env.json
+/config/flutter.env.prod.json
+
+# Backend secrets
+backend/.env
+backend/.env.prod
 
 # Symbolication related
 app.*.symbols

@@ -46,4 +46,5 @@ export declare class AuthController {
     }): Promise<void>;
     private decodeIdToken;
     private verifyGoogleIdToken;
+    private verifyGoogleAccessToken;
 }

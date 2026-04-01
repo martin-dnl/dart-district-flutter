@@ -78,7 +78,7 @@ class NotLoggedScreen extends StatelessWidget {
                       shaderCallback: (Rect bounds) {
                         return const RadialGradient(
                           center: Alignment.center,
-                          radius: 0.82,
+                          radius: 0.65,
                           colors: [
                             Colors.white,
                             Colors.white,

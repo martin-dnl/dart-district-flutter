@@ -66,6 +66,25 @@ class AuthRepository {
     return _fetchCurrentUser();
   }
 
+  Future<UserModel> signInWithGoogleAccessToken({
+    required String accessToken,
+  }) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      '/auth/google',
+      data: {
+        'access_token': accessToken,
+      },
+    );
+
+    final authData = _unwrap(response.data);
+    await TokenStorage.saveTokens(
+      accessToken: authData['access_token'] as String,
+      refreshToken: authData['refresh_token'] as String,
+    );
+
+    return _fetchCurrentUser();
+  }
+
   Future<UserModel> signUpWithEmail({
     required String username,
     required String email,

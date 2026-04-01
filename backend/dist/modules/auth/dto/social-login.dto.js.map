@@ -1,1 +1,1 @@
-{"version":3,"file":"social-login.dto.js","sourceRoot":"","sources":["../../../../src/modules/auth/dto/social-login.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAA2C;AAE3C,MAAa,cAAc;CAG1B;AAHD,wCAGC;AADC;IADC,IAAA,0BAAQ,GAAE;;gDACM"}
+{"version":3,"file":"social-login.dto.js","sourceRoot":"","sources":["../../../../src/modules/auth/dto/social-login.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAuD;AAEvD,MAAa,cAAc;CAQ1B;AARD,wCAQC;AALC;IAFC,IAAA,4BAAU,GAAE;IACZ,IAAA,0BAAQ,GAAE;;gDACO;AAIlB;IAFC,IAAA,4BAAU,GAAE;IACZ,IAAA,0BAAQ,GAAE;;oDACW"}

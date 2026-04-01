@@ -1,6 +1,11 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class SocialLoginDto {
+  @IsOptional()
   @IsString()
-  id_token: string;
+  id_token?: string;
+
+  @IsOptional()
+  @IsString()
+  access_token?: string;
 }

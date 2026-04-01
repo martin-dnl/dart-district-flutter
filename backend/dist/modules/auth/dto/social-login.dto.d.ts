@@ -1,3 +1,4 @@
 export declare class SocialLoginDto {
-    id_token: string;
+    id_token?: string;
+    access_token?: string;
 }

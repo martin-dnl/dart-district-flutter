@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/config/app_constants.dart';
 import '../../../core/network/api_client.dart';
@@ -54,7 +56,8 @@ class AuthController extends StateNotifier<AuthState> {
     // On web, configure clientId directly.
     clientId: kIsWeb ? AppConstants.googleWebClientId : null,
     serverClientId: kIsWeb ? null : AppConstants.googleServerClientId,
-    scopes: ['email', 'profile'],
+    // Include openid explicitly so web can return an ID token.
+    scopes: ['openid', 'email', 'profile'],
   );
 
   Future<void> restoreSession() async {
@@ -168,13 +171,22 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> signInWithGoogle() async {
+    GoogleSignInAccount? account;
+    GoogleSignInAuthentication? authentication;
+
     if (kIsWeb && (AppConstants.googleWebClientId == null)) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error:
             'Google Web client ID manquant. Lancez avec --dart-define=GOOGLE_WEB_CLIENT_ID=... ',
-        debugDetails:
-            'Missing GOOGLE_WEB_CLIENT_ID in app environment for web build.',
+        debugDetails: _buildGoogleDiagnostics(
+          account: account,
+          authentication: authentication,
+          flowStage: 'missing_web_client_id',
+          error:
+              'Missing GOOGLE_WEB_CLIENT_ID in app environment for web build.',
+          stackTrace: StackTrace.current,
+        ),
       );
       return;
     }
@@ -186,29 +198,35 @@ class AuthController extends StateNotifier<AuthState> {
     );
     try {
       await _googleSignIn.signOut();
-      final account = await _googleSignIn.signIn();
+      account = await _googleSignIn.signIn();
       if (account == null) {
         state = state.copyWith(
           status: AuthStatus.unauthenticated,
           error: 'Connexion Google annulee.',
-          debugDetails: 'GoogleSignInAccount is null (user canceled flow).',
+          debugDetails: _buildGoogleDiagnostics(
+            account: account,
+            authentication: authentication,
+            flowStage: 'account_null_after_sign_in',
+            error: 'GoogleSignInAccount is null (user canceled flow).',
+            stackTrace: StackTrace.current,
+          ),
         );
         return;
       }
 
-      final authentication = await account.authentication;
+      authentication = await account.authentication;
       final idToken = authentication.idToken;
-      if (idToken == null || idToken.isEmpty) {
-        final diagnostics = StringBuffer()
-          ..writeln('Google sign-in failed: idToken is null/empty')
-          ..writeln('platform_web=$kIsWeb')
-          ..writeln(
-            'google_web_client_id_set=${AppConstants.googleWebClientId != null && AppConstants.googleWebClientId!.isNotEmpty}',
-          )
-          ..writeln(
-            'google_server_client_id_set=${AppConstants.googleServerClientId != null && AppConstants.googleServerClientId!.isNotEmpty}',
-          )
-          ..writeln('account_email=${account.email}');
+      final accessToken = authentication.accessToken;
+
+      if ((idToken == null || idToken.isEmpty) &&
+          (accessToken == null || accessToken.isEmpty)) {
+        final diagnostics = _buildGoogleDiagnostics(
+          account: account,
+          authentication: authentication,
+          flowStage: 'id_and_access_tokens_missing_or_empty',
+          error: 'Google sign-in failed: both idToken and accessToken are null/empty',
+          stackTrace: StackTrace.current,
+        );
         if (kDebugMode) {
           debugPrint(diagnostics.toString());
         }
@@ -221,10 +239,18 @@ class AuthController extends StateNotifier<AuthState> {
       }
 
       if (kDebugMode) {
-        debugPrint('Google sign-in diagnostics: idToken received successfully');
+        debugPrint(
+          idToken != null && idToken.isNotEmpty
+              ? 'Google sign-in diagnostics: idToken received successfully'
+              : 'Google sign-in diagnostics: using accessToken fallback',
+        );
       }
 
-      final user = await _repository.signInWithGoogleIdToken(idToken: idToken);
+      final user = (idToken != null && idToken.isNotEmpty)
+          ? await _repository.signInWithGoogleIdToken(idToken: idToken)
+          : await _repository.signInWithGoogleAccessToken(
+              accessToken: accessToken!,
+            );
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: user,
@@ -232,16 +258,13 @@ class AuthController extends StateNotifier<AuthState> {
         debugDetails: null,
       );
     } catch (error, stackTrace) {
-      final details = StringBuffer()
-        ..writeln('Google sign-in exception: $error')
-        ..writeln('platform_web=$kIsWeb')
-        ..writeln(
-          'google_web_client_id_set=${AppConstants.googleWebClientId != null && AppConstants.googleWebClientId!.isNotEmpty}',
-        )
-        ..writeln(
-          'google_server_client_id_set=${AppConstants.googleServerClientId != null && AppConstants.googleServerClientId!.isNotEmpty}',
-        )
-        ..writeln('stack=$stackTrace');
+      final details = _buildGoogleDiagnostics(
+        account: account,
+        authentication: authentication,
+        flowStage: 'exception_thrown',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (kDebugMode) {
         debugPrint(details.toString());
       }
@@ -250,6 +273,113 @@ class AuthController extends StateNotifier<AuthState> {
         error: 'Connexion Google impossible pour le moment.',
         debugDetails: details.toString(),
       );
+    }
+  }
+
+  String _maskClientId(String? value) {
+    if (value == null || value.isEmpty) {
+      return '(null)';
+    }
+    if (value.length <= 18) {
+      return value;
+    }
+    final start = value.substring(0, 12);
+    final end = value.substring(value.length - 10);
+    return '$start...$end';
+  }
+
+  String _buildGoogleDiagnostics({
+    required GoogleSignInAccount? account,
+    required GoogleSignInAuthentication? authentication,
+    required String flowStage,
+    required Object? error,
+    required StackTrace? stackTrace,
+  }) {
+    final details = StringBuffer()
+      ..writeln('flow_stage=$flowStage')
+      ..writeln('timestamp_utc=${DateTime.now().toUtc().toIso8601String()}')
+      ..writeln(
+        'build_mode=${kReleaseMode ? 'release' : (kProfileMode ? 'profile' : 'debug')}',
+      )
+      ..writeln('platform_web=$kIsWeb')
+      ..writeln('default_target_platform=$defaultTargetPlatform')
+      ..writeln('platform_summary=${_platformSummary()}')
+      ..writeln('api_base_url=${AppConstants.apiBaseUrl}')
+      ..writeln('ws_base_url=${AppConstants.wsBaseUrl}')
+      ..writeln(
+        'google_web_client_id_set=${AppConstants.googleWebClientId != null && AppConstants.googleWebClientId!.isNotEmpty}',
+      )
+      ..writeln(
+        'google_server_client_id_set=${AppConstants.googleServerClientId != null && AppConstants.googleServerClientId!.isNotEmpty}',
+      )
+      ..writeln(
+        'google_web_client_id_masked=${_maskClientId(AppConstants.googleWebClientId)}',
+      )
+      ..writeln(
+        'google_server_client_id_masked=${_maskClientId(AppConstants.googleServerClientId)}',
+      )
+      ..writeln(
+        'runtime_google_signin_client_id=${_maskClientId(kIsWeb ? AppConstants.googleWebClientId : null)}',
+      )
+      ..writeln(
+        'runtime_google_signin_server_client_id=${_maskClientId(kIsWeb ? null : AppConstants.googleServerClientId)}',
+      )
+      ..writeln('google_account_present=${account != null}')
+      ..writeln('google_auth_present=${authentication != null}')
+      ..writeln('error_type=${error.runtimeType}')
+      ..writeln('error=$error');
+
+    if (account != null) {
+      details
+        ..writeln('account_id=${account.id}')
+        ..writeln('account_email=${account.email}')
+        ..writeln('account_display_name=${account.displayName}')
+        ..writeln('account_photo_url_present=${account.photoUrl != null}');
+    }
+
+    if (authentication != null) {
+      final idToken = authentication.idToken;
+      final accessToken = authentication.accessToken;
+      final serverAuthCode = account?.serverAuthCode;
+      details
+        ..writeln('id_token_present=${idToken != null && idToken.isNotEmpty}')
+        ..writeln('id_token_length=${idToken?.length ?? 0}')
+        ..writeln(
+          'id_token_prefix=${idToken != null && idToken.isNotEmpty ? idToken.substring(0, idToken.length > 16 ? 16 : idToken.length) : '(none)'}',
+        )
+        ..writeln(
+          'access_token_present=${accessToken != null && accessToken.isNotEmpty}',
+        )
+        ..writeln(
+          'access_token_length=${accessToken?.length ?? 0}',
+        )
+        ..writeln(
+          'server_auth_code_present=${serverAuthCode != null && serverAuthCode.isNotEmpty}',
+        );
+    }
+
+    if (error is PlatformException) {
+      details
+        ..writeln('platform_exception_code=${error.code}')
+        ..writeln('platform_exception_message=${error.message}')
+        ..writeln('platform_exception_details=${error.details}');
+    }
+
+    if (stackTrace != null) {
+      details.writeln('stack=$stackTrace');
+    }
+
+    return details.toString();
+  }
+
+  String _platformSummary() {
+    if (kIsWeb) {
+      return 'web';
+    }
+    try {
+      return '${Platform.operatingSystem} | ${Platform.operatingSystemVersion}';
+    } catch (_) {
+      return 'native_platform_unavailable';
     }
   }
 

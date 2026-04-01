@@ -42,7 +42,16 @@ export class AuthController {
   @Post('google')
   @HttpCode(HttpStatus.OK)
   async googleLogin(@Body() dto: SocialLoginDto) {
-    const payload = await this.verifyGoogleIdToken(dto.id_token);
+    const payload = dto.id_token
+      ? await this.verifyGoogleIdToken(dto.id_token)
+      : dto.access_token
+        ? await this.verifyGoogleAccessToken(dto.access_token)
+        : null;
+
+    if (!payload) {
+      throw new UnauthorizedException('Missing Google token payload');
+    }
+
     return this.authService.socialLogin('google', {
       email: payload.email,
       name: payload.name ?? payload.email.split('@')[0],
@@ -114,6 +123,46 @@ export class AuthController {
       audience: audiences,
     });
     const payload = ticket.getPayload() as TokenPayload | undefined;
+
+    if (!payload?.email || !payload?.sub) {
+      throw new UnauthorizedException('Invalid Google token payload');
+    }
+
+    if (payload.email_verified !== true) {
+      throw new UnauthorizedException('Google account email is not verified');
+    }
+
+    return {
+      email: payload.email,
+      name: payload.name,
+      sub: payload.sub,
+      picture: payload.picture,
+    };
+  }
+
+  private async verifyGoogleAccessToken(accessToken: string): Promise<{
+    email: string;
+    name?: string;
+    sub: string;
+    picture?: string;
+  }> {
+    const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new UnauthorizedException('Invalid Google access token');
+    }
+
+    const payload = (await response.json()) as {
+      sub?: string;
+      email?: string;
+      email_verified?: boolean;
+      name?: string;
+      picture?: string;
+    };
 
     if (!payload?.email || !payload?.sub) {
       throw new UnauthorizedException('Invalid Google token payload');

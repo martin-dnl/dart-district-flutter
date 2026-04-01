@@ -15,7 +15,13 @@ class SocialLoginDto {
 }
 exports.SocialLoginDto = SocialLoginDto;
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], SocialLoginDto.prototype, "id_token", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SocialLoginDto.prototype, "access_token", void 0);
 //# sourceMappingURL=social-login.dto.js.map

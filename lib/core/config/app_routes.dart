@@ -16,6 +16,7 @@ import '../../features/play/presentation/match_invite_player_screen.dart';
 import '../../features/play/presentation/qr_scan_screen.dart';
 import '../../features/club/presentation/club_screen.dart';
 import '../../features/club/presentation/club_detail_screen.dart';
+import '../../features/club/presentation/club_create_screen.dart';
 import '../../features/contacts/presentation/contacts_screen.dart';
 import '../../features/contacts/presentation/contacts_chat_screen.dart';
 import '../../features/contacts/models/contact_models.dart';
@@ -47,6 +48,7 @@ class AppRoutes {
   static const String qrScan = '/play/qr-scan';
   static const String club = '/club';
   static const String clubDetail = '/club/:id';
+  static const String clubCreate = '/club/create';
   static const String contacts = '/contacts';
   static const String contactsChat = '/contacts/chat';
   static const String tournaments = '/tournaments';
@@ -280,6 +282,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: ClubDetailScreen(id: id),
           );
         },
+      ),
+      GoRoute(
+        path: AppRoutes.clubCreate,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ClubCreateScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.tournamentCreate,

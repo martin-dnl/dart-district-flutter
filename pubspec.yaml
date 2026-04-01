@@ -95,7 +95,6 @@ flutter:
 
   assets:
     - ref_ui/notlogged_image.png
-    - ref_ui/notlogged_title.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

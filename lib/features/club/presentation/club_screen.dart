@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/config/app_routes.dart';
 import '../../../core/config/app_colors.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../../../shared/widgets/section_header.dart';
@@ -371,7 +373,7 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: () {},
+                      onPressed: () => context.push(AppRoutes.clubCreate),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: AppColors.background,

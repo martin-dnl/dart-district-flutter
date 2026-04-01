@@ -50,10 +50,23 @@ class _ContactsChatScreenState extends ConsumerState<ContactsChatScreen> {
     return AppScaffold(
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(title: Text(selected.username)),
         body: SafeArea(
           child: Column(
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    selected.username,
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
               Expanded(
                 child: ListView.builder(
                   reverse: true,

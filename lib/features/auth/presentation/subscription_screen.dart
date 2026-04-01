@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../shared/widgets/dart_button.dart';
+import '../controller/auth_controller.dart';
 
-class SubscriptionScreen extends StatefulWidget {
+class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+  ConsumerState<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState extends State<SubscriptionScreen> {
+class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -49,6 +53,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+    final showAppleButton = kIsWeb || defaultTargetPlatform != TargetPlatform.android;
+
+    ref.listen<AuthState>(authControllerProvider, (prev, next) {
+      if (next.status == AuthStatus.authenticated) {
+        context.go(AppRoutes.home);
+        return;
+      }
+
+      final hasNewError = next.error != null && next.error != prev?.error;
+      if (hasNewError) {
+        _showAuthFailureDialog(next.error!, next.debugDetails);
+      }
+    });
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.pageGradient),
@@ -137,6 +156,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       fontSize: 12,
                     ),
                   ),
+                  if (authState.error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      authState.error!,
+                      style: GoogleFonts.manrope(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 22),
                   SizedBox(
                     width: double.infinity,
@@ -153,12 +182,126 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'OU CONTINUER AVEC',
+                          style: GoogleFonts.manrope(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DartButton(
+                          text: 'Google',
+                          icon: Icons.g_mobiledata,
+                          isOutlined: true,
+                          onPressed: authState.status == AuthStatus.loading
+                              ? null
+                              : () => ref
+                                    .read(authControllerProvider.notifier)
+                                    .signInWithGoogle(),
+                        ),
+                      ),
+                      if (showAppleButton) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DartButton(
+                            text: 'Apple',
+                            icon: Icons.apple,
+                            isOutlined: true,
+                            onPressed: authState.status == AuthStatus.loading
+                                ? null
+                                : () => ref
+                                      .read(authControllerProvider.notifier)
+                                      .signInWithApple(),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  void _showAuthFailureDialog(String message, String? details) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(
+            'Echec de connexion',
+            style: GoogleFonts.manrope(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  message,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (details != null && details.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Logs techniques',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    details,
+                    style: GoogleFonts.robotoMono(
+                      color: AppColors.textHint,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Fermer',
+                style: GoogleFonts.manrope(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

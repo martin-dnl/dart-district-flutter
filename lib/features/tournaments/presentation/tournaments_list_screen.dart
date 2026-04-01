@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -41,57 +42,103 @@ class _TournamentsListScreenState extends ConsumerState<TournamentsListScreen>
     final tournamentsAsync = ref.watch(tournamentsListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tournois'),
-        backgroundColor: Colors.transparent,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-          tabs: const [
-            Tab(text: 'A venir'),
-            Tab(text: 'En cours'),
-            Tab(text: 'Termines'),
-          ],
-        ),
-      ),
       backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.pageGradient),
-        child: tournamentsAsync.when(
-          data: (tournaments) {
-            return TabBarView(
-              controller: _tabController,
-              children: [
-                _TournamentTab(
-                  tournaments: tournaments
-                      .where((t) => t.scheduledAt.isAfter(DateTime.now()))
-                      .toList(),
-                  onRefresh: _refresh,
-                ),
-                _TournamentTab(
-                  tournaments: tournaments
-                      .where((t) => t.currentPhase != 'finished')
-                      .toList(),
-                  onRefresh: _refresh,
-                ),
-                _TournamentTab(
-                  tournaments: tournaments
-                      .where((t) => t.currentPhase == 'finished')
-                      .toList(),
-                  onRefresh: _refresh,
-                ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const Center(
-            child: Text(
-              'Impossible de charger les tournois.',
-              style: TextStyle(color: AppColors.error),
+        child: Column(
+          children: [
+            const SizedBox(height: 4),
+            Center(
+              child: OutlinedButton.icon(
+                onPressed: _refresh,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Rafraichir'),
+              ),
             ),
-          ),
+            TabBar(
+              controller: _tabController,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.primary,
+              tabs: const [
+                Tab(text: 'A venir'),
+                Tab(text: 'En cours'),
+                Tab(text: 'Termines'),
+              ],
+            ),
+            Expanded(
+              child: tournamentsAsync.when(
+                data: (tournaments) {
+                  return TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _TournamentTab(
+                        tournaments: tournaments
+                            .where((t) => t.scheduledAt.isAfter(DateTime.now()))
+                            .toList(),
+                        onRefresh: _refresh,
+                      ),
+                      _TournamentTab(
+                        tournaments: tournaments
+                            .where((t) => t.currentPhase != 'finished')
+                            .toList(),
+                        onRefresh: _refresh,
+                      ),
+                      _TournamentTab(
+                        tournaments: tournaments
+                            .where((t) => t.currentPhase == 'finished')
+                            .toList(),
+                        onRefresh: _refresh,
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stackTrace) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Impossible de charger les tournois.',
+                          style: TextStyle(color: AppColors.error),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (kDebugMode) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: SelectableText(
+                              'Cause technique (debug):\n${error.toString()}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _refresh,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Rafraichir'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

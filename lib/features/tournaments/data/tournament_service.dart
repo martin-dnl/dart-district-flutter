@@ -55,8 +55,22 @@ class TournamentService {
   final Ref ref;
 
   dynamic _extractData(dynamic payload) {
-    if (payload is Map<String, dynamic> && payload['data'] != null) {
-      return payload['data'];
+    if (payload is Map<String, dynamic>) {
+      if (payload['data'] != null) {
+        final data = payload['data'];
+        if (data is Map<String, dynamic> && data['items'] != null) {
+          return data['items'];
+        }
+        return data;
+      }
+
+      if (payload['items'] != null) {
+        return payload['items'];
+      }
+
+      if (payload['tournaments'] != null) {
+        return payload['tournaments'];
+      }
     }
     return payload;
   }
@@ -69,6 +83,16 @@ class TournamentService {
       final items = raw['items'];
       if (items is List) {
         return items.whereType<Map<String, dynamic>>().toList();
+      }
+
+      final tournaments = raw['tournaments'];
+      if (tournaments is List) {
+        return tournaments.whereType<Map<String, dynamic>>().toList();
+      }
+
+      final rows = raw['rows'];
+      if (rows is List) {
+        return rows.whereType<Map<String, dynamic>>().toList();
       }
     }
     return <Map<String, dynamic>>[];
@@ -90,9 +114,15 @@ class TournamentService {
     );
     final raw = _extractData(response.data);
     final rows = _extractRows(raw);
-    return rows
-        .map((row) => TournamentModel.fromApi(row, currentUserId: userId))
-        .toList();
+    final models = <TournamentModel>[];
+    for (final row in rows) {
+      try {
+        models.add(TournamentModel.fromApi(row, currentUserId: userId));
+      } catch (_) {
+        // Skip malformed rows instead of failing the full screen.
+      }
+    }
+    return models;
   }
 
   Future<TournamentDetailModel> fetchDetail(String tournamentId) async {

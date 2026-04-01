@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -36,10 +37,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
+    final showAppleButton = kIsWeb || defaultTargetPlatform != TargetPlatform.android;
 
     ref.listen<AuthState>(authControllerProvider, (prev, next) {
       if (next.status == AuthStatus.authenticated) {
         context.go(AppRoutes.home);
+        return;
+      }
+
+      final hasNewError = next.error != null && next.error != prev?.error;
+      if (hasNewError) {
+        _showAuthFailureDialog(next.error!, next.debugDetails);
       }
     });
 
@@ -255,17 +263,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             .signInWithGoogle(),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DartButton(
-                        text: 'Apple',
-                        icon: Icons.apple,
-                        isOutlined: true,
-                        onPressed: () => ref
-                            .read(authControllerProvider.notifier)
-                            .signInWithApple(),
+                    if (showAppleButton) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DartButton(
+                          text: 'Apple',
+                          icon: Icons.apple,
+                          isOutlined: true,
+                          onPressed: () => ref
+                              .read(authControllerProvider.notifier)
+                              .signInWithApple(),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -288,6 +298,69 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showAuthFailureDialog(String message, String? details) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(
+            'Echec de connexion',
+            style: GoogleFonts.manrope(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  message,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (details != null && details.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Logs techniques',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    details,
+                    style: GoogleFonts.robotoMono(
+                      color: AppColors.textHint,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Fermer',
+                style: GoogleFonts.manrope(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

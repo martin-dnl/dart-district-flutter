@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_colors.dart';
 import '../../core/config/app_routes.dart';
+import '../../features/auth/controller/auth_controller.dart';
 import '../../features/contacts/controller/contacts_controller.dart';
+import 'player_avatar.dart';
 
 class AppScaffold extends ConsumerWidget {
   final Widget child;
@@ -44,7 +46,11 @@ class AppScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = _currentIndex(context);
+    final location = GoRouterState.of(context).uri.path;
+    final user = ref.watch(currentUserProvider);
     final unreadContacts = ref.watch(contactsUnreadCountProvider);
+    final showPageHeader = _shouldShowPageHeader(location);
+    final pageTitle = _pageTitle(location);
 
     const items = <({IconData icon, String label})>[
       (icon: Icons.home_rounded, label: 'Accueil'),
@@ -59,7 +65,58 @@ class AppScaffold extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.pageGradient),
-        child: child,
+        child: Column(
+          children: [
+            if (showPageHeader)
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                  child: Row(
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(99),
+                        onTap: () => context.push(AppRoutes.profile),
+                        child: PlayerAvatar(
+                          imageUrl: user?.avatarUrl,
+                          name: user?.username ?? 'Joueur',
+                          size: 40,
+                          showBorder: true,
+                          borderColor: AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          pageTitle,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.manrope(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.surface,
+                          border: Border.all(color: AppColors.stroke),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Expanded(child: child),
+          ],
+        ),
       ),
       extendBody: true,
       bottomNavigationBar: SafeArea(
@@ -112,6 +169,22 @@ class AppScaffold extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  bool _shouldShowPageHeader(String location) {
+    if (location.startsWith(AppRoutes.home)) return false;
+    if (location.startsWith(AppRoutes.profile)) return false;
+    return true;
+  }
+
+  String _pageTitle(String location) {
+    if (location.startsWith(AppRoutes.map)) return 'Carte';
+    if (location.startsWith(AppRoutes.play)) return 'Jouer';
+    if (location.startsWith(AppRoutes.club)) return 'Club';
+    if (location.startsWith(AppRoutes.contactsChat)) return 'Chat';
+    if (location.startsWith(AppRoutes.contacts)) return 'Contacts';
+    if (location.startsWith(AppRoutes.tournaments)) return 'Tournois';
+    return 'Dart District';
   }
 }
 

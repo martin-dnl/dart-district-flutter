@@ -44,32 +44,17 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Contacts',
-                          style: GoogleFonts.rajdhani(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          contacts.isConnected
-                              ? 'Connecte en temps reel'
-                              : 'Connexion realtime en attente',
-                          style: GoogleFonts.manrope(
-                            color: contacts.isConnected
-                                ? AppColors.success
-                                : AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      contacts.isConnected
+                          ? 'Connecte en temps reel'
+                          : 'Connexion realtime en attente',
+                      style: GoogleFonts.manrope(
+                        color: contacts.isConnected
+                            ? AppColors.success
+                            : AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   Container(

@@ -11,6 +11,7 @@ class TournamentModel {
     required this.entryFee,
     required this.scheduledAt,
     required this.creatorId,
+    required this.creatorUsername,
     required this.status,
     required this.isRegistered,
     this.description,
@@ -41,6 +42,7 @@ class TournamentModel {
   final double entryFee;
   final DateTime scheduledAt;
   final String creatorId;
+  final String? creatorUsername;
   final String status;
   final bool isRegistered;
   final int? poolCount;
@@ -51,48 +53,73 @@ class TournamentModel {
   final int? legsPerSetBracket;
   final int? setsToWinBracket;
 
+  static int _toInt(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  static int? _toNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  static double _toDouble(dynamic value, {required double fallback}) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
   factory TournamentModel.fromApi(
     Map<String, dynamic> json, {
     required String currentUserId,
   }) {
-    final players = (json['players'] as List<dynamic>? ?? <dynamic>[])
-        .whereType<Map<String, dynamic>>()
-        .toList();
+    final rawPlayers = json['players'];
+    final players = rawPlayers is List
+        ? rawPlayers.whereType<Map<String, dynamic>>().toList()
+        : const <Map<String, dynamic>>[];
     final bool isRegistered = players.any(
       (player) => (player['user_id'] ?? '').toString() == currentUserId,
     );
 
+    final creator = json['creator'];
+    final creatorId = creator is Map<String, dynamic>
+        ? (creator['id'] ?? '').toString()
+        : (json['created_by'] ?? '').toString();
+    final creatorUsername = creator is Map<String, dynamic>
+      ? creator['username']?.toString()
+      : null;
+
     return TournamentModel(
-      id: (json['id'] ?? '').toString(),
+      id: (json['id'] ?? json['tournament_id'] ?? '').toString(),
       name: (json['name'] ?? 'Tournoi').toString(),
       description: json['description']?.toString(),
       mode: (json['mode'] ?? '501').toString(),
       finish: (json['finish'] ?? 'double_out').toString(),
       format: (json['format'] ?? 'single_elimination').toString(),
-      maxPlayers: (json['max_players'] as num?)?.toInt() ?? 16,
-      enrolledPlayers: (json['enrolled_players'] as num?)?.toInt() ?? 0,
+      maxPlayers: _toInt(json['max_players'], fallback: 16),
+      enrolledPlayers: _toInt(json['enrolled_players'], fallback: 0),
       currentPhase: (json['current_phase'] ?? 'registration').toString(),
       venueName: json['venue_name']?.toString(),
       venueAddress: json['venue_address']?.toString(),
       city: json['city']?.toString(),
-      entryFee: (json['entry_fee'] as num?)?.toDouble() ?? 0,
+      entryFee: _toDouble(json['entry_fee'], fallback: 0),
       scheduledAt:
           DateTime.tryParse((json['scheduled_at'] ?? '').toString()) ??
           DateTime.now(),
-      creatorId:
-          (json['created_by'] ??
-                  (json['creator'] as Map<String, dynamic>?)?['id'] ??
-                  '')
-              .toString(),
+      creatorId: creatorId,
+      creatorUsername: creatorUsername,
       status: (json['status'] ?? 'open').toString(),
       isRegistered: isRegistered,
-      poolCount: (json['pool_count'] as num?)?.toInt(),
-      playersPerPool: (json['players_per_pool'] as num?)?.toInt(),
-      qualifiedPerPool: (json['qualified_per_pool'] as num?)?.toInt(),
-      legsPerSetPool: (json['legs_per_set_pool'] as num?)?.toInt(),
-      setsToWinPool: (json['sets_to_win_pool'] as num?)?.toInt(),
-      legsPerSetBracket: (json['legs_per_set_bracket'] as num?)?.toInt(),
-      setsToWinBracket: (json['sets_to_win_bracket'] as num?)?.toInt(),
+      poolCount: _toNullableInt(json['pool_count']),
+      playersPerPool: _toNullableInt(json['players_per_pool']),
+      qualifiedPerPool: _toNullableInt(json['qualified_per_pool']),
+      legsPerSetPool: _toNullableInt(json['legs_per_set_pool']),
+      setsToWinPool: _toNullableInt(json['sets_to_win_pool']),
+      legsPerSetBracket: _toNullableInt(json['legs_per_set_bracket']),
+      setsToWinBracket: _toNullableInt(json['sets_to_win_bracket']),
     );
   }
 }

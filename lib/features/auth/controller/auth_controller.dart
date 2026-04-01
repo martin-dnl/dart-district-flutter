@@ -15,14 +15,26 @@ class AuthState {
   final AuthStatus status;
   final UserModel? user;
   final String? error;
+  final String? debugDetails;
 
-  const AuthState({this.status = AuthStatus.initial, this.user, this.error});
+  const AuthState({
+    this.status = AuthStatus.initial,
+    this.user,
+    this.error,
+    this.debugDetails,
+  });
 
-  AuthState copyWith({AuthStatus? status, UserModel? user, String? error}) {
+  AuthState copyWith({
+    AuthStatus? status,
+    UserModel? user,
+    String? error,
+    String? debugDetails,
+  }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
       error: error,
+      debugDetails: debugDetails,
     );
   }
 }
@@ -38,13 +50,19 @@ class AuthController extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   StreamSubscription<void>? _unauthorizedSub;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: AppConstants.googleWebClientId,
+    // On mobile, use serverClientId (Web OAuth client id) to retrieve idToken.
+    // On web, configure clientId directly.
+    clientId: kIsWeb ? AppConstants.googleWebClientId : null,
     serverClientId: kIsWeb ? null : AppConstants.googleServerClientId,
     scopes: ['email', 'profile'],
   );
 
   Future<void> restoreSession() async {
-    state = state.copyWith(status: AuthStatus.loading, error: null);
+    state = state.copyWith(
+      status: AuthStatus.loading,
+      error: null,
+      debugDetails: null,
+    );
     try {
       final user = await _repository.restoreSession();
       if (user == null) {
@@ -66,7 +84,11 @@ class AuthController extends StateNotifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    state = state.copyWith(status: AuthStatus.loading);
+    state = state.copyWith(
+      status: AuthStatus.loading,
+      error: null,
+      debugDetails: null,
+    );
     try {
       final user = await _repository.signInWithEmail(
         email: email,
@@ -76,11 +98,13 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: user,
         error: null,
+        debugDetails: null,
       );
     } catch (_) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error: 'Connexion impossible. Verifiez vos identifiants.',
+        debugDetails: null,
       );
     }
   }
@@ -92,7 +116,11 @@ class AuthController extends StateNotifier<AuthState> {
     String? level,
     String? preferredHand,
   }) async {
-    state = state.copyWith(status: AuthStatus.loading, error: null);
+    state = state.copyWith(
+      status: AuthStatus.loading,
+      error: null,
+      debugDetails: null,
+    );
     try {
       final user = await _repository.signUpWithEmail(
         username: username,
@@ -105,28 +133,36 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: user,
         error: null,
+        debugDetails: null,
       );
     } catch (_) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error: 'Inscription impossible. Verifiez les informations.',
+        debugDetails: null,
       );
     }
   }
 
   Future<void> continueAsGuest() async {
-    state = state.copyWith(status: AuthStatus.loading);
+    state = state.copyWith(
+      status: AuthStatus.loading,
+      error: null,
+      debugDetails: null,
+    );
     try {
       final user = await _repository.continueAsGuest();
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: user,
         error: null,
+        debugDetails: null,
       );
     } catch (_) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error: 'Mode invite indisponible.',
+        debugDetails: null,
       );
     }
   }
@@ -137,11 +173,17 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.unauthenticated,
         error:
             'Google Web client ID manquant. Lancez avec --dart-define=GOOGLE_WEB_CLIENT_ID=... ',
+        debugDetails:
+            'Missing GOOGLE_WEB_CLIENT_ID in app environment for web build.',
       );
       return;
     }
 
-    state = state.copyWith(status: AuthStatus.loading, error: null);
+    state = state.copyWith(
+      status: AuthStatus.loading,
+      error: null,
+      debugDetails: null,
+    );
     try {
       await _googleSignIn.signOut();
       final account = await _googleSignIn.signIn();
@@ -149,6 +191,7 @@ class AuthController extends StateNotifier<AuthState> {
         state = state.copyWith(
           status: AuthStatus.unauthenticated,
           error: 'Connexion Google annulee.',
+          debugDetails: 'GoogleSignInAccount is null (user canceled flow).',
         );
         return;
       }
@@ -156,11 +199,29 @@ class AuthController extends StateNotifier<AuthState> {
       final authentication = await account.authentication;
       final idToken = authentication.idToken;
       if (idToken == null || idToken.isEmpty) {
+        final diagnostics = StringBuffer()
+          ..writeln('Google sign-in failed: idToken is null/empty')
+          ..writeln('platform_web=$kIsWeb')
+          ..writeln(
+            'google_web_client_id_set=${AppConstants.googleWebClientId != null && AppConstants.googleWebClientId!.isNotEmpty}',
+          )
+          ..writeln(
+            'google_server_client_id_set=${AppConstants.googleServerClientId != null && AppConstants.googleServerClientId!.isNotEmpty}',
+          )
+          ..writeln('account_email=${account.email}');
+        if (kDebugMode) {
+          debugPrint(diagnostics.toString());
+        }
         state = state.copyWith(
           status: AuthStatus.unauthenticated,
           error: 'Token Google indisponible. Verifiez la configuration OAuth.',
+          debugDetails: diagnostics.toString(),
         );
         return;
+      }
+
+      if (kDebugMode) {
+        debugPrint('Google sign-in diagnostics: idToken received successfully');
       }
 
       final user = await _repository.signInWithGoogleIdToken(idToken: idToken);
@@ -168,11 +229,26 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: user,
         error: null,
+        debugDetails: null,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      final details = StringBuffer()
+        ..writeln('Google sign-in exception: $error')
+        ..writeln('platform_web=$kIsWeb')
+        ..writeln(
+          'google_web_client_id_set=${AppConstants.googleWebClientId != null && AppConstants.googleWebClientId!.isNotEmpty}',
+        )
+        ..writeln(
+          'google_server_client_id_set=${AppConstants.googleServerClientId != null && AppConstants.googleServerClientId!.isNotEmpty}',
+        )
+        ..writeln('stack=$stackTrace');
+      if (kDebugMode) {
+        debugPrint(details.toString());
+      }
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error: 'Connexion Google impossible pour le moment.',
+        debugDetails: details.toString(),
       );
     }
   }
@@ -181,6 +257,7 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(
       status: AuthStatus.unauthenticated,
       error: 'Connexion Apple non configuree sur mobile pour le moment.',
+      debugDetails: null,
     );
   }
 
@@ -196,7 +273,7 @@ class AuthController extends StateNotifier<AuthState> {
 
     try {
       final user = await _repository.fetchCurrentUser();
-      state = state.copyWith(user: user, error: null);
+      state = state.copyWith(user: user, error: null, debugDetails: null);
     } catch (_) {
       // Keep existing user in state when refresh fails.
     }

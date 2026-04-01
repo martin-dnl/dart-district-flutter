@@ -35,30 +35,79 @@ class NotLoggedScreen extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Conquiers ta ville, une fleche a la fois.',
-                  style: GoogleFonts.manrope(
-                    color: AppColors.textSecondary,
-                    fontSize: 15,
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    children: [
+                      Text.rich(
+                  TextSpan(
+                    text: 'JOUEZ, ',
+                    children: const [
+                      TextSpan(
+                        text: 'DOMINEZ',
+                        style: TextStyle(color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 38,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                          height: 0.95,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Rejoignez un tournoi, participez aux tournois locaux et conquérez la carte de votre ville',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.manrope(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 Expanded(
                   child: Center(
-                    child: Image.asset(
-                      'ref_ui/notlogged_image.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Center(
-                    child: Image.asset(
-                      'ref_ui/notlogged_title.png',
-                      fit: BoxFit.contain,
-                      height: 46,
+                    child: ShaderMask(
+                      shaderCallback: (Rect bounds) {
+                        return const RadialGradient(
+                          center: Alignment.center,
+                          radius: 0.82,
+                          colors: [
+                            Colors.white,
+                            Colors.white,
+                            Colors.transparent,
+                          ],
+                          stops: [0.35, 0.62, 1.0],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: ShaderMask(
+                        shaderCallback: (Rect bounds) {
+                          return const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.white,
+                              Colors.white,
+                              Colors.transparent,
+                            ],
+                            stops: [0.0, 0.18, 0.82, 1.0],
+                          ).createShader(bounds);
+                        },
+                        blendMode: BlendMode.dstIn,
+                        child: Image.asset(
+                          'ref_ui/notlogged_image.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                     ),
                   ),
                 ),

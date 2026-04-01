@@ -1,5 +1,6 @@
 export declare class CreateTournamentDto {
     name: string;
+    description?: string;
     territory_id?: string;
     venue_name?: string;
     venue_address?: string;

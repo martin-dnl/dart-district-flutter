@@ -87,6 +87,15 @@ export class MatchesController {
     return this.matchesService.undoLastThrow(id, req.user.id);
   }
 
+  @Post(':id/abandon')
+  abandonMatch(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { surrendered_by_index: number },
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.matchesService.abandonMatch(id, req.user.id, body);
+  }
+
   @Post()
   create(@Body() dto: CreateMatchDto) {
     return this.matchesService.create(dto);

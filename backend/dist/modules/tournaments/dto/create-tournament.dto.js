@@ -20,6 +20,11 @@ __decorate([
 ], CreateTournamentDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTournamentDto.prototype, "description", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.Matches)(/^[0-9A-Za-z]{9}$/),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

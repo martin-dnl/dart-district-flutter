@@ -44,6 +44,9 @@ let MatchesController = class MatchesController {
     undoLastThrow(id, req) {
         return this.matchesService.undoLastThrow(id, req.user.id);
     }
+    abandonMatch(id, body, req) {
+        return this.matchesService.abandonMatch(id, req.user.id, body);
+    }
     create(dto) {
         return this.matchesService.create(dto);
     }
@@ -120,6 +123,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], MatchesController.prototype, "undoLastThrow", null);
+__decorate([
+    (0, common_1.Post)(':id/abandon'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], MatchesController.prototype, "abandonMatch", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),

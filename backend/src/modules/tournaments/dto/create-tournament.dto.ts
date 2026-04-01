@@ -16,6 +16,10 @@ export class CreateTournamentDto {
   name: string;
 
   @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsString()
   @Matches(/^[0-9A-Za-z]{9}$/)
   @IsOptional()
   territory_id?: string;

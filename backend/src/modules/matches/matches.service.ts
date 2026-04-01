@@ -39,6 +39,8 @@ export class MatchesService {
       sets_to_win?: number;
       legs_per_set?: number;
       finish_type?: string;
+      is_ranked?: boolean;
+      is_territorial?: boolean;
     },
   ) {
     if (!body.invitee_id) {
@@ -64,6 +66,8 @@ export class MatchesService {
         finish: finishType,
         total_sets: setsToWin,
         legs_per_set: legsPerSet,
+        is_ranked: body.is_ranked ?? false,
+        is_territorial: body.is_territorial ?? false,
         status: 'pending',
         inviter_id: inviterId,
         invitee_id: body.invitee_id,
@@ -331,6 +335,48 @@ export class MatchesService {
     }
 
     await this.throwRepo.delete(latestThrow.id);
+
+    const serialized = await this.loadSerializedMatch(matchId);
+    const userIds = players.map((p) => p.user_id).filter(Boolean);
+    for (const id of userIds) {
+      this.systemGateway.emitUserEvent(id, 'match_score_update', serialized);
+    }
+    this.matchGateway.emitMatchUpdate(matchId, serialized);
+
+    return serialized;
+  }
+
+  async abandonMatch(
+    matchId: string,
+    userId: string,
+    body: { surrendered_by_index: number },
+  ) {
+    const match = await this.loadMatchWithGraph(matchId);
+    if (match.status !== 'in_progress') {
+      throw new BadRequestException('Match is not in progress');
+    }
+
+    const players = this.getOrderedPlayers(match);
+    const requesterIsPlayer = players.some((p) => p.user_id === userId);
+    if (!requesterIsPlayer) {
+      throw new BadRequestException('You are not a player in this match');
+    }
+
+    const surrenderedByIndex = Math.floor(body.surrendered_by_index ?? -1);
+    if (surrenderedByIndex < 0 || surrenderedByIndex >= players.length) {
+      throw new BadRequestException('Invalid surrendered_by_index');
+    }
+
+    const surrenderedPlayer = players[surrenderedByIndex];
+    match.surrendered_by = surrenderedPlayer.user_id;
+    match.status = 'completed';
+    match.ended_at = new Date();
+    await this.matchRepo.save(match);
+
+    for (const mp of match.players ?? []) {
+      mp.is_winner = mp.user_id !== surrenderedPlayer.user_id;
+    }
+    await this.playerRepo.save(match.players ?? []);
 
     const serialized = await this.loadSerializedMatch(matchId);
     const userIds = players.map((p) => p.user_id).filter(Boolean);
@@ -743,6 +789,9 @@ export class MatchesService {
       match.status === 'in_progress'
         ? this.computeCurrentPlayerIndex(match, activeLeg, playerCount)
         : starterIndex;
+    const abandonedByIndex = players.findIndex(
+      (p) => p.user_id === match.surrendered_by,
+    );
 
     const roundHistory = allThrows.map((t) => {
       const finalPlayerIndex = players.findIndex((p) => p.user_id === t.user_id);
@@ -778,6 +827,9 @@ export class MatchesService {
       'sets_to_win': match.total_sets,
       'legs_per_set': match.legs_per_set,
       'finish_type': match.finish,
+      'is_ranked': match.is_ranked,
+      'is_territorial': match.is_territorial,
+      'abandoned_by_index': abandonedByIndex < 0 ? null : abandonedByIndex,
     };
   }
 

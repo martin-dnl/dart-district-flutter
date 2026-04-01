@@ -107,6 +107,10 @@ class AuthRepository {
     return _fetchCurrentUser();
   }
 
+  Future<UserModel> fetchCurrentUser() {
+    return _fetchCurrentUser();
+  }
+
   Future<void> signOut() async {
     try {
       await _api.post<Map<String, dynamic>>('/auth/logout');

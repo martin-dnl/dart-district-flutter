@@ -61,23 +61,24 @@ class UserModel {
       elo: (json['elo'] as num?)?.toInt() ?? 1000,
       clubId: club?['id'] as String?,
       clubName: club?['name'] as String?,
-      createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()) ??
+      createdAt:
+          DateTime.tryParse((json['created_at'] ?? '').toString()) ??
           DateTime.now(),
       stats: PlayerStats.fromApi(statsJson ?? const <String, dynamic>{}),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'email': email,
-        'avatarUrl': avatarUrl,
-        'elo': elo,
-        'clubId': clubId,
-        'clubName': clubName,
-        'createdAt': createdAt.toIso8601String(),
-        'stats': stats.toJson(),
-      };
+    'id': id,
+    'username': username,
+    'email': email,
+    'avatarUrl': avatarUrl,
+    'elo': elo,
+    'clubId': clubId,
+    'clubName': clubName,
+    'createdAt': createdAt.toIso8601String(),
+    'stats': stats.toJson(),
+  };
 
   bool get isGuest => id == 'guest';
 }
@@ -88,6 +89,8 @@ class PlayerStats {
   final double averageScore;
   final double checkoutRate;
   final int highest180s;
+  final int count140Plus;
+  final int count100Plus;
   final double bestAverage;
 
   const PlayerStats({
@@ -96,6 +99,8 @@ class PlayerStats {
     this.averageScore = 0.0,
     this.checkoutRate = 0.0,
     this.highest180s = 0,
+    this.count140Plus = 0,
+    this.count100Plus = 0,
     this.bestAverage = 0.0,
   });
 
@@ -109,6 +114,8 @@ class PlayerStats {
       averageScore: (json['averageScore'] as num?)?.toDouble() ?? 0.0,
       checkoutRate: (json['checkoutRate'] as num?)?.toDouble() ?? 0.0,
       highest180s: json['highest180s'] as int? ?? 0,
+      count140Plus: json['count140Plus'] as int? ?? 0,
+      count100Plus: json['count100Plus'] as int? ?? 0,
       bestAverage: (json['bestAverage'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -120,6 +127,8 @@ class PlayerStats {
       averageScore: _toDouble(json['avg_score']),
       checkoutRate: _toDouble(json['checkout_rate']),
       highest180s: _toInt(json['total_180s']),
+      count140Plus: _toInt(json['count_140_plus']),
+      count100Plus: _toInt(json['count_100_plus']),
       bestAverage: _toDouble(json['best_avg']),
     );
   }
@@ -127,7 +136,9 @@ class PlayerStats {
   static int _toInt(dynamic value) {
     if (value == null) return 0;
     if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? double.tryParse(value)?.toInt() ?? 0;
+    if (value is String) {
+      return int.tryParse(value) ?? double.tryParse(value)?.toInt() ?? 0;
+    }
     return 0;
   }
 
@@ -139,11 +150,13 @@ class PlayerStats {
   }
 
   Map<String, dynamic> toJson() => {
-        'matchesPlayed': matchesPlayed,
-        'matchesWon': matchesWon,
-        'averageScore': averageScore,
-        'checkoutRate': checkoutRate,
-        'highest180s': highest180s,
-        'bestAverage': bestAverage,
-      };
+    'matchesPlayed': matchesPlayed,
+    'matchesWon': matchesWon,
+    'averageScore': averageScore,
+    'checkoutRate': checkoutRate,
+    'highest180s': highest180s,
+    'count140Plus': count140Plus,
+    'count100Plus': count100Plus,
+    'bestAverage': bestAverage,
+  };
 }

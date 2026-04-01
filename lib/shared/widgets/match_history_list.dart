@@ -1,0 +1,131 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/config/app_colors.dart';
+import '../models/match_history_summary.dart';
+import 'player_avatar.dart';
+
+class MatchHistoryList extends StatelessWidget {
+  const MatchHistoryList({
+    super.key,
+    required this.matches,
+    this.showLoadMore = false,
+    this.onLoadMore,
+    this.onMatchTap,
+  });
+
+  final List<MatchHistorySummary> matches;
+  final bool showLoadMore;
+  final VoidCallback? onLoadMore;
+  final ValueChanged<String>? onMatchTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ...matches.map(
+          (match) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: onMatchTap == null
+                  ? null
+                  : () => onMatchTap!.call(match.matchId),
+              child: Ink(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.stroke),
+                ),
+                child: Row(
+                  children: [
+                    PlayerAvatar(
+                      imageUrl: match.opponentAvatarUrl,
+                      name: match.opponentName,
+                      size: 36,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            match.opponentName,
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            '${match.mode} · ${_formatRelativeTime(match.playedAt)}',
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              color: AppColors.textHint,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      match.setsScore,
+                      style: GoogleFonts.manrope(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: match.won
+                            ? AppColors.success.withValues(alpha: 0.15)
+                            : AppColors.error.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        match.won ? 'V' : 'D',
+                        style: GoogleFonts.manrope(
+                          color: match.won
+                              ? AppColors.success
+                              : AppColors.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (showLoadMore && onLoadMore != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: ElevatedButton(
+              onPressed: onLoadMore,
+              child: const Text('Voir plus'),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static String _formatRelativeTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inHours < 1) return 'A l\'instant';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
+    if (diff.inDays == 1) return 'Hier';
+    return 'Il y a ${diff.inDays}j';
+  }
+}

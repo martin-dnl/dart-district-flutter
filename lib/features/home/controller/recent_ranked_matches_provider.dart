@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_providers.dart';
+import '../../../shared/models/match_history_summary.dart';
 import '../../auth/controller/auth_controller.dart';
-import '../../match/models/recent_match_summary.dart';
 
-final recentRankedMatchesProvider = FutureProvider<List<RecentMatchSummary>>((
+final recentRankedMatchesProvider = FutureProvider<List<MatchHistorySummary>>((
   ref,
 ) async {
   final api = ref.read(apiClientProvider);
@@ -26,7 +26,7 @@ final recentRankedMatchesProvider = FutureProvider<List<RecentMatchSummary>>((
   return data
       .map(
         (match) =>
-            RecentMatchSummary.fromApi(match, currentUserId: currentUserId),
+            MatchHistorySummary.fromApi(match, currentUserId: currentUserId),
       )
       .toList();
 });

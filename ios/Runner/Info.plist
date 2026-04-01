@@ -57,6 +57,12 @@
 	<string>Dart District utilise votre position pour centrer la carte sur votre emplacement.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Dart District utilise votre position pour centrer la carte sur votre emplacement.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Dart District utilise la camera pour scanner les QR codes de joueurs et de clubs.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Dart District utilise votre galerie pour choisir votre photo de profil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Dart District peut enregistrer des photos pour votre profil.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

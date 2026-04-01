@@ -12,11 +12,14 @@ import { join } from 'path';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
+import { UserBadge } from '../badges/entities/user-badge.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User) private readonly repo: Repository<User>,
+    @InjectRepository(UserBadge)
+    private readonly userBadgeRepo: Repository<UserBadge>,
   ) {}
 
   async findById(id: string) {
@@ -31,6 +34,14 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto) {
     await this.repo.update(id, dto);
     return this.findById(id);
+  }
+
+  async findMyBadges(userId: string) {
+    return this.userBadgeRepo.find({
+      where: { user_id: userId },
+      relations: ['badge'],
+      order: { earned_at: 'DESC' },
+    });
   }
 
   async uploadAvatar(userId: string, file: Express.Multer.File) {

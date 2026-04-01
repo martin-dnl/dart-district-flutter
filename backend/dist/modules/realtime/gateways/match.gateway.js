@@ -20,25 +20,37 @@ const common_1 = require("@nestjs/common");
 let MatchGateway = MatchGateway_1 = class MatchGateway {
     constructor() {
         this.logger = new common_1.Logger(MatchGateway_1.name);
+        this.rolesBySocket = new Map();
     }
     handleConnection(client) {
         this.logger.log(`Client connected: ${client.id}`);
     }
     handleDisconnect(client) {
+        this.rolesBySocket.delete(client.id);
         this.logger.log(`Client disconnected: ${client.id}`);
     }
     handleJoinMatch(client, data) {
+        const role = (data.role ?? 'player').toLowerCase();
+        const allowedRole = role === 'spectator' ? 'spectator' : 'player';
+        this.rolesBySocket.set(client.id, allowedRole);
         client.join(`match:${data.match_id}`);
-        this.logger.log(`${client.id} joined match:${data.match_id}`);
-        return { event: 'joined', match_id: data.match_id };
+        this.logger.log(`${client.id} joined match:${data.match_id} as ${allowedRole}`);
+        return { event: 'joined', match_id: data.match_id, role: allowedRole };
     }
     handleLeaveMatch(client, data) {
+        this.rolesBySocket.delete(client.id);
         client.leave(`match:${data.match_id}`);
     }
     handleThrow(client, data) {
+        if (this.rolesBySocket.get(client.id) === 'spectator') {
+            return { error: 'Spectators cannot submit throw events' };
+        }
         this.server.to(`match:${data.match_id}`).emit('throw_update', data);
     }
     handleScoreSync(client, data) {
+        if (this.rolesBySocket.get(client.id) === 'spectator') {
+            return { error: 'Spectators cannot submit score events' };
+        }
         this.server.to(`match:${data.match_id}`).emit('score_sync', data);
     }
     emitMatchUpdate(matchId, payload) {

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
 import '../controller/match_controller.dart';
 import '../controller/ongoing_matches_controller.dart';
 import '../data/match_service.dart';
+import '../models/match_model.dart';
 import '../widgets/scoreboard.dart';
 import '../widgets/dart_input.dart';
 import '../widgets/round_details.dart';
@@ -20,6 +23,8 @@ class MatchLiveScreen extends ConsumerStatefulWidget {
 }
 
 class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
+  bool _didShowEndDialog = false;
+
   bool _isRemoteMatch() {
     final match = ref.read(matchControllerProvider);
     return match.inviterId != null || match.inviteeId != null;
@@ -31,36 +36,71 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   }
 
   Future<int?> _askDoubleAttempts() {
-    return showDialog<int>(
+    return showModalBottomSheet<int>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'Checkout Double Out',
-          style: TextStyle(color: AppColors.textPrimary),
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Checkout !',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Combien de doubles tentes pour finir ?',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [0, 1, 2, 3]
+                    .map(
+                      (n) => GestureDetector(
+                        onTap: () => Navigator.pop(ctx, n),
+                        child: Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.surfaceLight),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$n',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Annuler'),
+                ),
+              ),
+            ],
+          ),
         ),
-        content: const Text(
-          'Combien de doubles as-tu tentes pour finir ce leg ?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 1),
-            child: const Text('1'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 2),
-            child: const Text('2'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 3),
-            child: const Text('3'),
-          ),
-        ],
       ),
     );
   }
@@ -109,6 +149,9 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
       if (doublesAttempted == null) {
         return;
       }
+      if (doublesAttempted < 0 || doublesAttempted > 3) {
+        return;
+      }
     }
 
     final isRemoteMatch = _isRemoteMatch();
@@ -136,6 +179,53 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         SnackBar(
           content: Text(
             _apiErrorMessage(e, 'Synchronisation score indisponible.'),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmAbandon() async {
+    final match = ref.read(matchControllerProvider);
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      builder: (ctx) => _AbandonSheet(players: match.players),
+    );
+
+    if (result == null) {
+      return;
+    }
+    await _processAbandon(result);
+  }
+
+  Future<void> _processAbandon(int abandoningPlayerIndex) async {
+    final isRemoteMatch = _isRemoteMatch();
+    if (!isRemoteMatch) {
+      ref
+          .read(matchControllerProvider.notifier)
+          .abandonMatch(abandoningPlayerIndex);
+      return;
+    }
+
+    try {
+      final match = ref.read(matchControllerProvider);
+      final api = ref.read(apiClientProvider);
+      final service = MatchService(api);
+      final updated = await service.abandonMatch(
+        matchId: match.id,
+        surrenderedByIndex: abandoningPlayerIndex,
+      );
+      ref.read(matchControllerProvider.notifier).loadMatch(updated);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _apiErrorMessage(e, 'Impossible d\'abandonner la partie.'),
           ),
         ),
       );
@@ -199,6 +289,52 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     }
   }
 
+  Future<void> _showEndOfMatchDialog(MatchModel match) async {
+    if (_didShowEndDialog || !mounted) {
+      return;
+    }
+    _didShowEndDialog = true;
+
+    final shouldOpenReport = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Match termine',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: const Text(
+          'Consulter le rapport de match ? ',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Plus tard'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.background,
+            ),
+            child: const Text('Voir le rapport'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (shouldOpenReport == true) {
+      final reportPath = AppRoutes.matchReport.replaceFirst(':id', match.id);
+      context.pushReplacement(reportPath, extra: match);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<OngoingMatchesState>(ongoingMatchesControllerProvider, (
@@ -222,10 +358,20 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
 
     final match = ref.watch(matchControllerProvider);
 
+    if (match.status == MatchStatus.finished && !_didShowEndDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showEndOfMatchDialog(match);
+      });
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('${match.mode} · Leg ${match.currentLeg}'),
+        title: Text(
+          match.setsToWin == 1
+              ? '${match.mode} · Leg ${match.currentLeg}'
+              : '${match.mode} · Set ${match.currentSet} · Leg ${match.currentLeg}',
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -263,6 +409,25 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         ),
         actions: [
           IconButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: match.id));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'ID du match copie. Partagez-le pour inviter un spectateur.',
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.visibility, color: AppColors.textSecondary),
+            tooltip: 'Inviter un spectateur',
+          ),
+          IconButton(
+            onPressed: _confirmAbandon,
+            icon: const Icon(Icons.flag_outlined, color: AppColors.warning),
+            tooltip: 'Abandonner',
+          ),
+          IconButton(
             onPressed: _confirmUndo,
             icon: const Icon(Icons.undo, color: AppColors.textSecondary),
           ),
@@ -275,6 +440,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
             Scoreboard(
               players: match.players,
               currentPlayerIndex: match.currentPlayerIndex,
+              finishType: match.finishType,
             ),
 
             // Round info
@@ -325,6 +491,89 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
             DartInput(
               maxScore: match.players[match.currentPlayerIndex].score,
               onSubmit: _submitScore,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AbandonSheet extends StatefulWidget {
+  const _AbandonSheet({required this.players});
+
+  final List<PlayerMatch> players;
+
+  @override
+  State<_AbandonSheet> createState() => _AbandonSheetState();
+}
+
+class _AbandonSheetState extends State<_AbandonSheet> {
+  int? _selectedIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Qui abandonne ?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...List.generate(widget.players.length, (index) {
+              final player = widget.players[index];
+              final isSelected = _selectedIndex == index;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                onTap: () {
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                leading: Icon(
+                  isSelected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                ),
+                title: Text(
+                  player.name,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: _selectedIndex == null
+                    ? null
+                    : () => Navigator.pop(context, _selectedIndex),
+                child: const Text('Confirmer l\'abandon'),
+              ),
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
             ),
           ],
         ),

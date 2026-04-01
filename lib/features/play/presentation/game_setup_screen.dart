@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../club/models/club_model.dart';
+import '../../club/widgets/member_list_tile.dart';
 import '../../contacts/controller/contacts_controller.dart';
 import '../../contacts/models/contact_models.dart';
 import '../../match/controller/pending_invitation_controller.dart';
@@ -11,6 +13,7 @@ import '../../match/controller/match_controller.dart';
 import '../../match/data/match_service.dart';
 import '../../../shared/widgets/dart_button.dart';
 import '../controller/play_controller.dart';
+import 'qr_scan_screen.dart';
 import '../../../core/network/api_providers.dart';
 import '../../auth/controller/auth_controller.dart';
 
@@ -27,11 +30,24 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   FinishType _finishType = FinishType.doubleOut;
   int _legsPerSet = 3;
   int _setsToWin = 1;
+  int _startingPlayerIndex = 0;
+  bool _isRanked = true;
   GameStartOption _startOption = GameStartOption.guest;
+  ContactModel? _selectedOpponent;
+  bool _isLaunchingScan = false;
 
   @override
   Widget build(BuildContext context) {
     final contacts = ref.watch(contactsControllerProvider);
+    final authState = ref.watch(authControllerProvider);
+    final currentUserName = authState.user?.username ?? 'Moi';
+    final selectedOpponent =
+        _selectedOpponent ??
+        (_startOption == GameStartOption.inviteFriend
+            ? contacts.selectedFriend
+            : null);
+    final canStart = _canStartMatch(selectedOpponent);
+    final opponentLabel = selectedOpponent?.username ?? 'Adversaire';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -45,51 +61,55 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Mode banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.gps_fixed,
-                      size: 40,
-                      color: AppColors.background,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.gameMode,
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.gps_fixed,
+                        size: 40,
                         color: AppColors.background,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.gameMode,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.background,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              const Text(
-                'Options de jeu',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 24),
+                const Text(
+                  'Options de jeu',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _OptionCard(
+                const SizedBox(height: 10),
+                GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 2.15,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _OptionCard(
                       icon: Icons.person_add,
                       label: 'Inviter un ami',
                       selected: _startOption == GameStartOption.inviteFriend,
@@ -97,241 +117,411 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                         final result = await context.push(
                           AppRoutes.gameInvitePlayer,
                         );
-                        if (!mounted) return;
-
-                        if (result is ContactModel) {
-                          setState(() {
-                            _startOption = GameStartOption.inviteFriend;
-                          });
+                        if (!mounted) {
+                          return;
                         }
+                        final selected = result is ContactModel
+                            ? result
+                            : ref
+                                  .read(contactsControllerProvider)
+                                  .selectedFriend;
+                        if (selected == null) {
+                          return;
+                        }
+                        setState(() {
+                          _startOption = GameStartOption.inviteFriend;
+                          _selectedOpponent = selected;
+                        });
                       },
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _OptionCard(
+                    _OptionCard(
                       icon: Icons.qr_code_scanner,
                       label: 'Scanner QR',
                       selected: _startOption == GameStartOption.scanQr,
-                      onTap: () {
-                        setState(() {
-                          _startOption = GameStartOption.scanQr;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Mode QR actif. Le scan pourra etre lance dans l\'etape suivante.',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: _handleUserQrScan,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _OptionCard(
+                    _OptionCard(
+                      icon: Icons.flag_circle,
+                      label: 'Territoire',
+                      selected: _startOption == GameStartOption.territory,
+                      onTap: _handleTerritoryScan,
+                    ),
+                    _OptionCard(
                       icon: Icons.person_outline,
                       label: 'Vs Invite',
                       selected: _startOption == GameStartOption.guest,
                       onTap: () {
                         setState(() {
                           _startOption = GameStartOption.guest;
+                          _selectedOpponent = null;
+                          _isRanked = false;
                         });
                       },
                     ),
-                  ),
+                  ],
+                ),
+                if (selectedOpponent != null) ...[
+                  const SizedBox(height: 10),
+                  _SelectedFriendInfo(friendName: selectedOpponent.username),
                 ],
-              ),
-              if (_startOption == GameStartOption.inviteFriend) ...[
+                const SizedBox(height: 24),
+                const Text(
+                  'Type de match',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 10),
-                _SelectedFriendInfo(
-                  friendName:
-                      contacts.selectedFriend?.username ??
-                      'Aucun joueur selectionne',
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(value: true, label: Text('Classe')),
+                    ButtonSegment<bool>(value: false, label: Text('Amical')),
+                  ],
+                  selected: {_isRanked},
+                  onSelectionChanged: _startOption == GameStartOption.guest
+                      ? null
+                      : (values) {
+                          setState(() {
+                            _isRanked = values.first;
+                          });
+                        },
+                  style: ButtonStyle(
+                    foregroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return AppColors.background;
+                      }
+                      return AppColors.textPrimary;
+                    }),
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return AppColors.primary;
+                      }
+                      return AppColors.surface;
+                    }),
+                  ),
                 ),
-              ],
-              const SizedBox(height: 24),
-
-              // Finish type
-              const Text(
-                'Type de finish',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 24),
+                const Text(
+                  'Type de finish',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: FinishType.values.map((type) {
-                  final selected = _finishType == type;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _finishType = type),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: selected
-                                ? null
-                                : Border.all(
-                                    color: AppColors.surfaceLight,
-                                    width: 0.5,
-                                  ),
-                          ),
-                          child: Text(
-                            _finishLabel(type),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                const SizedBox(height: 10),
+                Row(
+                  children: FinishType.values.map((type) {
+                    final selected = _finishType == type;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _finishType = type),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
                               color: selected
-                                  ? AppColors.background
-                                  : AppColors.textSecondary,
+                                  ? AppColors.primary
+                                  : AppColors.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: selected
+                                  ? null
+                                  : Border.all(
+                                      color: AppColors.surfaceLight,
+                                      width: 0.5,
+                                    ),
+                            ),
+                            child: Text(
+                              _finishLabel(type),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: selected
+                                    ? AppColors.background
+                                    : AppColors.textSecondary,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-
-              // Legs per set
-              _buildCounter(
-                label: 'Legs par set',
-                value: _legsPerSet,
-                onMinus: () {
-                  if (_legsPerSet > 1) setState(() => _legsPerSet--);
-                },
-                onPlus: () => setState(() => _legsPerSet++),
-              ),
-              const SizedBox(height: 16),
-
-              // Sets to win
-              _buildCounter(
-                label: 'Sets pour gagner',
-                value: _setsToWin,
-                onMinus: () {
-                  if (_setsToWin > 1) setState(() => _setsToWin--);
-                },
-                onPlus: () => setState(() => _setsToWin++),
-              ),
-
-              const Spacer(),
-
-              // Start button
-              DartButton(
-                text: 'Commencer la partie',
-                icon: Icons.play_arrow_rounded,
-                width: double.infinity,
-                onPressed: () async {
-                  final notifier = ref.read(playControllerProvider.notifier);
-                  final contactsState = ref.read(contactsControllerProvider);
-                  final authState = ref.read(authControllerProvider);
-
-                  final gameMode = _resolveGameMode(widget.gameMode);
-                  final startingScore = _resolveStartingScore(gameMode);
-                  final opponentName = switch (_startOption) {
-                    GameStartOption.guest => 'Invite',
-                    GameStartOption.scanQr => 'Adversaire QR',
-                    GameStartOption.inviteFriend =>
-                      contactsState.selectedFriend?.username ?? 'Ami',
-                  };
-
-                  if (_startOption == GameStartOption.inviteFriend &&
-                      contactsState.selectedFriend == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Selectionnez un ami dans Contacts avant de demarrer.',
-                        ),
-                      ),
                     );
-                    return;
-                  }
-
-                  notifier.setMode(gameMode);
-                  notifier.setFinishType(_finishType);
-                  notifier.setLegsPerSet(_legsPerSet);
-                  notifier.setSetsToWin(_setsToWin);
-
-                  if (_startOption == GameStartOption.inviteFriend) {
-                    final selectedFriend = contactsState.selectedFriend;
-                    final currentUser = authState.user;
-
-                    if (selectedFriend == null || currentUser == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Invitation impossible pour le moment.',
-                          ),
-                        ),
-                      );
-                      return;
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+                _buildCounter(
+                  label: 'Legs par set (BO)',
+                  value: _legsPerSet,
+                  onMinus: () {
+                    if (_legsPerSet > 1) {
+                      setState(() => _legsPerSet--);
                     }
-
-                    try {
-                      final api = ref.read(apiClientProvider);
-                      final service = MatchService(api);
-
-                      final invitation = await service.createMatchInvitation(
-                        inviteeId: selectedFriend.id,
-                        mode: _modeLabel(gameMode),
-                        startingScore: startingScore,
-                        playerNames: [
-                          currentUser.username,
-                          selectedFriend.username,
-                        ],
-                        setsToWin: _setsToWin,
-                        legsPerSet: _legsPerSet,
-                        finishType: _finishApiLabel(_finishType),
-                      );
-
-                      ref
-                          .read(pendingInvitationProvider.notifier)
-                          .startWaiting(invitation);
-
-                      if (context.mounted) {
-                        context.pop();
-                      }
-                    } catch (_) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Impossible d\'envoyer l\'invitation.'),
-                        ),
-                      );
+                  },
+                  onPlus: () => setState(() => _legsPerSet++),
+                ),
+                const SizedBox(height: 16),
+                _buildCounter(
+                  label: 'Sets pour gagner',
+                  value: _setsToWin,
+                  onMinus: () {
+                    if (_setsToWin > 1) {
+                      setState(() => _setsToWin--);
                     }
-                    return;
-                  }
-
-                  ref
-                      .read(matchControllerProvider.notifier)
-                      .setupMatch(
-                        mode: _modeLabel(gameMode),
-                        startingScore: startingScore,
-                        setsToWin: _setsToWin,
-                        legsPerSet: _legsPerSet,
-                        finishType: _finishApiLabel(_finishType),
-                        playerNames: ['Joueur 1', opponentName],
-                      );
-
-                  context.push(AppRoutes.matchLive);
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+                  },
+                  onPlus: () => setState(() => _setsToWin++),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Qui commence ?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment<int>(value: 0, label: Text(currentUserName)),
+                    ButtonSegment<int>(value: 1, label: Text(opponentLabel)),
+                  ],
+                  selected: {_startingPlayerIndex},
+                  onSelectionChanged: (values) {
+                    setState(() {
+                      _startingPlayerIndex = values.first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 24),
+                DartButton(
+                  text: 'Commencer la partie',
+                  icon: Icons.play_arrow_rounded,
+                  width: double.infinity,
+                  onPressed: canStart
+                      ? () => _startMatch(selectedOpponent: selectedOpponent)
+                      : null,
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  bool _canStartMatch(ContactModel? selectedOpponent) {
+    switch (_startOption) {
+      case GameStartOption.guest:
+        return true;
+      case GameStartOption.inviteFriend:
+      case GameStartOption.scanQr:
+      case GameStartOption.territory:
+        return selectedOpponent != null;
+    }
+  }
+
+  Future<void> _handleUserQrScan() async {
+    if (_isLaunchingScan) {
+      return;
+    }
+    setState(() {
+      _isLaunchingScan = true;
+      _startOption = GameStartOption.scanQr;
+    });
+    final result = await context.push(
+      AppRoutes.qrScan,
+      extra: {'mode': QrScanMode.user.name},
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isLaunchingScan = false;
+      if (result is ContactModel) {
+        _selectedOpponent = result;
+      }
+    });
+  }
+
+  Future<void> _handleTerritoryScan() async {
+    if (_isLaunchingScan) {
+      return;
+    }
+
+    setState(() {
+      _isLaunchingScan = true;
+      _startOption = GameStartOption.territory;
+    });
+
+    final result = await context.push(
+      AppRoutes.qrScan,
+      extra: {'mode': QrScanMode.club.name},
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result is! ClubModel) {
+      setState(() {
+        _isLaunchingScan = false;
+      });
+      return;
+    }
+
+    final selected = await showModalBottomSheet<ContactModel>(
+      context: context,
+      backgroundColor: AppColors.background,
+      showDragHandle: true,
+      builder: (context) {
+        if (result.members.isEmpty) {
+          return const SizedBox(
+            height: 180,
+            child: Center(
+              child: Text(
+                'Aucun membre disponible dans ce club.',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
+            ),
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selectionnez un adversaire (${result.name})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: result.members.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final member = result.members[index];
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          context.pop(
+                            ContactModel(
+                              id: member.id,
+                              username: member.username,
+                              avatarUrl: member.avatarUrl,
+                              elo: member.elo,
+                            ),
+                          );
+                        },
+                        child: MemberListTile(member: member, rank: index + 1),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isLaunchingScan = false;
+      if (selected != null) {
+        _selectedOpponent = selected;
+      }
+    });
+  }
+
+  Future<void> _startMatch({required ContactModel? selectedOpponent}) async {
+    final notifier = ref.read(playControllerProvider.notifier);
+    final authState = ref.read(authControllerProvider);
+
+    final gameMode = _resolveGameMode(widget.gameMode);
+    final startingScore = _resolveStartingScore(gameMode);
+
+    notifier.setMode(gameMode);
+    notifier.setFinishType(_finishType);
+    notifier.setLegsPerSet(_legsPerSet);
+    notifier.setSetsToWin(_setsToWin);
+
+    if (_startOption == GameStartOption.guest) {
+      final currentUserName = authState.user?.username ?? 'Joueur 1';
+      ref
+          .read(matchControllerProvider.notifier)
+          .setupMatch(
+            mode: _modeLabel(gameMode),
+            startingScore: startingScore,
+            setsToWin: _setsToWin,
+            legsPerSet: _legsPerSet,
+            finishType: _finishApiLabel(_finishType),
+            startingPlayerIndex: _startingPlayerIndex,
+            isRanked: false,
+            playerNames: [currentUserName, 'Invite'],
+          );
+
+      if (mounted) {
+        context.push(AppRoutes.matchLive);
+      }
+      return;
+    }
+
+    final currentUser = authState.user;
+    if (currentUser == null || selectedOpponent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selectionnez un adversaire avant de demarrer.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final api = ref.read(apiClientProvider);
+      final service = MatchService(api);
+
+      final invitation = await service.createMatchInvitation(
+        inviteeId: selectedOpponent.id,
+        mode: _modeLabel(gameMode),
+        startingScore: startingScore,
+        playerNames: [currentUser.username, selectedOpponent.username],
+        setsToWin: _setsToWin,
+        legsPerSet: _legsPerSet,
+        finishType: _finishApiLabel(_finishType),
+        isRanked: _isRanked,
+        isTerritorial: _startOption == GameStartOption.territory,
+      );
+
+      ref.read(pendingInvitationProvider.notifier).startWaiting(invitation);
+
+      if (mounted) {
+        context.pop();
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'envoyer l\'invitation.')),
+      );
+    }
   }
 
   Widget _buildCounter({
@@ -447,7 +637,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   }
 }
 
-enum GameStartOption { inviteFriend, scanQr, guest }
+enum GameStartOption { inviteFriend, scanQr, territory, guest }
 
 class _OptionCard extends StatelessWidget {
   const _OptionCard({

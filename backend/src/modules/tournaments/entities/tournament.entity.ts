@@ -5,9 +5,13 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Territory } from '../../territories/entities/territory.entity';
 import { User } from '../../users/entities/user.entity';
+import { TournamentPlayer } from './tournament-player.entity';
+import { TournamentPool } from './tournament-pool.entity';
+import { TournamentBracketMatch } from './tournament-bracket-match.entity';
 
 @Entity('tournaments')
 export class Tournament {
@@ -45,10 +49,37 @@ export class Tournament {
   entry_fee: number;
 
   @Column({ type: 'int', default: 16 })
-  max_clubs: number;
+  max_players: number;
 
   @Column({ type: 'int', default: 0 })
-  enrolled_clubs: number;
+  enrolled_players: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'single_elimination' })
+  format: string;
+
+  @Column({ type: 'int', nullable: true })
+  pool_count: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  players_per_pool: number | null;
+
+  @Column({ type: 'int', default: 2 })
+  qualified_per_pool: number;
+
+  @Column({ type: 'int', default: 3 })
+  legs_per_set_pool: number;
+
+  @Column({ type: 'int', default: 1 })
+  sets_to_win_pool: number;
+
+  @Column({ type: 'int', default: 5 })
+  legs_per_set_bracket: number;
+
+  @Column({ type: 'int', default: 1 })
+  sets_to_win_bracket: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'registration' })
+  current_phase: string;
 
   @Column({ type: 'varchar', length: 30, default: 'open' })
   status: string;
@@ -72,4 +103,13 @@ export class Tournament {
   @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'created_by' })
   creator: User;
+
+  @OneToMany(() => TournamentPlayer, (player) => player.tournament)
+  players: TournamentPlayer[];
+
+  @OneToMany(() => TournamentPool, (pool) => pool.tournament)
+  pools: TournamentPool[];
+
+  @OneToMany(() => TournamentBracketMatch, (match) => match.tournament)
+  bracket_matches: TournamentBracketMatch[];
 }

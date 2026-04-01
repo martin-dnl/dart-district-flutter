@@ -1,14 +1,25 @@
 import { Repository } from 'typeorm';
 import { Tournament } from './entities/tournament.entity';
-import { TournamentRegistration } from './entities/tournament-registration.entity';
+import { TournamentPlayer } from './entities/tournament-player.entity';
+import { TournamentPool } from './entities/tournament-pool.entity';
+import { TournamentPoolStanding } from './entities/tournament-pool-standing.entity';
+import { TournamentBracketMatch } from './entities/tournament-bracket-match.entity';
+import { CreateTournamentDto } from './dto/create-tournament.dto';
+type FindAllOptions = {
+    status?: string;
+    upcoming?: string;
+};
 export declare class TournamentsService {
     private readonly tournamentRepo;
-    private readonly regRepo;
-    constructor(tournamentRepo: Repository<Tournament>, regRepo: Repository<TournamentRegistration>);
-    create(dto: Partial<Tournament>, userId: string): Promise<Tournament>;
-    findAll(): Promise<Tournament[]>;
+    private readonly playerRepo;
+    private readonly poolRepo;
+    private readonly standingRepo;
+    private readonly bracketRepo;
+    constructor(tournamentRepo: Repository<Tournament>, playerRepo: Repository<TournamentPlayer>, poolRepo: Repository<TournamentPool>, standingRepo: Repository<TournamentPoolStanding>, bracketRepo: Repository<TournamentBracketMatch>);
+    create(dto: CreateTournamentDto, userId: string): Promise<Tournament>;
+    findAll(options?: FindAllOptions): Promise<Tournament[]>;
     findById(id: string): Promise<{
-        registrations: TournamentRegistration[];
+        players: TournamentPlayer[];
         id: string;
         name: string;
         description: string | null;
@@ -20,8 +31,17 @@ export declare class TournamentsService {
         venue_address: string | null;
         city: string | null;
         entry_fee: number;
-        max_clubs: number;
-        enrolled_clubs: number;
+        max_players: number;
+        enrolled_players: number;
+        format: string;
+        pool_count: number | null;
+        players_per_pool: number | null;
+        qualified_per_pool: number;
+        legs_per_set_pool: number;
+        sets_to_win_pool: number;
+        legs_per_set_bracket: number;
+        sets_to_win_bracket: number;
+        current_phase: string;
         status: string;
         scheduled_at: Date;
         ended_at: Date | null;
@@ -29,7 +49,21 @@ export declare class TournamentsService {
         created_at: Date;
         territory: import("../territories/entities/territory.entity").Territory;
         creator: import("../users/entities/user.entity").User;
+        pools: TournamentPool[];
+        bracket_matches: TournamentBracketMatch[];
     }>;
-    registerClub(tournamentId: string, clubId: string, userId: string): Promise<TournamentRegistration>;
-    unregisterClub(tournamentId: string, clubId: string): Promise<void>;
+    registerPlayer(tournamentId: string, userId: string): Promise<TournamentPlayer>;
+    unregisterPlayer(tournamentId: string, userId: string): Promise<void>;
+    getPools(tournamentId: string): Promise<TournamentPool[]>;
+    generatePools(tournamentId: string, userId: string): Promise<TournamentPool[]>;
+    getPoolStandings(poolId: string): Promise<TournamentPoolStanding[]>;
+    updatePoolResult(_poolId: string, _matchId: string): Promise<void>;
+    generateBracket(tournamentId: string, userId: string): Promise<TournamentBracketMatch[]>;
+    getBracket(tournamentId: string): Promise<TournamentBracketMatch[]>;
+    advancePhase(tournamentId: string, userId: string): Promise<Tournament>;
+    disqualifyPlayer(tournamentId: string, playerId: string, reason: string, requesterId: string): Promise<void>;
+    private assertCreator;
+    private getQualifiedPlayers;
+    private nextPowerOfTwo;
 }
+export {};

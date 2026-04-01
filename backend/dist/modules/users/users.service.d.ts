@@ -1,11 +1,14 @@
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserBadge } from '../badges/entities/user-badge.entity';
 export declare class UsersService {
     private readonly repo;
-    constructor(repo: Repository<User>);
+    private readonly userBadgeRepo;
+    constructor(repo: Repository<User>, userBadgeRepo: Repository<UserBadge>);
     findById(id: string): Promise<User>;
     update(id: string, dto: UpdateUserDto): Promise<User>;
+    findMyBadges(userId: string): Promise<UserBadge[]>;
     uploadAvatar(userId: string, file: Express.Multer.File): Promise<{
         avatar_md_url: string;
         avatar_sm_url: string;

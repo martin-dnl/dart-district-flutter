@@ -5,8 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/network/api_providers.dart';
+import '../../../shared/models/match_history_summary.dart';
+import '../../../shared/widgets/match_history_list.dart';
 import '../../auth/controller/auth_controller.dart';
-import '../models/recent_match_summary.dart';
 
 class MatchHistoryScreen extends ConsumerStatefulWidget {
   const MatchHistoryScreen({super.key});
@@ -18,7 +19,7 @@ class MatchHistoryScreen extends ConsumerStatefulWidget {
 class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
   static const int _pageSize = 10;
 
-  final List<RecentMatchSummary> _matches = <RecentMatchSummary>[];
+  final List<MatchHistorySummary> _matches = <MatchHistorySummary>[];
   bool _isInitialLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -80,7 +81,7 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
       final nextBatch = rows
           .map(
             (raw) =>
-                RecentMatchSummary.fromApi(raw, currentUserId: currentUserId),
+                MatchHistorySummary.fromApi(raw, currentUserId: currentUserId),
           )
           .toList();
 
@@ -132,77 +133,13 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
                       ),
                     ),
                   Expanded(
-                    child: ListView.builder(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                      itemCount: _matches.length,
-                      itemBuilder: (context, index) {
-                        final match = _matches[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () =>
-                                context.push('/match/${match.id}/report'),
-                            child: Ink(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AppColors.stroke),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      match.opponentName,
-                                      style: GoogleFonts.manrope(
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    match.setsScore,
-                                    style: GoogleFonts.manrope(
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Container(
-                                    width: 24,
-                                    height: 24,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: match.won
-                                          ? AppColors.success.withValues(
-                                              alpha: 0.18,
-                                            )
-                                          : AppColors.error.withValues(
-                                              alpha: 0.18,
-                                            ),
-                                      borderRadius: BorderRadius.circular(7),
-                                    ),
-                                    child: Text(
-                                      match.won ? 'V' : 'D',
-                                      style: GoogleFonts.manrope(
-                                        color: match.won
-                                            ? AppColors.success
-                                            : AppColors.error,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                      child: MatchHistoryList(
+                        matches: _matches,
+                        onMatchTap: (matchId) =>
+                            context.push('/match/$matchId/report'),
+                      ),
                     ),
                   ),
                   if (_hasMore)

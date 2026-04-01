@@ -24,6 +24,9 @@ class MatchController extends StateNotifier<MatchModel> {
     int setsToWin = 1,
     int legsPerSet = 3,
     String finishType = 'doubleOut',
+    int startingPlayerIndex = 0,
+    bool isRanked = true,
+    bool isTerritorial = false,
     String? inviterId,
     String? inviteeId,
   }) {
@@ -35,11 +38,14 @@ class MatchController extends StateNotifier<MatchModel> {
         for (final name in playerNames)
           PlayerMatch(name: name, score: startingScore),
       ],
-      startingPlayerIndex: 0,
+      startingPlayerIndex: startingPlayerIndex,
+      currentPlayerIndex: startingPlayerIndex,
       status: MatchStatus.inProgress,
       setsToWin: setsToWin,
       legsPerSet: legsPerSet,
       finishType: finishType,
+      isRanked: isRanked,
+      isTerritorial: isTerritorial,
       inviterId: inviterId,
       inviteeId: inviteeId,
       invitationStatus: inviteeId != null ? InvitationStatus.pending : null,
@@ -70,7 +76,7 @@ class MatchController extends StateNotifier<MatchModel> {
 
     if (newScore == 0 && _isDoubleOutMode()) {
       if (doublesAttempted == null ||
-          doublesAttempted < 1 ||
+          doublesAttempted < 0 ||
           doublesAttempted > 3) {
         return;
       }
@@ -113,8 +119,10 @@ class MatchController extends StateNotifier<MatchModel> {
       players[state.currentPlayerIndex] = players[state.currentPlayerIndex]
           .copyWith(legsWon: currentPlayer.legsWon + 1);
 
+      final legsToWinSet = (state.legsPerSet / 2).ceil();
+
       // Check if current player won the set
-      if (currentPlayer.legsWon + 1 >= state.legsPerSet) {
+      if (currentPlayer.legsWon + 1 >= legsToWinSet) {
         // Player wins the set
         players[state.currentPlayerIndex] = players[state.currentPlayerIndex]
             .copyWith(setsWon: currentPlayer.setsWon + 1);
@@ -253,6 +261,30 @@ class MatchController extends StateNotifier<MatchModel> {
 
   void endMatch() {
     state = state.copyWith(status: MatchStatus.finished);
+  }
+
+  void abandonMatch(int abandoningPlayerIndex) {
+    if (state.status != MatchStatus.inProgress) {
+      return;
+    }
+    if (abandoningPlayerIndex < 0 ||
+        abandoningPlayerIndex >= state.players.length) {
+      return;
+    }
+
+    final winnerIndex = abandoningPlayerIndex == 0 ? 1 : 0;
+    final players = List<PlayerMatch>.from(state.players);
+    if (winnerIndex >= 0 && winnerIndex < players.length) {
+      players[winnerIndex] = players[winnerIndex].copyWith(
+        setsWon: state.setsToWin,
+      );
+    }
+
+    state = state.copyWith(
+      status: MatchStatus.finished,
+      players: players,
+      abandonedByIndex: abandoningPlayerIndex,
+    );
   }
 
   bool _isDoubleOutMode() {

@@ -22,9 +22,11 @@ const promises_1 = require("fs/promises");
 const path_1 = require("path");
 const user_entity_1 = require("./entities/user.entity");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
+const user_badge_entity_1 = require("../badges/entities/user-badge.entity");
 let UsersService = class UsersService {
-    constructor(repo) {
+    constructor(repo, userBadgeRepo) {
         this.repo = repo;
+        this.userBadgeRepo = userBadgeRepo;
     }
     async findById(id) {
         const user = await this.repo.findOne({
@@ -38,6 +40,13 @@ let UsersService = class UsersService {
     async update(id, dto) {
         await this.repo.update(id, dto);
         return this.findById(id);
+    }
+    async findMyBadges(userId) {
+        return this.userBadgeRepo.find({
+            where: { user_id: userId },
+            relations: ['badge'],
+            order: { earned_at: 'DESC' },
+        });
     }
     async uploadAvatar(userId, file) {
         const user = await this.repo.findOne({ where: { id: userId } });
@@ -121,6 +130,8 @@ exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(user_badge_entity_1.UserBadge)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
   Req,
   ParseUUIDPipe,
@@ -12,8 +13,8 @@ import {
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { TournamentsService } from './tournaments.service';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
-import { RegisterClubDto } from './dto/register-club.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { DisqualifyPlayerDto } from './dto/disqualify-player.dto';
 
 @ApiTags('tournaments')
 @ApiBearerAuth()
@@ -24,12 +25,15 @@ export class TournamentsController {
 
   @Post()
   create(@Body() dto: CreateTournamentDto, @Req() req: { user: { id: string } }) {
-    return this.tournamentsService.create(dto as any, req.user.id);
+    return this.tournamentsService.create(dto, req.user.id);
   }
 
   @Get()
-  findAll() {
-    return this.tournamentsService.findAll();
+  findAll(
+    @Query('status') status?: string,
+    @Query('upcoming') upcoming?: string,
+  ) {
+    return this.tournamentsService.findAll({ status, upcoming });
   }
 
   @Get(':id')
@@ -40,17 +44,70 @@ export class TournamentsController {
   @Post(':id/register')
   register(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: RegisterClubDto,
     @Req() req: { user: { id: string } },
   ) {
-    return this.tournamentsService.registerClub(id, dto.club_id, req.user.id);
+    return this.tournamentsService.registerPlayer(id, req.user.id);
   }
 
-  @Delete(':id/register/:clubId')
+  @Delete(':id/register')
   unregister(
     @Param('id', ParseUUIDPipe) id: string,
-    @Param('clubId', ParseUUIDPipe) clubId: string,
+    @Req() req: { user: { id: string } },
   ) {
-    return this.tournamentsService.unregisterClub(id, clubId);
+    return this.tournamentsService.unregisterPlayer(id, req.user.id);
+  }
+
+  @Post(':id/pools')
+  generatePools(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.tournamentsService.generatePools(id, req.user.id);
+  }
+
+  @Get(':id/pools')
+  getPools(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tournamentsService.getPools(id);
+  }
+
+  @Get(':id/pools/:poolId/standings')
+  getPoolStandings(@Param('poolId', ParseUUIDPipe) poolId: string) {
+    return this.tournamentsService.getPoolStandings(poolId);
+  }
+
+  @Post(':id/bracket')
+  generateBracket(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.tournamentsService.generateBracket(id, req.user.id);
+  }
+
+  @Get(':id/bracket')
+  getBracket(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tournamentsService.getBracket(id);
+  }
+
+  @Post(':id/advance')
+  advancePhase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.tournamentsService.advancePhase(id, req.user.id);
+  }
+
+  @Post(':id/disqualify/:playerId')
+  disqualify(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('playerId', ParseUUIDPipe) playerId: string,
+    @Body() dto: DisqualifyPlayerDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.tournamentsService.disqualifyPlayer(
+      id,
+      playerId,
+      dto.reason,
+      req.user.id,
+    );
   }
 }

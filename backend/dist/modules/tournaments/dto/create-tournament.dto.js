@@ -28,12 +28,34 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreateTournamentDto.prototype, "venue", void 0);
+], CreateTournamentDto.prototype, "venue_name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTournamentDto.prototype, "venue_address", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTournamentDto.prototype, "city", void 0);
 __decorate([
     (0, class_validator_1.IsBoolean)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], CreateTournamentDto.prototype, "is_territorial", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['301', '501', '701', 'cricket', 'chasseur']),
+    __metadata("design:type", String)
+], CreateTournamentDto.prototype, "mode", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['double_out', 'single_out', 'master_out']),
+    __metadata("design:type", String)
+], CreateTournamentDto.prototype, "finish", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsOptional)(),
@@ -41,9 +63,52 @@ __decorate([
 ], CreateTournamentDto.prototype, "entry_fee", void 0);
 __decorate([
     (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(4),
+    (0, class_validator_1.Max)(64),
+    __metadata("design:type", Number)
+], CreateTournamentDto.prototype, "max_players", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['single_elimination', 'pools_then_elimination']),
+    __metadata("design:type", String)
+], CreateTournamentDto.prototype, "format", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.Min)(2),
     __metadata("design:type", Number)
-], CreateTournamentDto.prototype, "max_clubs", void 0);
+], CreateTournamentDto.prototype, "pool_count", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateTournamentDto.prototype, "qualified_per_pool", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateTournamentDto.prototype, "legs_per_set_pool", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateTournamentDto.prototype, "sets_to_win_pool", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateTournamentDto.prototype, "legs_per_set_bracket", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateTournamentDto.prototype, "sets_to_win_bracket", void 0);
 __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)

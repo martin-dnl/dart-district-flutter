@@ -8,6 +8,11 @@ export declare class UsersController {
             id: string;
         };
     }): Promise<import("./entities/user.entity").User>;
+    myBadges(req: {
+        user: {
+            id: string;
+        };
+    }): Promise<import("../badges/entities/user-badge.entity").UserBadge[]>;
     leaderboard(limit?: number): Promise<import("./entities/user.entity").User[]>;
     search(q: string, limit?: number): Promise<import("./entities/user.entity").User[]>;
     findOne(id: string): Promise<import("./entities/user.entity").User>;

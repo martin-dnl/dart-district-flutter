@@ -13,15 +13,19 @@ import '../../features/map/presentation/map_screen.dart';
 import '../../features/play/presentation/play_screen.dart';
 import '../../features/play/presentation/game_setup_screen.dart';
 import '../../features/play/presentation/match_invite_player_screen.dart';
+import '../../features/play/presentation/qr_scan_screen.dart';
 import '../../features/club/presentation/club_screen.dart';
 import '../../features/club/presentation/club_detail_screen.dart';
 import '../../features/contacts/presentation/contacts_screen.dart';
 import '../../features/contacts/presentation/contacts_chat_screen.dart';
 import '../../features/contacts/models/contact_models.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/profile/presentation/badges_screen.dart';
 import '../../features/profile/presentation/settings_screen.dart';
 import '../../features/match/presentation/match_live_screen.dart';
 import '../../features/match/presentation/match_history_screen.dart';
+import '../../features/match/presentation/match_report_screen.dart';
+import '../../features/match/presentation/match_spectate_screen.dart';
 import '../../features/tournaments/presentation/tournaments_list_screen.dart';
 import '../../features/tournaments/presentation/tournament_create_screen.dart';
 import '../../features/tournaments/presentation/tournament_detail_screen.dart';
@@ -40,6 +44,7 @@ class AppRoutes {
   static const String play = '/play';
   static const String gameSetup = '/play/setup';
   static const String gameInvitePlayer = '/play/setup/invite-player';
+  static const String qrScan = '/play/qr-scan';
   static const String club = '/club';
   static const String clubDetail = '/club/:id';
   static const String contacts = '/contacts';
@@ -49,8 +54,11 @@ class AppRoutes {
   static const String tournamentDetail = '/tournaments/:id';
   static const String profile = '/profile';
   static const String settings = '/profile/settings';
+  static const String badges = '/profile/badges';
   static const String matchLive = '/match';
   static const String matchHistory = '/match-history';
+  static const String matchReport = '/match/:id/report';
+  static const String matchSpectate = '/match/:id/spectate';
 
   static const Set<String> publicRoutes = {
     notLogged,
@@ -204,6 +212,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: AppRoutes.qrScan,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final scanMode = (extra?['mode'] ?? QrScanMode.user.name).toString();
+          final mode = scanMode == QrScanMode.club.name
+              ? QrScanMode.club
+              : QrScanMode.user;
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: QrScanScreen(mode: mode),
+          );
+        },
+      ),
+      GoRoute(
         path: AppRoutes.matchLive,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, state) => NoTransitionPage(
@@ -224,6 +247,28 @@ final routerProvider = Provider<GoRouter>((ref) {
           key: state.pageKey,
           child: const MatchHistoryScreen(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.matchReport,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) {
+          final matchId = state.pathParameters['id'] ?? '';
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: MatchReportScreen(matchId: matchId, extra: state.extra),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.matchSpectate,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) {
+          final matchId = state.pathParameters['id'] ?? '';
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: MatchSpectateScreen(matchId: matchId),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.clubDetail,
@@ -260,6 +305,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, state) =>
             NoTransitionPage(key: state.pageKey, child: const SettingsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.badges,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) =>
+            NoTransitionPage(key: state.pageKey, child: const BadgesScreen()),
       ),
       GoRoute(
         path: AppRoutes.contactsChat,

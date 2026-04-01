@@ -17,8 +17,8 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const tournaments_service_1 = require("./tournaments.service");
 const create_tournament_dto_1 = require("./dto/create-tournament.dto");
-const register_club_dto_1 = require("./dto/register-club.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const disqualify_player_dto_1 = require("./dto/disqualify-player.dto");
 let TournamentsController = class TournamentsController {
     constructor(tournamentsService) {
         this.tournamentsService = tournamentsService;
@@ -26,17 +26,38 @@ let TournamentsController = class TournamentsController {
     create(dto, req) {
         return this.tournamentsService.create(dto, req.user.id);
     }
-    findAll() {
-        return this.tournamentsService.findAll();
+    findAll(status, upcoming) {
+        return this.tournamentsService.findAll({ status, upcoming });
     }
     findOne(id) {
         return this.tournamentsService.findById(id);
     }
-    register(id, dto, req) {
-        return this.tournamentsService.registerClub(id, dto.club_id, req.user.id);
+    register(id, req) {
+        return this.tournamentsService.registerPlayer(id, req.user.id);
     }
-    unregister(id, clubId) {
-        return this.tournamentsService.unregisterClub(id, clubId);
+    unregister(id, req) {
+        return this.tournamentsService.unregisterPlayer(id, req.user.id);
+    }
+    generatePools(id, req) {
+        return this.tournamentsService.generatePools(id, req.user.id);
+    }
+    getPools(id) {
+        return this.tournamentsService.getPools(id);
+    }
+    getPoolStandings(poolId) {
+        return this.tournamentsService.getPoolStandings(poolId);
+    }
+    generateBracket(id, req) {
+        return this.tournamentsService.generateBracket(id, req.user.id);
+    }
+    getBracket(id) {
+        return this.tournamentsService.getBracket(id);
+    }
+    advancePhase(id, req) {
+        return this.tournamentsService.advancePhase(id, req.user.id);
+    }
+    disqualify(id, playerId, dto, req) {
+        return this.tournamentsService.disqualifyPlayer(id, playerId, dto.reason, req.user.id);
     }
 };
 exports.TournamentsController = TournamentsController;
@@ -50,8 +71,10 @@ __decorate([
 ], TournamentsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('status')),
+    __param(1, (0, common_1.Query)('upcoming')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], TournamentsController.prototype, "findAll", null);
 __decorate([
@@ -64,20 +87,74 @@ __decorate([
 __decorate([
     (0, common_1.Post)(':id/register'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
-    __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Req)()),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, register_club_dto_1.RegisterClubDto, Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], TournamentsController.prototype, "register", null);
 __decorate([
-    (0, common_1.Delete)(':id/register/:clubId'),
+    (0, common_1.Delete)(':id/register'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
-    __param(1, (0, common_1.Param)('clubId', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], TournamentsController.prototype, "unregister", null);
+__decorate([
+    (0, common_1.Post)(':id/pools'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TournamentsController.prototype, "generatePools", null);
+__decorate([
+    (0, common_1.Get)(':id/pools'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TournamentsController.prototype, "getPools", null);
+__decorate([
+    (0, common_1.Get)(':id/pools/:poolId/standings'),
+    __param(0, (0, common_1.Param)('poolId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TournamentsController.prototype, "getPoolStandings", null);
+__decorate([
+    (0, common_1.Post)(':id/bracket'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TournamentsController.prototype, "generateBracket", null);
+__decorate([
+    (0, common_1.Get)(':id/bracket'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TournamentsController.prototype, "getBracket", null);
+__decorate([
+    (0, common_1.Post)(':id/advance'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TournamentsController.prototype, "advancePhase", null);
+__decorate([
+    (0, common_1.Post)(':id/disqualify/:playerId'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Param)('playerId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, disqualify_player_dto_1.DisqualifyPlayerDto, Object]),
+    __metadata("design:returntype", void 0)
+], TournamentsController.prototype, "disqualify", null);
 exports.TournamentsController = TournamentsController = __decorate([
     (0, swagger_1.ApiTags)('tournaments'),
     (0, swagger_1.ApiBearerAuth)(),

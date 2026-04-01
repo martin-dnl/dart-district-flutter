@@ -5,11 +5,16 @@ import '../controller/profile_controller.dart';
 
 class BadgeGrid extends StatelessWidget {
   final List<AchievementBadge> badges;
+  final int? maxDisplay;
 
-  const BadgeGrid({super.key, required this.badges});
+  const BadgeGrid({super.key, required this.badges, this.maxDisplay});
 
   @override
   Widget build(BuildContext context) {
+    final displayed = maxDisplay == null
+        ? badges
+        : badges.take(maxDisplay!).toList();
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -19,9 +24,9 @@ class BadgeGrid extends StatelessWidget {
         mainAxisSpacing: 10,
         childAspectRatio: 0.85,
       ),
-      itemCount: badges.length,
+      itemCount: displayed.length,
       itemBuilder: (context, index) {
-        final badge = badges[index];
+        final badge = displayed[index];
         return _BadgeItem(badge: badge);
       },
     );

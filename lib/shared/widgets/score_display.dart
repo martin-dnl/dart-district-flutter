@@ -8,6 +8,8 @@ class ScoreDisplay extends StatelessWidget {
   final bool isActive;
   final int legsWon;
   final int setsWon;
+  final String? averageText;
+  final String? checkoutText;
 
   const ScoreDisplay({
     super.key,
@@ -16,6 +18,8 @@ class ScoreDisplay extends StatelessWidget {
     this.isActive = false,
     this.legsWon = 0,
     this.setsWon = 0,
+    this.averageText,
+    this.checkoutText,
   });
 
   @override
@@ -51,6 +55,26 @@ class ScoreDisplay extends StatelessWidget {
               color: isActive ? AppColors.primary : AppColors.textPrimary,
             ),
           ),
+          const SizedBox(height: 2),
+          Text(
+            averageText ?? 'Moy. 0.0',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (checkoutText != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              checkoutText!,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.accent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -74,10 +98,7 @@ class ScoreDisplay extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 11,
-          color: AppColors.textSecondary,
-        ),
+        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
       ),
     );
   }

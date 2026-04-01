@@ -27,6 +27,9 @@ let UsersController = class UsersController {
     me(req) {
         return this.usersService.findById(req.user.id);
     }
+    myBadges(req) {
+        return this.usersService.findMyBadges(req.user.id);
+    }
     leaderboard(limit) {
         return this.usersService.leaderboard(limit);
     }
@@ -57,6 +60,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "me", null);
+__decorate([
+    (0, common_1.Get)('me/badges'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "myBadges", null);
 __decorate([
     (0, common_1.Get)('leaderboard'),
     __param(0, (0, common_1.Query)('limit')),

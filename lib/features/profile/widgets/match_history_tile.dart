@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../shared/models/match_history_summary.dart';
 import '../../../shared/widgets/glass_card.dart';
-import '../controller/profile_controller.dart';
 
 class MatchHistoryTile extends StatelessWidget {
-  final MatchHistory match;
+  final MatchHistorySummary match;
 
   const MatchHistoryTile({super.key, required this.match});
 
@@ -34,7 +34,7 @@ class MatchHistoryTile extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'vs ${match.opponent}',
+                      'vs ${match.opponentName}',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -44,7 +44,9 @@ class MatchHistoryTile extends StatelessWidget {
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceLight,
                         borderRadius: BorderRadius.circular(4),
@@ -61,7 +63,7 @@ class MatchHistoryTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Moy: ${match.average.toStringAsFixed(1)} · ${_formatDate(match.date)}',
+                  _formatDate(match.playedAt),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textHint,
@@ -76,23 +78,14 @@ class MatchHistoryTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                match.score,
+                match.setsScore,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: match.won ? AppColors.success : AppColors.error,
                 ),
               ),
-              Text(
-                '${match.eloChange >= 0 ? '+' : ''}${match.eloChange} ELO',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: match.eloChange >= 0
-                      ? AppColors.success
-                      : AppColors.error,
-                ),
-              ),
+              const SizedBox(height: 2),
             ],
           ),
         ],
@@ -103,7 +96,7 @@ class MatchHistoryTile extends StatelessWidget {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    if (diff.inHours < 1) return 'À l\'instant';
+    if (diff.inHours < 1) return 'A l\'instant';
     if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
     if (diff.inDays == 1) return 'Hier';
     return 'Il y a ${diff.inDays}j';

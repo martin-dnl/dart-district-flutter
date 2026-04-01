@@ -178,7 +178,7 @@ class HomeController extends StateNotifier<HomeState> {
         tournamentTitle: (tournament['name'] ?? 'Aucun tournoi').toString(),
         tournamentCountdown: _humanizeDate(tournament['scheduled_at']),
         tournamentSlots:
-            '${(tournament['enrolled_clubs'] ?? 0).toString()}/${(tournament['max_clubs'] ?? 0).toString()}',
+            '${(tournament['enrolled_players'] ?? 0).toString()}/${(tournament['max_players'] ?? 0).toString()}',
       );
     } catch (_) {
       state = state.copyWith(isLoading: false);

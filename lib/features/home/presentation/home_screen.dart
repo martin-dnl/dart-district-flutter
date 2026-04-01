@@ -6,11 +6,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
-import '../../match/models/recent_match_summary.dart';
 import '../controller/home_controller.dart';
 import '../controller/my_active_tournaments_provider.dart';
 import '../controller/recent_ranked_matches_provider.dart';
 import '../widgets/tournament_tile.dart';
+import '../../../shared/models/match_history_summary.dart';
+import '../../../shared/widgets/match_history_list.dart';
 import '../../../shared/widgets/player_avatar.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -93,7 +94,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                     error: (_, _) =>
-                        _RecentFormCard(matches: const <RecentMatchSummary>[]),
+                        _RecentFormCard(matches: const <MatchHistorySummary>[]),
                   ),
                 ),
               ),
@@ -145,7 +146,7 @@ class HomeScreen extends ConsumerWidget {
                             (tournament['scheduled_at_label'] ?? 'En cours')
                                 .toString(),
                         slotsLabel:
-                            '${(tournament['enrolled_clubs'] ?? 0).toString()}/${(tournament['max_clubs'] ?? 0).toString()}',
+                            '${(tournament['enrolled_players'] ?? 0).toString()}/${(tournament['max_players'] ?? 0).toString()}',
                       );
                     },
                     loading: () => const Center(
@@ -380,7 +381,7 @@ class _SectionTitle extends StatelessWidget {
 class _RecentFormCard extends StatelessWidget {
   const _RecentFormCard({required this.matches});
 
-  final List<RecentMatchSummary> matches;
+  final List<MatchHistorySummary> matches;
 
   @override
   Widget build(BuildContext context) {
@@ -417,62 +418,7 @@ class _RecentFormCard extends StatelessWidget {
               ),
             )
           else
-            ...recent.map(
-              (match) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.stroke),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        match.opponentName,
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      match.setsScore,
-                      style: GoogleFonts.manrope(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: match.won
-                            ? AppColors.success.withValues(alpha: 0.18)
-                            : AppColors.error.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: Text(
-                        match.won ? 'V' : 'D',
-                        style: GoogleFonts.manrope(
-                          color: match.won
-                              ? AppColors.success
-                              : AppColors.error,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            MatchHistoryList(matches: recent),
         ],
       ),
     );

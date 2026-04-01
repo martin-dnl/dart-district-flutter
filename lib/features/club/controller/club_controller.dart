@@ -52,7 +52,8 @@ class ClubController extends StateNotifier<ClubState> {
     try {
       final api = _ref.read(apiClientProvider);
       final meResponse = await api.get<Map<String, dynamic>>('/users/me');
-      final meData = meResponse.data?['data'] as Map<String, dynamic>? ??
+      final meData =
+          meResponse.data?['data'] as Map<String, dynamic>? ??
           const <String, dynamic>{};
 
       final memberships =
@@ -73,30 +74,34 @@ class ClubController extends StateNotifier<ClubState> {
         return;
       }
 
-      final clubResponse = await api.get<Map<String, dynamic>>('/clubs/$clubId');
-      final clubData = clubResponse.data?['data'] as Map<String, dynamic>? ??
+      final clubResponse = await api.get<Map<String, dynamic>>(
+        '/clubs/$clubId',
+      );
+      final clubData =
+          clubResponse.data?['data'] as Map<String, dynamic>? ??
           const <String, dynamic>{};
 
-        final tournamentsResponse =
-          await api.get<Map<String, dynamic>>('/tournaments');
-        final tournaments =
+      final tournamentsResponse = await api.get<Map<String, dynamic>>(
+        '/tournaments',
+      );
+      final tournaments =
           (tournamentsResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
-            .whereType<Map<String, dynamic>>()
-            .toList();
-        final currentTournament = tournaments.isNotEmpty
+              .whereType<Map<String, dynamic>>()
+              .toList();
+      final currentTournament = tournaments.isNotEmpty
           ? tournaments.first
           : const <String, dynamic>{};
 
-        final mode = (currentTournament['mode'] ?? '501').toString();
-        final maxClubs = (currentTournament['max_clubs'] ?? 0).toString();
-        final status = (currentTournament['status'] ?? 'aucun').toString();
+      final mode = (currentTournament['mode'] ?? '501').toString();
+      final maxPlayers = (currentTournament['max_players'] ?? 0).toString();
+      final status = (currentTournament['status'] ?? 'aucun').toString();
 
       state = state.copyWith(
         isLoading: false,
         club: ClubModel.fromApi(clubData),
-        tournamentName:
-          (currentTournament['name'] ?? 'Aucun tournoi').toString(),
-        tournamentMeta: '$mode · $maxClubs clubs max',
+        tournamentName: (currentTournament['name'] ?? 'Aucun tournoi')
+            .toString(),
+        tournamentMeta: '$mode · $maxPlayers joueurs max',
         tournamentStatus: status,
       );
     } catch (_) {
@@ -109,7 +114,8 @@ class ClubController extends StateNotifier<ClubState> {
   }
 }
 
-final clubControllerProvider =
-    StateNotifierProvider<ClubController, ClubState>((ref) {
-  return ClubController(ref);
-});
+final clubControllerProvider = StateNotifierProvider<ClubController, ClubState>(
+  (ref) {
+    return ClubController(ref);
+  },
+);

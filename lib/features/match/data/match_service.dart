@@ -16,6 +16,8 @@ class MatchService {
     required int setsToWin,
     required int legsPerSet,
     required String finishType,
+    required bool isRanked,
+    bool isTerritorial = false,
   }) async {
     try {
       final response = await _api.post(
@@ -28,10 +30,12 @@ class MatchService {
           'sets_to_win': setsToWin,
           'legs_per_set': legsPerSet,
           'finish_type': finishType,
+          'is_ranked': isRanked,
+          'is_territorial': isTerritorial,
         },
       );
 
-      return _matchFromJson(response.data['data']);
+      return matchFromJson(response.data['data']);
     } catch (e) {
       rethrow;
     }
@@ -42,7 +46,7 @@ class MatchService {
     try {
       final response = await _api.get('/matches/ongoing');
       final data = response.data['data'] as List;
-      return data.map((m) => _matchFromJson(m)).toList();
+      return data.map((m) => matchFromJson(m)).toList();
     } catch (e) {
       rethrow;
     }
@@ -52,7 +56,7 @@ class MatchService {
   Future<MatchModel> getMatch(String matchId) async {
     try {
       final response = await _api.get('/matches/$matchId');
-      return _matchFromJson(response.data['data']);
+      return matchFromJson(response.data['data']);
     } catch (e) {
       rethrow;
     }
@@ -62,7 +66,7 @@ class MatchService {
   Future<MatchModel> acceptInvitation(String matchId) async {
     try {
       final response = await _api.post('/matches/$matchId/accept');
-      return _matchFromJson(response.data['data']);
+      return matchFromJson(response.data['data']);
     } catch (e) {
       rethrow;
     }
@@ -95,7 +99,7 @@ class MatchService {
               : {'doubles_attempted': doublesAttempted},
         },
       );
-      return _matchFromJson(response.data['data']);
+      return matchFromJson(response.data['data']);
     } catch (e) {
       rethrow;
     }
@@ -114,13 +118,28 @@ class MatchService {
   Future<MatchModel> undoLastThrow(String matchId) async {
     try {
       final response = await _api.post('/matches/$matchId/undo');
-      return _matchFromJson(response.data['data']);
+      return matchFromJson(response.data['data']);
     } catch (e) {
       rethrow;
     }
   }
 
-  MatchModel _matchFromJson(Map<String, dynamic> json) {
+  Future<MatchModel> abandonMatch({
+    required String matchId,
+    required int surrenderedByIndex,
+  }) async {
+    try {
+      final response = await _api.post(
+        '/matches/$matchId/abandon',
+        data: {'surrendered_by_index': surrenderedByIndex},
+      );
+      return matchFromJson(response.data['data']);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  MatchModel matchFromJson(Map<String, dynamic> json) {
     return MatchModel(
       id: (json['id'] ?? '').toString(),
       mode: (json['mode'] ?? '501').toString(),
@@ -169,6 +188,9 @@ class MatchService {
       setsToWin: (json['sets_to_win'] as num?)?.toInt() ?? 1,
       legsPerSet: (json['legs_per_set'] as num?)?.toInt() ?? 3,
       finishType: (json['finish_type'] ?? 'doubleOut').toString(),
+      isRanked: (json['is_ranked'] as bool?) ?? true,
+      isTerritorial: (json['is_territorial'] as bool?) ?? false,
+      abandonedByIndex: (json['abandoned_by_index'] as num?)?.toInt(),
     );
   }
 

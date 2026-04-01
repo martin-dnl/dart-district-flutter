@@ -1,30 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_providers.dart';
-class MatchHistory {
-  final String id;
-  final String opponent;
-  final String mode;
-  final String score;
-  final bool won;
-  final DateTime date;
-  final double average;
-  final int eloChange;
-
-  const MatchHistory({
-    required this.id,
-    required this.opponent,
-    required this.mode,
-    required this.score,
-    required this.won,
-    required this.date,
-    this.average = 0,
-    this.eloChange = 0,
-  });
-}
+import '../../../shared/models/match_history_summary.dart';
+import '../../auth/controller/auth_controller.dart';
+import '../data/profile_service.dart';
 
 class ProfileState {
-  final List<MatchHistory> matchHistory;
+  final List<MatchHistorySummary> matchHistory;
   final List<int> eloHistory;
   final List<AchievementBadge> badges;
   final bool isLoading;
@@ -39,17 +21,21 @@ class ProfileState {
 
 class AchievementBadge {
   final String id;
+  final String key;
   final String name;
   final String description;
   final String icon;
   final bool unlocked;
+  final DateTime? earnedAt;
 
   const AchievementBadge({
     required this.id,
+    required this.key,
     required this.name,
     required this.description,
     this.icon = '🎯',
     this.unlocked = false,
+    this.earnedAt,
   });
 }
 
@@ -65,19 +51,25 @@ class ProfileController extends StateNotifier<ProfileState> {
 
     try {
       final api = _ref.read(apiClientProvider);
+      final service = ProfileService(api);
+      final currentUserId = _ref.read(currentUserProvider)?.id ?? '';
 
       final statsResponse = await api.get<Map<String, dynamic>>('/stats/me');
-      final eloResponse =
-          await api.get<Map<String, dynamic>>('/stats/me/elo-history?limit=20');
-      final matchesResponse =
-          await api.get<Map<String, dynamic>>('/matches/me?limit=20');
+      final eloResponse = await api.get<Map<String, dynamic>>(
+        '/stats/me/elo-history?limit=20',
+      );
+      final matchesResponse = await api.get<Map<String, dynamic>>(
+        '/matches/me?limit=20',
+      );
 
-      final statsData = statsResponse.data?['data'] as Map<String, dynamic>? ??
+      final statsData =
+          statsResponse.data?['data'] as Map<String, dynamic>? ??
           const <String, dynamic>{};
 
-      final eloData = (eloResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
-          .whereType<Map<String, dynamic>>()
-          .toList();
+      final eloData =
+          (eloResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .toList();
       final eloHistory = eloData
           .map((entry) => (entry['elo_after'] as num?)?.toInt() ?? 0)
           .where((value) => value > 0)
@@ -89,43 +81,47 @@ class ProfileController extends StateNotifier<ProfileState> {
           (matchesResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
               .toList();
-      final history = matchesData.map(_toMatchHistory).toList();
+
+      final history = matchesData
+          .map(
+            (raw) =>
+                MatchHistorySummary.fromApi(raw, currentUserId: currentUserId),
+          )
+          .toList();
+
+      List<AchievementBadge> earnedBadges = const <AchievementBadge>[];
+      try {
+        earnedBadges = await service.getMyBadges();
+      } catch (_) {
+        earnedBadges = const <AchievementBadge>[];
+      }
 
       state = ProfileState(
         isLoading: false,
         eloHistory: eloHistory,
         matchHistory: history,
-        badges: _buildBadges(statsData),
+        badges: _buildBadges(statsData, earnedBadges),
       );
     } catch (_) {
       state = const ProfileState(isLoading: false);
     }
   }
 
-  MatchHistory _toMatchHistory(Map<String, dynamic> raw) {
-    final createdAt =
-        DateTime.tryParse((raw['created_at'] ?? '').toString()) ?? DateTime.now();
-
-    return MatchHistory(
-      id: (raw['id'] ?? '').toString(),
-      opponent: 'Adversaire',
-      mode: (raw['mode'] ?? '501').toString().toUpperCase(),
-      score: '${raw['status'] ?? 'in_progress'}',
-      won: false,
-      date: createdAt,
-      average: 0,
-      eloChange: 0,
-    );
-  }
-
-  List<AchievementBadge> _buildBadges(Map<String, dynamic> stats) {
+  List<AchievementBadge> _buildBadges(
+    Map<String, dynamic> stats,
+    List<AchievementBadge> earnedBadges,
+  ) {
     final matchesPlayed = (stats['matches_played'] as num?)?.toInt() ?? 0;
     final total180s = (stats['total_180s'] as num?)?.toInt() ?? 0;
     final checkoutRate = (stats['checkout_rate'] as num?)?.toDouble() ?? 0;
+    final earnedByKey = <String, AchievementBadge>{
+      for (final b in earnedBadges) b.key: b,
+    };
 
-    return [
+    final defaults = [
       AchievementBadge(
         id: '1',
+        key: 'first_win',
         name: 'Premier Match',
         description: 'Jouer son premier match',
         icon: '🎯',
@@ -133,6 +129,7 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '2',
+        key: 'first_180',
         name: '180!',
         description: 'Réaliser un 180',
         icon: '🔥',
@@ -140,16 +137,33 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '3',
+        key: 'checkout_master',
         name: 'Checkout Master',
         description: 'Atteindre 60% de checkout',
         icon: '💎',
         unlocked: checkoutRate >= 60,
       ),
     ];
+
+    return defaults.map((badge) {
+      final earned = earnedByKey[badge.key];
+      if (earned == null) return badge;
+      return AchievementBadge(
+        id: earned.id,
+        key: badge.key,
+        name: earned.name.isEmpty ? badge.name : earned.name,
+        description: earned.description.isEmpty
+            ? badge.description
+            : earned.description,
+        icon: earned.icon,
+        unlocked: true,
+        earnedAt: earned.earnedAt,
+      );
+    }).toList();
   }
 }
 
 final profileControllerProvider =
     StateNotifierProvider<ProfileController, ProfileState>((ref) {
-  return ProfileController(ref);
-});
+      return ProfileController(ref);
+    });

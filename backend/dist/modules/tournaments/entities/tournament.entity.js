@@ -13,6 +13,9 @@ exports.Tournament = void 0;
 const typeorm_1 = require("typeorm");
 const territory_entity_1 = require("../../territories/entities/territory.entity");
 const user_entity_1 = require("../../users/entities/user.entity");
+const tournament_player_entity_1 = require("./tournament-player.entity");
+const tournament_pool_entity_1 = require("./tournament-pool.entity");
+const tournament_bracket_match_entity_1 = require("./tournament-bracket-match.entity");
 let Tournament = class Tournament {
 };
 exports.Tournament = Tournament;
@@ -63,11 +66,47 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 16 }),
     __metadata("design:type", Number)
-], Tournament.prototype, "max_clubs", void 0);
+], Tournament.prototype, "max_players", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 0 }),
     __metadata("design:type", Number)
-], Tournament.prototype, "enrolled_clubs", void 0);
+], Tournament.prototype, "enrolled_players", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 20, default: 'single_elimination' }),
+    __metadata("design:type", String)
+], Tournament.prototype, "format", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], Tournament.prototype, "pool_count", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], Tournament.prototype, "players_per_pool", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 2 }),
+    __metadata("design:type", Number)
+], Tournament.prototype, "qualified_per_pool", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 3 }),
+    __metadata("design:type", Number)
+], Tournament.prototype, "legs_per_set_pool", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], Tournament.prototype, "sets_to_win_pool", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 5 }),
+    __metadata("design:type", Number)
+], Tournament.prototype, "legs_per_set_bracket", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], Tournament.prototype, "sets_to_win_bracket", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 20, default: 'registration' }),
+    __metadata("design:type", String)
+], Tournament.prototype, "current_phase", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 30, default: 'open' }),
     __metadata("design:type", String)
@@ -98,6 +137,18 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'created_by' }),
     __metadata("design:type", user_entity_1.User)
 ], Tournament.prototype, "creator", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => tournament_player_entity_1.TournamentPlayer, (player) => player.tournament),
+    __metadata("design:type", Array)
+], Tournament.prototype, "players", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => tournament_pool_entity_1.TournamentPool, (pool) => pool.tournament),
+    __metadata("design:type", Array)
+], Tournament.prototype, "pools", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => tournament_bracket_match_entity_1.TournamentBracketMatch, (match) => match.tournament),
+    __metadata("design:type", Array)
+], Tournament.prototype, "bracket_matches", void 0);
 exports.Tournament = Tournament = __decorate([
     (0, typeorm_1.Entity)('tournaments')
 ], Tournament);

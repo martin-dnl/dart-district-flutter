@@ -16,17 +16,9 @@ class AuthState {
   final UserModel? user;
   final String? error;
 
-  const AuthState({
-    this.status = AuthStatus.initial,
-    this.user,
-    this.error,
-  });
+  const AuthState({this.status = AuthStatus.initial, this.user, this.error});
 
-  AuthState copyWith({
-    AuthStatus? status,
-    UserModel? user,
-    String? error,
-  }) {
+  AuthState copyWith({AuthStatus? status, UserModel? user, String? error}) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
@@ -197,6 +189,19 @@ class AuthController extends StateNotifier<AuthState> {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
+  Future<void> refreshCurrentUser() async {
+    if (state.status != AuthStatus.authenticated) {
+      return;
+    }
+
+    try {
+      final user = await _repository.fetchCurrentUser();
+      state = state.copyWith(user: user, error: null);
+    } catch (_) {
+      // Keep existing user in state when refresh fails.
+    }
+  }
+
   @override
   void dispose() {
     _unauthorizedSub?.cancel();
@@ -204,11 +209,12 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-  final api = ref.watch(apiClientProvider);
-  return AuthController(AuthRepository(api));
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    final api = ref.watch(apiClientProvider);
+    return AuthController(AuthRepository(api));
+  },
+);
 
 final currentUserProvider = Provider<UserModel?>((ref) {
   return ref.watch(authControllerProvider).user;

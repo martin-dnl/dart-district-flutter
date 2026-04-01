@@ -7,6 +7,8 @@ import {
   IsDateString,
   Min,
   Matches,
+  IsIn,
+  Max,
 } from 'class-validator';
 
 export class CreateTournamentDto {
@@ -20,19 +22,73 @@ export class CreateTournamentDto {
 
   @IsString()
   @IsOptional()
-  venue?: string;
+  venue_name?: string;
+
+  @IsString()
+  @IsOptional()
+  venue_address?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
 
   @IsBoolean()
   @IsOptional()
   is_territorial?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['301', '501', '701', 'cricket', 'chasseur'])
+  mode?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['double_out', 'single_out', 'master_out'])
+  finish?: string;
 
   @IsNumber()
   @IsOptional()
   entry_fee?: number;
 
   @IsInt()
+  @Min(4)
+  @Max(64)
+  max_players: number;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['single_elimination', 'pools_then_elimination'])
+  format?: string;
+
+  @IsInt()
+  @IsOptional()
   @Min(2)
-  max_clubs: number;
+  pool_count?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  qualified_per_pool?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  legs_per_set_pool?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  sets_to_win_pool?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  legs_per_set_bracket?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  sets_to_win_bracket?: number;
 
   @IsDateString()
   scheduled_at: string;

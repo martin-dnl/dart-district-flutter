@@ -179,6 +179,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                               friend: friend,
                               unreadCount:
                                   contacts.unreadByContact[friend.id] ?? 0,
+                              onChallenge: () {
+                                ref
+                                    .read(contactsControllerProvider.notifier)
+                                    .selectFriend(friend);
+                                context.go(AppRoutes.play);
+                              },
                               onOpenChat: () async {
                                 await ref
                                     .read(contactsControllerProvider.notifier)
@@ -422,11 +428,13 @@ class _FriendTile extends StatelessWidget {
   const _FriendTile({
     required this.friend,
     required this.unreadCount,
+    required this.onChallenge,
     required this.onOpenChat,
   });
 
   final ContactModel friend;
   final int unreadCount;
+  final VoidCallback onChallenge;
   final VoidCallback onOpenChat;
 
   @override
@@ -462,6 +470,15 @@ class _FriendTile extends StatelessWidget {
                 ),
               ),
             ),
+          IconButton(
+            icon: const Icon(
+              Icons.sports_esports,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            tooltip: 'Defier',
+            onPressed: onChallenge,
+          ),
           ElevatedButton.icon(
             onPressed: onOpenChat,
             icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),

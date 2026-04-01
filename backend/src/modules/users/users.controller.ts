@@ -33,6 +33,11 @@ export class UsersController {
     return this.usersService.findById(req.user.id);
   }
 
+  @Get('me/badges')
+  myBadges(@Req() req: { user: { id: string } }) {
+    return this.usersService.findMyBadges(req.user.id);
+  }
+
   @Get('leaderboard')
   leaderboard(@Query('limit') limit?: number) {
     return this.usersService.leaderboard(limit);

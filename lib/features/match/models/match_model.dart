@@ -17,6 +17,9 @@ class MatchModel {
   final int setsToWin;
   final int legsPerSet;
   final String finishType; // 'doubleOut', 'singleOut', 'masterOut'
+  final bool isRanked;
+  final bool isTerritorial;
+  final int? abandonedByIndex;
 
   const MatchModel({
     required this.id,
@@ -37,6 +40,9 @@ class MatchModel {
     this.setsToWin = 1,
     this.legsPerSet = 3,
     this.finishType = 'doubleOut',
+    this.isRanked = true,
+    this.isTerritorial = false,
+    this.abandonedByIndex,
   });
 
   MatchModel copyWith({
@@ -55,6 +61,9 @@ class MatchModel {
     int? setsToWin,
     int? legsPerSet,
     String? finishType,
+    bool? isRanked,
+    bool? isTerritorial,
+    int? abandonedByIndex,
   }) {
     return MatchModel(
       id: id,
@@ -75,6 +84,9 @@ class MatchModel {
       setsToWin: setsToWin ?? this.setsToWin,
       legsPerSet: legsPerSet ?? this.legsPerSet,
       finishType: finishType ?? this.finishType,
+      isRanked: isRanked ?? this.isRanked,
+      isTerritorial: isTerritorial ?? this.isTerritorial,
+      abandonedByIndex: abandonedByIndex ?? this.abandonedByIndex,
     );
   }
 }
@@ -99,6 +111,8 @@ class PlayerMatch {
     this.doublesAttempted = 0,
     this.doublesHit = 0,
   });
+
+  int get totalDartsThrown => throwScores.length * 3;
 
   PlayerMatch copyWith({
     int? score,

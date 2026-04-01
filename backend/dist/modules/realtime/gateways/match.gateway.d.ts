@@ -3,13 +3,16 @@ import { Server, Socket } from 'socket.io';
 export declare class MatchGateway implements OnGatewayConnection, OnGatewayDisconnect {
     server: Server;
     private readonly logger;
+    private readonly rolesBySocket;
     handleConnection(client: Socket): void;
     handleDisconnect(client: Socket): void;
     handleJoinMatch(client: Socket, data: {
         match_id: string;
+        role?: string;
     }): {
         event: string;
         match_id: string;
+        role: string;
     };
     handleLeaveMatch(client: Socket, data: {
         match_id: string;
@@ -21,11 +24,15 @@ export declare class MatchGateway implements OnGatewayConnection, OnGatewayDisco
         segment: string;
         score: number;
         remaining: number;
-    }): void;
+    }): {
+        error: string;
+    } | undefined;
     handleScoreSync(client: Socket, data: {
         match_id: string;
         scores: Record<string, number>;
-    }): void;
+    }): {
+        error: string;
+    } | undefined;
     emitMatchUpdate(matchId: string, payload: unknown): void;
     emitLegComplete(matchId: string, payload: unknown): void;
     emitMatchComplete(matchId: string, payload: unknown): void;

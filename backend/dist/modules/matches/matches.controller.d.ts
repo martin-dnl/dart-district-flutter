@@ -240,7 +240,28 @@ export declare class MatchesController {
         user: {
             id: string;
         };
-    }, limit?: number): Promise<import("./entities/match.entity").Match[]>;
+    }, limit?: number, offset?: number, status?: string, ranked?: string): Promise<import("./entities/match.entity").Match[]>;
+    report(id: string): Promise<{
+        match_id: string;
+        mode: string;
+        final_sets: number[];
+        players: {
+            user_id: string;
+            username: string;
+            avg_score: number;
+            legs_won: number;
+            count_180: number;
+            count_140_plus: number;
+            count_100_plus: number;
+            checkout_rate: number;
+            highest_checkout: number;
+        }[];
+        timeline: {
+            set: number;
+            leg: number;
+            winner_username: string;
+        }[];
+    }>;
     findOne(id: string): Promise<import("./entities/match.entity").Match>;
     submitThrow(matchId: string, legId: string, dto: SubmitThrowDto, req: {
         user: {

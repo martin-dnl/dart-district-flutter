@@ -1,6 +1,7 @@
 import { MatchPlayer } from './match-player.entity';
 import { Set } from './set.entity';
 import { Territory } from '../../territories/entities/territory.entity';
+import { User } from '../../users/entities/user.entity';
 export declare class Match {
     id: string;
     mode: string;
@@ -16,6 +17,8 @@ export declare class Match {
     is_territorial: boolean;
     tournament_id: string | null;
     is_offline: boolean;
+    is_ranked: boolean;
+    surrendered_by: string | null;
     validated_by_home: boolean;
     validated_by_away: boolean;
     started_at: Date | null;
@@ -24,4 +27,5 @@ export declare class Match {
     players: MatchPlayer[];
     sets: Set[];
     territory: Territory;
+    surrendered_by_user: User;
 }

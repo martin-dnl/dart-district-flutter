@@ -10,7 +10,8 @@ export declare class ClubsController {
             id: string;
         };
     }): Promise<import("./entities/club.entity").Club>;
-    findAll(limit?: number): Promise<import("./entities/club.entity").Club[]>;
+    findAll(limit?: number, q?: string, city?: string): Promise<import("./entities/club.entity").Club[]>;
+    search(q?: string, lat?: number, lng?: number, radius?: number, limit?: number): Promise<import("./entities/club.entity").Club[]>;
     ranking(limit?: number): Promise<import("./entities/club.entity").Club[]>;
     findOne(id: string): Promise<import("./entities/club.entity").Club>;
     update(id: string, dto: UpdateClubDto, req: {

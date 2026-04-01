@@ -31,8 +31,23 @@ export class ClubsController {
   }
 
   @Get()
-  findAll(@Query('limit') limit?: number) {
-    return this.clubsService.findAll(limit);
+  findAll(
+    @Query('limit') limit?: number,
+    @Query('q') q?: string,
+    @Query('city') city?: string,
+  ) {
+    return this.clubsService.findAll(limit, q, city);
+  }
+
+  @Get('search')
+  search(
+    @Query('q') q?: string,
+    @Query('lat') lat?: number,
+    @Query('lng') lng?: number,
+    @Query('radius') radius?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.clubsService.search({ q, lat, lng, radius, limit });
   }
 
   @Get('ranking')

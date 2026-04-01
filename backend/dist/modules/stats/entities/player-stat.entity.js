@@ -50,6 +50,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 0 }),
     __metadata("design:type", Number)
+], PlayerStat.prototype, "count_140_plus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], PlayerStat.prototype, "count_100_plus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
 ], PlayerStat.prototype, "high_finish", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 0 }),

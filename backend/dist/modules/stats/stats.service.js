@@ -51,6 +51,8 @@ let StatsService = class StatsService {
             stat.high_finish = matchData.highCheckout;
         }
         stat.total_180s += matchData.count180s;
+        stat.count_140_plus += matchData.count140Plus;
+        stat.count_100_plus += matchData.count100Plus;
         if (matchData.checkoutAttempts > 0) {
             const matchRate = (matchData.checkoutHits / matchData.checkoutAttempts) * 100;
             stat.checkout_rate = this.weightedRate(stat.checkout_rate, stat.matches_played - 1, matchRate);
@@ -67,7 +69,10 @@ let StatsService = class StatsService {
         await this.statRepo.save(stat);
         return stat;
     }
-    async processElo(matchId, winnerId, loserId) {
+    async processElo(matchId, winnerId, loserId, isRanked = true) {
+        if (!isRanked) {
+            return null;
+        }
         const winner = await this.userRepo.findOne({ where: { id: winnerId } });
         const loser = await this.userRepo.findOne({ where: { id: loserId } });
         if (!winner || !loser)

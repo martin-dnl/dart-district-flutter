@@ -12,6 +12,8 @@ export declare class StatsService {
         avg: number;
         highCheckout: number;
         count180s: number;
+        count140Plus: number;
+        count100Plus: number;
         checkoutHits: number;
         checkoutAttempts: number;
         t20Hits: number;
@@ -22,7 +24,7 @@ export declare class StatsService {
         doubleAttempts: number;
         won: boolean;
     }): Promise<PlayerStat | undefined>;
-    processElo(matchId: string, winnerId: string, loserId: string): Promise<{
+    processElo(matchId: string, winnerId: string, loserId: string, isRanked?: boolean): Promise<{
         winner: {
             elo: number;
             delta: number;
@@ -31,7 +33,7 @@ export declare class StatsService {
             elo: number;
             delta: number;
         };
-    } | undefined>;
+    } | null | undefined>;
     eloHistory(userId: string, limit?: number): Promise<EloHistory[]>;
     private weightedRate;
 }

@@ -27,8 +27,11 @@ let ClubsController = class ClubsController {
     create(dto, req) {
         return this.clubsService.create(dto, req.user.id);
     }
-    findAll(limit) {
-        return this.clubsService.findAll(limit);
+    findAll(limit, q, city) {
+        return this.clubsService.findAll(limit, q, city);
+    }
+    search(q, lat, lng, radius, limit) {
+        return this.clubsService.search({ q, lat, lng, radius, limit });
     }
     ranking(limit) {
         return this.clubsService.ranking(limit);
@@ -63,10 +66,23 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('limit')),
+    __param(1, (0, common_1.Query)('q')),
+    __param(2, (0, common_1.Query)('city')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, String, String]),
     __metadata("design:returntype", void 0)
 ], ClubsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('search'),
+    __param(0, (0, common_1.Query)('q')),
+    __param(1, (0, common_1.Query)('lat')),
+    __param(2, (0, common_1.Query)('lng')),
+    __param(3, (0, common_1.Query)('radius')),
+    __param(4, (0, common_1.Query)('limit')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Number, Number, Number]),
+    __metadata("design:returntype", void 0)
+], ClubsController.prototype, "search", null);
 __decorate([
     (0, common_1.Get)('ranking'),
     __param(0, (0, common_1.Query)('limit')),

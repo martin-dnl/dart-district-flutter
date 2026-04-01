@@ -14,6 +14,7 @@ const typeorm_1 = require("typeorm");
 const auth_provider_entity_1 = require("../../auth/entities/auth-provider.entity");
 const player_stat_entity_1 = require("../../stats/entities/player-stat.entity");
 const club_member_entity_1 = require("../../clubs/entities/club-member.entity");
+const user_badge_entity_1 = require("../../badges/entities/user-badge.entity");
 let User = class User {
 };
 exports.User = User;
@@ -50,6 +51,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], User.prototype, "is_active", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], User.prototype, "has_tournament_abandon", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 10, default: 'right' }),
     __metadata("design:type", String)
 ], User.prototype, "preferred_hand", void 0);
@@ -85,6 +90,10 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => club_member_entity_1.ClubMember, (cm) => cm.user),
     __metadata("design:type", Array)
 ], User.prototype, "club_memberships", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => user_badge_entity_1.UserBadge, (ub) => ub.user),
+    __metadata("design:type", Array)
+], User.prototype, "user_badges", void 0);
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)('users')
 ], User);

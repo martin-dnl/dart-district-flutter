@@ -10,6 +10,7 @@ export declare class Club {
     latitude: number | null;
     longitude: number | null;
     conquest_points: number;
+    dart_boards_count: number;
     rank: number | null;
     status: string;
     created_at: Date;

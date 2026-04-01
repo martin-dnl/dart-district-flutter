@@ -1,4 +1,4 @@
-package com.example.dart_district
+package fr.dartdistrict.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

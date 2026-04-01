@@ -30,6 +30,8 @@ export class StatsService {
     avg: number;
     highCheckout: number;
     count180s: number;
+    count140Plus: number;
+    count100Plus: number;
     checkoutHits: number;
     checkoutAttempts: number;
     t20Hits: number;
@@ -58,6 +60,8 @@ export class StatsService {
       stat.high_finish = matchData.highCheckout;
     }
     stat.total_180s += matchData.count180s;
+    stat.count_140_plus += matchData.count140Plus;
+    stat.count_100_plus += matchData.count100Plus;
 
     // Checkout rate (weighted)
     if (matchData.checkoutAttempts > 0) {
@@ -98,7 +102,16 @@ export class StatsService {
 
   /* ── ELO Calculation ── */
 
-  async processElo(matchId: string, winnerId: string, loserId: string) {
+  async processElo(
+    matchId: string,
+    winnerId: string,
+    loserId: string,
+    isRanked = true,
+  ) {
+    if (!isRanked) {
+      return null;
+    }
+
     const winner = await this.userRepo.findOne({ where: { id: winnerId } });
     const loser = await this.userRepo.findOne({ where: { id: loserId } });
     if (!winner || !loser) return;

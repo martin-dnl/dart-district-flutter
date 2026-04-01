@@ -8,6 +8,8 @@ export declare class PlayerStat {
     best_avg: number;
     checkout_rate: number;
     total_180s: number;
+    count_140_plus: number;
+    count_100_plus: number;
     high_finish: number;
     best_leg_darts: number;
     precision_t20: number;

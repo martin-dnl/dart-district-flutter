@@ -1,6 +1,7 @@
 import { AuthProvider } from '../../auth/entities/auth-provider.entity';
 import { PlayerStat } from '../../stats/entities/player-stat.entity';
 import { ClubMember } from '../../clubs/entities/club-member.entity';
+import { UserBadge } from '../../badges/entities/user-badge.entity';
 export declare class User {
     id: string;
     username: string;
@@ -10,6 +11,7 @@ export declare class User {
     elo: number;
     is_guest: boolean;
     is_active: boolean;
+    has_tournament_abandon: boolean;
     preferred_hand: string;
     level: string;
     city: string | null;
@@ -19,4 +21,5 @@ export declare class User {
     auth_providers: AuthProvider[];
     stats: PlayerStat;
     club_memberships: ClubMember[];
+    user_badges: UserBadge[];
 }

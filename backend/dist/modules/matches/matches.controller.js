@@ -47,8 +47,11 @@ let MatchesController = class MatchesController {
     create(dto) {
         return this.matchesService.create(dto);
     }
-    myMatches(req, limit) {
-        return this.matchesService.findByUser(req.user.id, limit);
+    myMatches(req, limit, offset, status, ranked) {
+        return this.matchesService.findByUser(req.user.id, limit, offset, status, ranked);
+    }
+    report(id) {
+        return this.matchesService.getMatchReport(id);
     }
     findOne(id) {
         return this.matchesService.findById(id);
@@ -128,10 +131,20 @@ __decorate([
     (0, common_1.Get)('me'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('offset')),
+    __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('ranked')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:paramtypes", [Object, Number, Number, String, String]),
     __metadata("design:returntype", void 0)
 ], MatchesController.prototype, "myMatches", null);
+__decorate([
+    (0, common_1.Get)(':id/report'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], MatchesController.prototype, "report", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),

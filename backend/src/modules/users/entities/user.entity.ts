@@ -10,6 +10,7 @@ import {
 import { AuthProvider } from '../../auth/entities/auth-provider.entity';
 import { PlayerStat } from '../../stats/entities/player-stat.entity';
 import { ClubMember } from '../../clubs/entities/club-member.entity';
+import { UserBadge } from '../../badges/entities/user-badge.entity';
 
 @Entity('users')
 export class User {
@@ -37,6 +38,9 @@ export class User {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  has_tournament_abandon: boolean;
+
   @Column({ type: 'varchar', length: 10, default: 'right' })
   preferred_hand: string;
 
@@ -63,4 +67,7 @@ export class User {
 
   @OneToMany(() => ClubMember, (cm) => cm.user)
   club_memberships: ClubMember[];
+
+  @OneToMany(() => UserBadge, (ub) => ub.user)
+  user_badges: UserBadge[];
 }

@@ -31,7 +31,12 @@ subprojects {
 
         pluginManager.withPlugin("org.jetbrains.kotlin.android") {
             tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-                compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+                val jvmTarget = if (project.name == "package_info_plus") {
+                    org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+                } else {
+                    org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+                }
+                compilerOptions.jvmTarget.set(jvmTarget)
             }
         }
     }

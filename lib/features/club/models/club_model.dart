@@ -1,9 +1,11 @@
 class ClubModel {
   final String id;
   final String name;
+  final String? city;
   final String? address;
   final String? imageUrl;
   final int memberCount;
+  final int dartBoardsCount;
   final int zonesControlled;
   final int rank;
   final List<ClubMember> members;
@@ -11,9 +13,11 @@ class ClubModel {
   const ClubModel({
     required this.id,
     required this.name,
+    this.city,
     this.address,
     this.imageUrl,
     this.memberCount = 0,
+    this.dartBoardsCount = 0,
     this.zonesControlled = 0,
     this.rank = 0,
     this.members = const [],
@@ -23,12 +27,15 @@ class ClubModel {
     return ClubModel(
       id: json['id'] as String,
       name: json['name'] as String,
+      city: json['city'] as String?,
       address: json['address'] as String?,
       imageUrl: json['imageUrl'] as String?,
       memberCount: json['memberCount'] as int? ?? 0,
+      dartBoardsCount: json['dartBoardsCount'] as int? ?? 0,
       zonesControlled: json['zonesControlled'] as int? ?? 0,
       rank: json['rank'] as int? ?? 0,
-      members: (json['members'] as List<dynamic>?)
+      members:
+          (json['members'] as List<dynamic>?)
               ?.map((m) => ClubMember.fromJson(m as Map<String, dynamic>))
               .toList() ??
           [],
@@ -43,10 +50,14 @@ class ClubModel {
     return ClubModel(
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? 'Club').toString(),
+      city: json['city'] as String?,
       address: json['address'] as String?,
       imageUrl: json['image_url'] as String?,
-      memberCount: (json['member_count'] as num?)?.toInt() ?? membersJson.length,
-      zonesControlled: (json['zones_controlled'] as num?)?.toInt() ??
+      memberCount:
+          (json['member_count'] as num?)?.toInt() ?? membersJson.length,
+      dartBoardsCount: (json['dart_boards_count'] as num?)?.toInt() ?? 0,
+      zonesControlled:
+          (json['zones_controlled'] as num?)?.toInt() ??
           (json['conquest_points'] as num?)?.toInt() ??
           0,
       rank: (json['rank'] as num?)?.toInt() ?? 0,
@@ -86,8 +97,12 @@ class ClubMember {
     return ClubMember(
       id: (user?['id'] ?? json['id'] ?? '').toString(),
       username: (user?['username'] ?? json['username'] ?? 'Membre').toString(),
-      avatarUrl: user?['avatar_url'] as String? ?? json['avatar_url'] as String?,
-      elo: (user?['elo'] as num?)?.toInt() ?? (json['elo'] as num?)?.toInt() ?? 1000,
+      avatarUrl:
+          user?['avatar_url'] as String? ?? json['avatar_url'] as String?,
+      elo:
+          (user?['elo'] as num?)?.toInt() ??
+          (json['elo'] as num?)?.toInt() ??
+          1000,
       role: (json['role'] ?? 'player').toString(),
     );
   }

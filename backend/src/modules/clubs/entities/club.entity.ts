@@ -40,6 +40,9 @@ export class Club {
   @Column({ type: 'int', default: 0 })
   conquest_points: number;
 
+  @Column({ type: 'smallint', default: 0 })
+  dart_boards_count: number;
+
   @Column({ type: 'int', nullable: true })
   rank: number | null;
 

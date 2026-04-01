@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_card.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../controller/club_controller.dart';
+import '../controller/club_search_controller.dart';
+import '../widgets/club_search_tile.dart';
 import '../widgets/member_list_tile.dart';
 
 class ClubScreen extends ConsumerWidget {
@@ -26,38 +30,7 @@ class ClubScreen extends ConsumerWidget {
     }
 
     if (club == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.groups_outlined,
-                    size: 64, color: AppColors.textHint),
-                const SizedBox(height: 16),
-                const Text(
-                  'Aucun club',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Rejoignez ou créez un club pour commencer',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {},
-                  child: const Text('Trouver un club'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return const _ClubDiscoveryScreen();
     }
 
     return Scaffold(
@@ -72,10 +45,7 @@ class ClubScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      AppColors.secondary,
-                      AppColors.secondaryDark,
-                    ],
+                    colors: [AppColors.secondary, AppColors.secondaryDark],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -116,8 +86,11 @@ class ClubScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.location_on,
-                            color: Colors.white70, size: 14),
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.white70,
+                          size: 14,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           club.address ?? '',
@@ -221,7 +194,9 @@ class ClubScreen extends ConsumerWidget {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.success.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
@@ -243,31 +218,228 @@ class ClubScreen extends ConsumerWidget {
 
             // Members
             const SliverToBoxAdapter(
-              child: SectionHeader(
-                title: 'Membres',
-                actionText: 'Tout voir',
-              ),
+              child: SectionHeader(title: 'Membres', actionText: 'Tout voir'),
             ),
             SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final member = club.members[index];
-                  return Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-                    child: MemberListTile(
-                      member: member,
-                      rank: index + 1,
-                    ),
-                  );
-                },
-                childCount: club.members.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final member = club.members[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 3,
+                  ),
+                  child: MemberListTile(member: member, rank: index + 1),
+                );
+              }, childCount: club.members.length),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ClubDiscoveryScreen extends ConsumerStatefulWidget {
+  const _ClubDiscoveryScreen();
+
+  @override
+  ConsumerState<_ClubDiscoveryScreen> createState() =>
+      _ClubDiscoveryScreenState();
+}
+
+class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  bool _isLocating = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _searchNearby() async {
+    setState(() => _isLocating = true);
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      await ref
+          .read(clubSearchControllerProvider.notifier)
+          .searchNearby(position.latitude, position.longitude);
+    } finally {
+      if (mounted) {
+        setState(() => _isLocating = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final searchState = ref.watch(clubSearchControllerProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {},
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add, color: AppColors.surface),
+        label: const Text(
+          'Créer un club',
+          style: TextStyle(color: AppColors.surface),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trouver un club',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _searchController,
+                onChanged: (value) => ref
+                    .read(clubSearchControllerProvider.notifier)
+                    .searchByText(value),
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Rechercher un club par nom ou ville...',
+                  hintStyle: const TextStyle(color: AppColors.textHint),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppColors.textHint,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.card.withValues(alpha: 0.8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.stroke),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.stroke),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _isLocating ? null : _searchNearby,
+                icon: _isLocating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location_rounded),
+                label: const Text('Clubs à proximité'),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _ClubSearchResults(
+                  state: searchState,
+                  onReset: () {
+                    _searchController.clear();
+                    ref.read(clubSearchControllerProvider.notifier).clear();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClubSearchResults extends StatelessWidget {
+  const _ClubSearchResults({required this.state, required this.onReset});
+
+  final ClubSearchState state;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (state.error != null) {
+      return Center(
+        child: Text(
+          state.error!,
+          style: const TextStyle(color: AppColors.error),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    if (state.results.isEmpty && (state.query ?? '').trim().isNotEmpty) {
+      return const Center(
+        child: Text(
+          'Aucun club trouvé',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      );
+    }
+
+    if (state.results.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.travel_explore_rounded,
+              size: 56,
+              color: AppColors.textHint,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Recherchez un club',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+            ),
+            const SizedBox(height: 10),
+            TextButton(onPressed: onReset, child: const Text('Réinitialiser')),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: state.results.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (_, index) {
+        final club = state.results[index];
+        return ClubSearchTile(club: club);
+      },
     );
   }
 }

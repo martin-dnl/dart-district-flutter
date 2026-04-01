@@ -93,8 +93,25 @@ export class MatchesController {
   }
 
   @Get('me')
-  myMatches(@Req() req: { user: { id: string } }, @Query('limit') limit?: number) {
-    return this.matchesService.findByUser(req.user.id, limit);
+  myMatches(
+    @Req() req: { user: { id: string } },
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('status') status?: string,
+    @Query('ranked') ranked?: string,
+  ) {
+    return this.matchesService.findByUser(
+      req.user.id,
+      limit,
+      offset,
+      status,
+      ranked,
+    );
+  }
+
+  @Get(':id/report')
+  report(@Param('id', ParseUUIDPipe) id: string) {
+    return this.matchesService.getMatchReport(id);
   }
 
   @Get(':id')

@@ -34,6 +34,8 @@ async function bootstrap() {
         app.use('/tiles', (0, express_1.static)(irisDataDir, { index: false }));
         logger.log(`Serving local tiles from ${irisDataDir} at /tiles`);
     }
+    const uploadsDir = (0, path_1.join)(process.cwd(), 'uploads');
+    app.useStaticAssets(uploadsDir, { prefix: '/uploads' });
     const config = new swagger_1.DocumentBuilder()
         .setTitle('Dart District API')
         .setDescription('API backend for the Dart District mobile application')

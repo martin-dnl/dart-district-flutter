@@ -14,6 +14,7 @@ const typeorm_1 = require("typeorm");
 const match_player_entity_1 = require("./match-player.entity");
 const set_entity_1 = require("./set.entity");
 const territory_entity_1 = require("../../territories/entities/territory.entity");
+const user_entity_1 = require("../../users/entities/user.entity");
 let Match = class Match {
 };
 exports.Match = Match;
@@ -84,6 +85,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
+], Match.prototype, "is_ranked", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Match.prototype, "surrendered_by", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
 ], Match.prototype, "validated_by_home", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
@@ -114,6 +123,11 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'territory_id' }),
     __metadata("design:type", territory_entity_1.Territory)
 ], Match.prototype, "territory", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: 'SET NULL' }),
+    (0, typeorm_1.JoinColumn)({ name: 'surrendered_by' }),
+    __metadata("design:type", user_entity_1.User)
+], Match.prototype, "surrendered_by_user", void 0);
 exports.Match = Match = __decorate([
     (0, typeorm_1.Entity)('matches')
 ], Match);

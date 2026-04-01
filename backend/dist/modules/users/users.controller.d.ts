@@ -16,6 +16,15 @@ export declare class UsersController {
             id: string;
         };
     }, dto: UpdateUserDto): Promise<import("./entities/user.entity").User>;
+    uploadAvatar(req: {
+        user: {
+            id: string;
+        };
+    }, file?: Express.Multer.File): Promise<{
+        avatar_md_url: string;
+        avatar_sm_url: string;
+        avatar_url: string;
+    }>;
     remove(req: {
         user: {
             id: string;

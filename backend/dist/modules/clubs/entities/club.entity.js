@@ -56,6 +56,10 @@ __decorate([
     __metadata("design:type", Number)
 ], Club.prototype, "conquest_points", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'smallint', default: 0 }),
+    __metadata("design:type", Number)
+], Club.prototype, "dart_boards_count", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'int', nullable: true }),
     __metadata("design:type", Object)
 ], Club.prototype, "rank", void 0);

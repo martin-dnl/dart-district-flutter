@@ -18,7 +18,6 @@ class HomeState {
   final String tournamentTitle;
   final String tournamentCountdown;
   final String tournamentSlots;
-  final List<Map<String, dynamic>> activeMembers;
 
   const HomeState({
     this.isLoading = true,
@@ -36,7 +35,6 @@ class HomeState {
     this.tournamentTitle = 'Aucun tournoi',
     this.tournamentCountdown = '-',
     this.tournamentSlots = '0/0',
-    this.activeMembers = const <Map<String, dynamic>>[],
   });
 
   HomeState copyWith({
@@ -55,13 +53,13 @@ class HomeState {
     String? tournamentTitle,
     String? tournamentCountdown,
     String? tournamentSlots,
-    List<Map<String, dynamic>>? activeMembers,
   }) {
     return HomeState(
       isLoading: isLoading ?? this.isLoading,
       clubName: clubName ?? this.clubName,
       location: location ?? this.location,
-      territoriesControlled: territoriesControlled ?? this.territoriesControlled,
+      territoriesControlled:
+          territoriesControlled ?? this.territoriesControlled,
       conquestPoints: conquestPoints ?? this.conquestPoints,
       clubRank: clubRank ?? this.clubRank,
       pendingMatch: pendingMatch ?? this.pendingMatch,
@@ -73,7 +71,6 @@ class HomeState {
       tournamentTitle: tournamentTitle ?? this.tournamentTitle,
       tournamentCountdown: tournamentCountdown ?? this.tournamentCountdown,
       tournamentSlots: tournamentSlots ?? this.tournamentSlots,
-      activeMembers: activeMembers ?? this.activeMembers,
     );
   }
 }
@@ -92,7 +89,8 @@ class HomeController extends StateNotifier<HomeState> {
       final api = _ref.read(apiClientProvider);
 
       final meResponse = await api.get<Map<String, dynamic>>('/users/me');
-      final meData = meResponse.data?['data'] as Map<String, dynamic>? ??
+      final meData =
+          meResponse.data?['data'] as Map<String, dynamic>? ??
           const <String, dynamic>{};
 
       final memberships =
@@ -106,13 +104,17 @@ class HomeController extends StateNotifier<HomeState> {
       final clubId = club?['id'] as String?;
       Map<String, dynamic> clubData = const <String, dynamic>{};
       if (clubId != null && clubId.isNotEmpty) {
-        final clubResponse = await api.get<Map<String, dynamic>>('/clubs/$clubId');
-        clubData = clubResponse.data?['data'] as Map<String, dynamic>? ??
+        final clubResponse = await api.get<Map<String, dynamic>>(
+          '/clubs/$clubId',
+        );
+        clubData =
+            clubResponse.data?['data'] as Map<String, dynamic>? ??
             const <String, dynamic>{};
       }
 
-      final territoriesResponse =
-          await api.get<Map<String, dynamic>>('/territories');
+      final territoriesResponse = await api.get<Map<String, dynamic>>(
+        '/territories',
+      );
       final territories =
           (territoriesResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
@@ -122,8 +124,9 @@ class HomeController extends StateNotifier<HomeState> {
         return owner?['id'] == clubId;
       }).length;
 
-      final matchesResponse =
-          await api.get<Map<String, dynamic>>('/matches/me?limit=5');
+      final matchesResponse = await api.get<Map<String, dynamic>>(
+        '/matches/me?limit=5',
+      );
       final matches =
           (matchesResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
@@ -138,11 +141,13 @@ class HomeController extends StateNotifier<HomeState> {
           .toList();
       final winRatio = recentResults.isEmpty
           ? 0
-          : ((recentResults.where((w) => w).length / recentResults.length) * 100)
-              .round();
+          : ((recentResults.where((w) => w).length / recentResults.length) *
+                    100)
+                .round();
 
-      final tournamentsResponse =
-          await api.get<Map<String, dynamic>>('/tournaments');
+      final tournamentsResponse = await api.get<Map<String, dynamic>>(
+        '/tournaments',
+      );
       final tournaments =
           (tournamentsResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
@@ -150,18 +155,6 @@ class HomeController extends StateNotifier<HomeState> {
       final tournament = tournaments.isNotEmpty
           ? tournaments.first
           : const <String, dynamic>{};
-
-      final activeMembers =
-          (clubData['members'] as List<dynamic>? ?? <dynamic>[])
-              .whereType<Map<String, dynamic>>()
-              .take(3)
-              .map((member) {
-        final user = member['user'] as Map<String, dynamic>?;
-        return {
-          'name': (user?['username'] ?? 'Membre').toString(),
-          'role': (member['role'] ?? 'player').toString(),
-        };
-      }).toList();
 
       state = state.copyWith(
         isLoading: false,
@@ -179,12 +172,13 @@ class HomeController extends StateNotifier<HomeState> {
         recentScore: matches.isNotEmpty
             ? (matches.first['status'] ?? '-').toString()
             : '-',
-        tournamentType: (tournament['is_territorial'] == true) ? 'Territorial' : 'Local',
+        tournamentType: (tournament['is_territorial'] == true)
+            ? 'Territorial'
+            : 'Local',
         tournamentTitle: (tournament['name'] ?? 'Aucun tournoi').toString(),
         tournamentCountdown: _humanizeDate(tournament['scheduled_at']),
         tournamentSlots:
             '${(tournament['enrolled_clubs'] ?? 0).toString()}/${(tournament['max_clubs'] ?? 0).toString()}',
-        activeMembers: activeMembers,
       );
     } catch (_) {
       state = state.copyWith(isLoading: false);
@@ -202,7 +196,8 @@ class HomeController extends StateNotifier<HomeState> {
   }
 }
 
-final homeControllerProvider =
-    StateNotifierProvider<HomeController, HomeState>((ref) {
-  return HomeController(ref);
-});
+final homeControllerProvider = StateNotifierProvider<HomeController, HomeState>(
+  (ref) {
+    return HomeController(ref);
+  },
+);

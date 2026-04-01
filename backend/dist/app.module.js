@@ -25,6 +25,7 @@ const notifications_module_1 = require("./modules/notifications/notifications.mo
 const qr_module_1 = require("./modules/qr/qr.module");
 const contacts_module_1 = require("./modules/contacts/contacts.module");
 const app_version_module_1 = require("./modules/app_version/app-version.module");
+const badges_module_1 = require("./modules/badges/badges.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -60,6 +61,7 @@ exports.AppModule = AppModule = __decorate([
             qr_module_1.QrModule,
             contacts_module_1.ContactsModule,
             app_version_module_1.AppVersionModule,
+            badges_module_1.BadgesModule,
         ],
         providers: [
             {

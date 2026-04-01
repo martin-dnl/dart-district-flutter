@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
+import sharp from 'sharp';
+import { mkdir, unlink } from 'fs/promises';
+import { join } from 'path';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
@@ -23,6 +31,72 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto) {
     await this.repo.update(id, dto);
     return this.findById(id);
+  }
+
+  async uploadAvatar(userId: string, file: Express.Multer.File) {
+    const user = await this.repo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const allowedMimeTypes = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ]);
+    if (!allowedMimeTypes.has(file.mimetype)) {
+      throw new BadRequestException('Unsupported file type');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('File exceeds 5MB');
+    }
+
+    const avatarId = randomUUID();
+    const uploadsDir = join(process.cwd(), 'uploads', 'avatars');
+    await mkdir(uploadsDir, { recursive: true });
+
+    const mdFileName = `${avatarId}_md.webp`;
+    const smFileName = `${avatarId}_sm.webp`;
+    const mdDiskPath = join(uploadsDir, mdFileName);
+    const smDiskPath = join(uploadsDir, smFileName);
+
+    const image = sharp(file.buffer, { failOn: 'none' }).rotate();
+
+    await image
+      .clone()
+      .resize(200, 200, { fit: 'cover', position: 'center' })
+      .webp({ quality: 80 })
+      .toFile(mdDiskPath);
+
+    await image
+      .clone()
+      .resize(64, 64, { fit: 'cover', position: 'center' })
+      .webp({ quality: 70 })
+      .toFile(smDiskPath);
+
+    const mdPublicUrl = `/uploads/avatars/${mdFileName}`;
+    const smPublicUrl = `/uploads/avatars/${smFileName}`;
+
+    const oldAvatar = user.avatar_url;
+    user.avatar_url = mdPublicUrl;
+    await this.repo.save(user);
+
+    if (oldAvatar && oldAvatar.includes('/avatars/')) {
+      const oldMdName = oldAvatar.split('/').pop();
+      if (oldMdName) {
+        const oldSmName = oldMdName.replace('_md.webp', '_sm.webp');
+        await Promise.allSettled([
+          unlink(join(uploadsDir, oldMdName)),
+          unlink(join(uploadsDir, oldSmName)),
+        ]);
+      }
+    }
+
+    return {
+      avatar_md_url: mdPublicUrl,
+      avatar_sm_url: smPublicUrl,
+      avatar_url: mdPublicUrl,
+    };
   }
 
   async search(query: string, limit = 20) {

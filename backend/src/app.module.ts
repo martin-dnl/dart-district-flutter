@@ -17,6 +17,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { QrModule } from './modules/qr/qr.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { AppVersionModule } from './modules/app_version/app-version.module';
+import { BadgesModule } from './modules/badges/badges.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AppVersionModule } from './modules/app_version/app-version.module';
     QrModule,
     ContactsModule,
     AppVersionModule,
+    BadgesModule,
   ],
   providers: [
     {

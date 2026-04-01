@@ -317,14 +317,89 @@ let MatchesService = class MatchesService {
             throw new common_1.NotFoundException('Match not found');
         return match;
     }
-    async findByUser(userId, limit = 20) {
+    async findByUser(userId, limit = 20, offset = 0, status, ranked) {
         const take = (0, normalize_limit_1.normalizeLimit)(limit, 20);
-        return this.matchRepo
+        const skip = Math.max(0, Math.floor(offset || 0));
+        const qb = this.matchRepo
             .createQueryBuilder('m')
             .innerJoin('m.players', 'mp', 'mp.user_id = :userId', { userId })
             .orderBy('m.created_at', 'DESC')
-            .take(take)
-            .getMany();
+            .skip(skip)
+            .take(take);
+        if (status) {
+            qb.andWhere('m.status = :status', { status });
+        }
+        if ((ranked ?? '').toLowerCase() === 'true') {
+            qb.andWhere('m.is_ranked = :isRanked', { isRanked: true });
+        }
+        return qb.getMany();
+    }
+    async getMatchReport(matchId) {
+        const match = await this.matchRepo.findOne({
+            where: { id: matchId },
+            relations: [
+                'players',
+                'players.user',
+                'sets',
+                'sets.legs',
+                'sets.legs.throws',
+            ],
+        });
+        if (!match) {
+            throw new common_1.NotFoundException('Match not found');
+        }
+        const orderedPlayers = this.getOrderedPlayers(match);
+        const allLegs = (match.sets ?? []).flatMap((s) => s.legs ?? []);
+        const allThrows = allLegs.flatMap((l) => l.throws ?? []);
+        const finalSets = orderedPlayers.map((p) => (match.sets ?? []).filter((s) => s.winner_id === p.user_id).length);
+        const players = orderedPlayers.map((p) => {
+            const throwsForPlayer = allThrows.filter((t) => t.user_id === p.user_id);
+            const totalScore = throwsForPlayer.reduce((sum, t) => sum + t.score, 0);
+            const legsWon = allLegs.filter((l) => l.winner_id === p.user_id).length;
+            const count180 = throwsForPlayer.filter((t) => t.score === 180).length;
+            const count140Plus = throwsForPlayer.filter((t) => t.score >= 140).length;
+            const count100Plus = throwsForPlayer.filter((t) => t.score >= 100).length;
+            const checkoutAttempts = throwsForPlayer
+                .map((t) => this.extractDoubleAttemptsFromSegment(t.segment))
+                .reduce((sum, attempts) => sum + attempts, 0);
+            const checkoutHits = throwsForPlayer.filter((t) => t.is_checkout).length;
+            const highestCheckout = throwsForPlayer
+                .filter((t) => t.is_checkout)
+                .reduce((max, t) => Math.max(max, t.score), 0);
+            return {
+                user_id: p.user_id,
+                username: p.user?.username ?? 'Unknown',
+                avg_score: throwsForPlayer.length > 0
+                    ? Number((totalScore / throwsForPlayer.length).toFixed(2))
+                    : 0,
+                legs_won: legsWon,
+                count_180: count180,
+                count_140_plus: count140Plus,
+                count_100_plus: count100Plus,
+                checkout_rate: checkoutAttempts > 0
+                    ? Number(((checkoutHits / checkoutAttempts) * 100).toFixed(2))
+                    : 0,
+                highest_checkout: highestCheckout,
+            };
+        });
+        const usernameById = new Map(orderedPlayers.map((p) => [p.user_id, p.user?.username ?? 'Unknown']));
+        const timeline = (match.sets ?? [])
+            .sort((a, b) => a.set_number - b.set_number)
+            .flatMap((set) => (set.legs ?? [])
+            .sort((a, b) => a.leg_number - b.leg_number)
+            .filter((leg) => !!leg.winner_id)
+            .map((leg) => ({
+            set: set.set_number,
+            leg: leg.leg_number,
+            winner_username: usernameById.get(leg.winner_id ?? '') ?? 'Unknown',
+        })));
+        return {
+            match_id: match.id,
+            mode: match.mode,
+            final_sets: finalSets,
+            players,
+            timeline,
+        };
     }
     async submitThrow(matchId, legId, playerId, dto) {
         const leg = await this.legRepo.findOne({

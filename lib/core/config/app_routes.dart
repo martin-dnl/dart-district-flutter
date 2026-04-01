@@ -14,12 +14,17 @@ import '../../features/play/presentation/play_screen.dart';
 import '../../features/play/presentation/game_setup_screen.dart';
 import '../../features/play/presentation/match_invite_player_screen.dart';
 import '../../features/club/presentation/club_screen.dart';
+import '../../features/club/presentation/club_detail_screen.dart';
 import '../../features/contacts/presentation/contacts_screen.dart';
 import '../../features/contacts/presentation/contacts_chat_screen.dart';
 import '../../features/contacts/models/contact_models.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/settings_screen.dart';
 import '../../features/match/presentation/match_live_screen.dart';
+import '../../features/match/presentation/match_history_screen.dart';
+import '../../features/tournaments/presentation/tournaments_list_screen.dart';
+import '../../features/tournaments/presentation/tournament_create_screen.dart';
+import '../../features/tournaments/presentation/tournament_detail_screen.dart';
 import '../../shared/widgets/app_scaffold.dart';
 
 class AppRoutes {
@@ -36,11 +41,16 @@ class AppRoutes {
   static const String gameSetup = '/play/setup';
   static const String gameInvitePlayer = '/play/setup/invite-player';
   static const String club = '/club';
+  static const String clubDetail = '/club/:id';
   static const String contacts = '/contacts';
   static const String contactsChat = '/contacts/chat';
+  static const String tournaments = '/tournaments';
+  static const String tournamentCreate = '/tournaments/create';
+  static const String tournamentDetail = '/tournaments/:id';
   static const String profile = '/profile';
   static const String settings = '/profile/settings';
   static const String matchLive = '/match';
+  static const String matchHistory = '/match-history';
 
   static const Set<String> publicRoutes = {
     notLogged,
@@ -165,10 +175,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: AppRoutes.profile,
+            path: AppRoutes.tournaments,
             pageBuilder: (_, state) => NoTransitionPage(
               key: state.pageKey,
-              child: const ProfileScreen(),
+              child: const TournamentsListScreen(),
             ),
           ),
         ],
@@ -202,12 +212,54 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: AppRoutes.settings,
+        path: AppRoutes.profile,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) =>
+            NoTransitionPage(key: state.pageKey, child: const ProfileScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.matchHistory,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, state) => NoTransitionPage(
           key: state.pageKey,
-          child: const SettingsScreen(),
+          child: const MatchHistoryScreen(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubDetail,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: ClubDetailScreen(id: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.tournamentCreate,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const TournamentCreateScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.tournamentDetail,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) {
+          final tournamentId = state.pathParameters['id'] ?? '';
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: TournamentDetailScreen(tournamentId: tournamentId),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) =>
+            NoTransitionPage(key: state.pageKey, child: const SettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.contactsChat,

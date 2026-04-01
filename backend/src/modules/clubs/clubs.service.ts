@@ -34,14 +34,77 @@ export class ClubsService {
     return this.findById(club.id);
   }
 
-  async findAll(limit = 50) {
+  async findAll(limit = 50, q?: string, city?: string) {
     const take = normalizeLimit(limit, 50);
+    const qb = this.clubRepo
+      .createQueryBuilder('club')
+      .leftJoinAndSelect('club.members', 'members')
+      .orderBy('club.conquest_points', 'DESC')
+      .take(take);
 
-    return this.clubRepo.find({
-      order: { conquest_points: 'DESC' },
-      take,
-      relations: ['members'],
-    });
+    if (q) {
+      qb.andWhere('(club.name ILIKE :q OR club.city ILIKE :q)', {
+        q: `%${q}%`,
+      });
+    }
+
+    if (city) {
+      qb.andWhere('club.city ILIKE :city', { city: `%${city}%` });
+    }
+
+    return qb.getMany();
+  }
+
+  async search(params: {
+    q?: string;
+    lat?: number;
+    lng?: number;
+    radius?: number;
+    limit?: number;
+  }) {
+    const queryValue = (params.q ?? '').trim().toLowerCase();
+    const likeTerm = `%${queryValue}%`;
+    const take = normalizeLimit(params.limit ?? 20, 50);
+
+    const hasGeo = Number.isFinite(params.lat) && Number.isFinite(params.lng);
+    const radiusKm =
+      Number.isFinite(params.radius) && (params.radius ?? 0) > 0
+        ? Number(params.radius)
+        : 20;
+
+    const qb = this.clubRepo
+      .createQueryBuilder('club')
+      .leftJoinAndSelect('club.members', 'members')
+      .take(take);
+
+    if (queryValue.length > 0) {
+      qb.andWhere('(LOWER(club.name) LIKE :q OR LOWER(club.city) LIKE :q)', {
+        q: likeTerm,
+      });
+    }
+
+    if (hasGeo) {
+      const lat = Number(params.lat);
+      const lng = Number(params.lng);
+      const distanceExpr = `(
+        6371 * acos(
+          cos(radians(:lat)) *
+          cos(radians(CAST(club.latitude AS double precision))) *
+          cos(radians(CAST(club.longitude AS double precision)) - radians(:lng)) +
+          sin(radians(:lat)) * sin(radians(CAST(club.latitude AS double precision)))
+        )
+      )`;
+
+      qb.andWhere('club.latitude IS NOT NULL AND club.longitude IS NOT NULL')
+        .addSelect(distanceExpr, 'distance')
+        .andWhere(`${distanceExpr} <= :radiusKm`)
+        .setParameters({ lat, lng, radiusKm })
+        .orderBy('distance', 'ASC');
+    } else {
+      qb.orderBy('club.name', 'ASC');
+    }
+
+    return qb.getMany();
   }
 
   async findById(id: string) {

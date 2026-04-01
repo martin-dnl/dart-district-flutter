@@ -6,7 +6,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../match/models/recent_match_summary.dart';
 import '../controller/home_controller.dart';
+import '../controller/my_active_tournaments_provider.dart';
+import '../controller/recent_ranked_matches_provider.dart';
+import '../widgets/tournament_tile.dart';
+import '../../../shared/widgets/player_avatar.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -15,6 +20,8 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final homeState = ref.watch(homeControllerProvider);
+    final recentRankedMatches = ref.watch(recentRankedMatchesProvider);
+    final activeTournaments = ref.watch(myActiveTournamentsProvider);
 
     return Scaffold(
       body: Container(
@@ -26,19 +33,12 @@ class HomeScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: _HomeHeader(
-                    clubName: homeState.clubName,
-                    location: homeState.location,
+                    username: user?.username ?? 'Joueur',
+                    clubName: user?.clubName,
                     avatarUrl: user?.avatarUrl,
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _PendingMatchCard(subtitle: homeState.pendingMatch),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 14)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -51,6 +51,7 @@ class HomeScreen extends ConsumerWidget {
                           value: '${homeState.territoriesControlled}',
                           subtitle: 'Carte live',
                           accent: AppColors.secondary,
+                          onTap: () => context.go(AppRoutes.map),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -61,6 +62,7 @@ class HomeScreen extends ConsumerWidget {
                           value: '${homeState.conquestPoints}',
                           subtitle: 'Rang #${homeState.clubRank}',
                           accent: AppColors.accent,
+                          onTap: () => context.go(AppRoutes.club),
                         ),
                       ),
                     ],
@@ -68,21 +70,30 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 18)),
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: _SectionTitle(title: 'Forme Recente', action: 'Voir l\'historique'),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _SectionTitle(
+                    title: 'Forme Recente',
+                    action: 'Voir l\'historique',
+                    onActionTap: () => context.push(AppRoutes.matchHistory),
+                  ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _RecentFormCard(
-                    recentResults: homeState.recentResults,
-                    recentRecord: homeState.recentRecord,
-                    recentOpponent: homeState.recentOpponent,
-                    recentScore: homeState.recentScore,
+                  child: recentRankedMatches.when(
+                    data: (matches) => _RecentFormCard(matches: matches),
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (_, _) =>
+                        _RecentFormCard(matches: const <RecentMatchSummary>[]),
                   ),
                 ),
               ),
@@ -93,40 +104,63 @@ class HomeScreen extends ConsumerWidget {
                   child: _QuickActions(
                     onOpenMap: () => context.go(AppRoutes.map),
                     onLaunchMatch: () => context.go(AppRoutes.play),
+                    onCreateTournament: () =>
+                        context.push(AppRoutes.tournamentCreate),
                   ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 18)),
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: _SectionTitle(title: 'Prochains Tournois', action: 'Voir tout'),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _SectionTitle(
+                    title: 'Prochains Tournois',
+                    action: 'Voir tout',
+                    onActionTap: () => context.go(AppRoutes.tournaments),
+                  ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _TournamentCard(
-                    tournamentType: homeState.tournamentType,
-                    tournamentTitle: homeState.tournamentTitle,
-                    tournamentCountdown: homeState.tournamentCountdown,
-                    tournamentSlots: homeState.tournamentSlots,
+                  child: activeTournaments.when(
+                    data: (tournaments) {
+                      if (tournaments.isEmpty) {
+                        return _TournamentPlaceholder(
+                          type: homeState.tournamentType,
+                          title: homeState.tournamentTitle,
+                          countdown: homeState.tournamentCountdown,
+                          slots: homeState.tournamentSlots,
+                        );
+                      }
+                      final tournament = tournaments.first;
+                      return TournamentTile(
+                        type: (tournament['is_territorial'] == true)
+                            ? 'Territorial'
+                            : 'Local',
+                        name: (tournament['name'] ?? 'Tournoi en cours')
+                            .toString(),
+                        scheduleLabel:
+                            (tournament['scheduled_at_label'] ?? 'En cours')
+                                .toString(),
+                        slotsLabel:
+                            '${(tournament['enrolled_clubs'] ?? 0).toString()}/${(tournament['max_clubs'] ?? 0).toString()}',
+                      );
+                    },
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (_, _) => _TournamentPlaceholder(
+                      type: homeState.tournamentType,
+                      title: homeState.tournamentTitle,
+                      countdown: homeState.tournamentCountdown,
+                      slots: homeState.tournamentSlots,
+                    ),
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 18)),
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: _SectionTitle(title: 'Effectif Actif'),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _ActiveMembersCard(members: homeState.activeMembers),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 18)),
@@ -139,13 +173,13 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _HomeHeader extends StatelessWidget {
-  final String clubName;
-  final String location;
+  final String username;
+  final String? clubName;
   final String? avatarUrl;
 
   const _HomeHeader({
+    required this.username,
     required this.clubName,
-    required this.location,
     this.avatarUrl,
   });
 
@@ -153,44 +187,49 @@ class _HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.secondary, width: 1.2),
-          ),
-          child: ClipOval(
-            child: avatarUrl != null
-                ? Image.network(avatarUrl!, fit: BoxFit.cover)
-                : Container(
-                    color: AppColors.surfaceLight,
-                    child: const Icon(Icons.person, color: AppColors.textSecondary),
-                  ),
-          ),
-        ),
-        const SizedBox(width: 10),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                clubName,
-                style: GoogleFonts.rajdhani(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => context.push(AppRoutes.profile),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  PlayerAvatar(
+                    imageUrl: avatarUrl,
+                    name: username,
+                    size: 44,
+                    showBorder: true,
+                    borderColor: AppColors.secondary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          username,
+                          style: GoogleFonts.manrope(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (clubName != null && clubName!.trim().isNotEmpty)
+                          Text(
+                            clubName!,
+                            style: GoogleFonts.manrope(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                location,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
         Container(
@@ -201,75 +240,12 @@ class _HomeHeader extends StatelessWidget {
             color: AppColors.surface,
             border: Border.all(color: AppColors.stroke),
           ),
-          child: const Icon(Icons.notifications_none, color: AppColors.textPrimary),
+          child: const Icon(
+            Icons.notifications_none,
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
-    );
-  }
-}
-
-class _PendingMatchCard extends StatelessWidget {
-  const _PendingMatchCard({required this.subtitle});
-
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: AppColors.error.withValues(alpha: 0.08),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.42)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.error.withValues(alpha: 0.2),
-            ),
-            child: const Icon(Icons.priority_high, color: AppColors.error),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Match a valider',
-                  style: GoogleFonts.manrope(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.error,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-            ),
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -280,6 +256,7 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final String subtitle;
   final Color accent;
+  final VoidCallback? onTap;
 
   const _MetricCard({
     required this.icon,
@@ -287,64 +264,72 @@ class _MetricCard extends StatelessWidget {
     required this.value,
     required this.subtitle,
     required this.accent,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: AppColors.cardGradient,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.stroke),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: AppColors.cardGradient,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.stroke),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icon, color: accent, size: 16),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
+              Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(icon, color: accent, size: 16),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                value,
+                style: GoogleFonts.rajdhani(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: GoogleFonts.rajdhani(
-              fontSize: 40,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          Text(
-            subtitle,
-            style: GoogleFonts.manrope(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: accent,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -353,8 +338,9 @@ class _MetricCard extends StatelessWidget {
 class _SectionTitle extends StatelessWidget {
   final String title;
   final String? action;
+  final VoidCallback? onActionTap;
 
-  const _SectionTitle({required this.title, this.action});
+  const _SectionTitle({required this.title, this.action, this.onActionTap});
 
   @override
   Widget build(BuildContext context) {
@@ -371,12 +357,19 @@ class _SectionTitle extends StatelessWidget {
           ),
         ),
         if (action != null)
-          Text(
-            action!,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.secondary,
-              fontWeight: FontWeight.w700,
+          InkWell(
+            onTap: onActionTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Text(
+                action!,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
       ],
@@ -385,20 +378,17 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _RecentFormCard extends StatelessWidget {
-  const _RecentFormCard({
-    required this.recentResults,
-    required this.recentRecord,
-    required this.recentOpponent,
-    required this.recentScore,
-  });
+  const _RecentFormCard({required this.matches});
 
-  final List<bool> recentResults;
-  final String recentRecord;
-  final String recentOpponent;
-  final String recentScore;
+  final List<RecentMatchSummary> matches;
 
   @override
   Widget build(BuildContext context) {
+    final recent = matches.take(5).toList();
+    final wins = recent.where((m) => m.won).length;
+    final defeats = recent.length - wins;
+    final winRate = recent.isEmpty ? 0 : ((wins / recent.length) * 100).round();
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -407,100 +397,82 @@ class _RecentFormCard extends StatelessWidget {
         border: Border.all(color: AppColors.stroke),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              ...(recentResults.isEmpty
-                      ? <String>['-']
-                      : recentResults
-                          .take(5)
-                          .map((r) => r ? 'V' : 'D')
-                          .toList())
-                  .map(
-                (status) => Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: status == 'V'
-                        ? AppColors.success.withValues(alpha: 0.18)
-                        : status == 'D'
-                            ? AppColors.error.withValues(alpha: 0.18)
-                            : AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: status == 'V'
-                          ? AppColors.success.withValues(alpha: 0.35)
-                          : status == 'D'
-                              ? AppColors.error.withValues(alpha: 0.35)
-                              : AppColors.stroke,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      status,
-                      style: GoogleFonts.manrope(
-                        color: status == 'V'
-                            ? AppColors.success
-                            : status == 'D'
-                                ? AppColors.error
-                                : AppColors.textHint,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                recentRecord,
-                style: GoogleFonts.manrope(
-                  fontSize: 22,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+          Text(
+            '$winRate% Victoires (${wins}V - ${defeats}D)',
+            style: GoogleFonts.manrope(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.stroke),
-            ),
-            child: Row(
-              children: [
-                const CircleAvatar(radius: 14, backgroundColor: AppColors.secondary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    recentOpponent,
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+          if (recent.isEmpty)
+            Text(
+              'Aucun match classe termine',
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            )
+          else
+            ...recent.map(
+              (match) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    recentScore,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.success,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.stroke),
                 ),
-              ],
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        match.opponentName,
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      match.setsScore,
+                      style: GoogleFonts.manrope(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: match.won
+                            ? AppColors.success.withValues(alpha: 0.18)
+                            : AppColors.error.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        match.won ? 'V' : 'D',
+                        style: GoogleFonts.manrope(
+                          color: match.won
+                              ? AppColors.success
+                              : AppColors.error,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -510,10 +482,12 @@ class _RecentFormCard extends StatelessWidget {
 class _QuickActions extends StatelessWidget {
   final VoidCallback onOpenMap;
   final VoidCallback onLaunchMatch;
+  final VoidCallback onCreateTournament;
 
   const _QuickActions({
     required this.onOpenMap,
     required this.onLaunchMatch,
+    required this.onCreateTournament,
   });
 
   @override
@@ -529,7 +503,7 @@ class _QuickActions extends StatelessWidget {
               child: _QuickActionTile(
                 icon: Icons.add,
                 label: 'Creer\nTournoi',
-                onTap: () {},
+                onTap: onCreateTournament,
               ),
             ),
             const SizedBox(width: 10),
@@ -578,7 +552,9 @@ class _QuickActionTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: isPrimary ? Colors.transparent : AppColors.stroke),
+          border: Border.all(
+            color: isPrimary ? Colors.transparent : AppColors.stroke,
+          ),
           color: isPrimary ? AppColors.secondary : AppColors.surface,
         ),
         child: Column(
@@ -601,179 +577,26 @@ class _QuickActionTile extends StatelessWidget {
   }
 }
 
-class _TournamentCard extends StatelessWidget {
-  const _TournamentCard({
-    required this.tournamentType,
-    required this.tournamentTitle,
-    required this.tournamentCountdown,
-    required this.tournamentSlots,
+class _TournamentPlaceholder extends StatelessWidget {
+  const _TournamentPlaceholder({
+    required this.type,
+    required this.title,
+    required this.countdown,
+    required this.slots,
   });
 
-  final String tournamentType;
-  final String tournamentTitle;
-  final String tournamentCountdown;
-  final String tournamentSlots;
+  final String type;
+  final String title;
+  final String countdown;
+  final String slots;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: AppColors.cardGradient,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.stroke),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  tournamentType,
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                tournamentSlots,
-                style: GoogleFonts.rajdhani(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 30,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tournamentTitle,
-            style: GoogleFonts.rajdhani(
-              fontSize: 36,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            tournamentCountdown,
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.surfaceLight,
-                foregroundColor: AppColors.textPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-              ),
-              child: const Text('S\'inscrire'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActiveMembersCard extends StatelessWidget {
-  const _ActiveMembersCard({required this.members});
-
-  final List<Map<String, dynamic>> members;
-
-  @override
-  Widget build(BuildContext context) {
-    final resolvedMembers = members.isEmpty
-        ? const [
-            {'name': '---', 'role': 'player'}
-          ]
-        : members;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: AppColors.cardGradient,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.stroke),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          ...resolvedMembers.map(
-            (member) => Column(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.surfaceLight,
-                  child: Text(
-                    ((member['name'] ?? '?').toString()).substring(0, 1),
-                    style: GoogleFonts.manrope(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  (member['name'] ?? '').toString(),
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if ((member['role'] ?? '').toString() == 'captain')
-                  Text(
-                    '(Cap)',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Column(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.stroke),
-                ),
-                child: const Icon(Icons.add, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Inviter',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return TournamentTile(
+      type: type,
+      name: title,
+      scheduleLabel: countdown,
+      slotsLabel: slots,
     );
   }
 }

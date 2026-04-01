@@ -10,6 +10,7 @@ import {
 import { MatchPlayer } from './match-player.entity';
 import { Set } from './set.entity';
 import { Territory } from '../../territories/entities/territory.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('matches')
 export class Match {
@@ -64,6 +65,12 @@ export class Match {
   is_offline: boolean;
 
   @Column({ type: 'boolean', default: false })
+  is_ranked: boolean;
+
+  @Column({ type: 'uuid', nullable: true })
+  surrendered_by: string | null;
+
+  @Column({ type: 'boolean', default: false })
   validated_by_home: boolean;
 
   @Column({ type: 'boolean', default: false })
@@ -87,4 +94,8 @@ export class Match {
   @ManyToOne(() => Territory, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'territory_id' })
   territory: Territory;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'surrendered_by' })
+  surrendered_by_user: User;
 }

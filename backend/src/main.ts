@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { static as serveStatic } from 'express';
@@ -10,7 +11,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('Bootstrap');
   const host = process.env.BACKEND_HOST ?? process.env.HOST ?? '0.0.0.0';
   const port = parseInt(
@@ -49,6 +50,10 @@ async function bootstrap() {
     app.use('/tiles', serveStatic(irisDataDir, { index: false }));
     logger.log(`Serving local tiles from ${irisDataDir} at /tiles`);
   }
+
+  // User-uploaded assets (avatars)
+  const uploadsDir = join(process.cwd(), 'uploads');
+  app.useStaticAssets(uploadsDir, { prefix: '/uploads' });
 
   // Swagger
   const config = new DocumentBuilder()

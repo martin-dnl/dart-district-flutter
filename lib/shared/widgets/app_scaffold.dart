@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_colors.dart';
 import '../../core/config/app_routes.dart';
 import '../../features/contacts/controller/contacts_controller.dart';
-import '../../features/match/controller/ongoing_matches_controller.dart';
 
 class AppScaffold extends ConsumerWidget {
   final Widget child;
@@ -20,7 +19,7 @@ class AppScaffold extends ConsumerWidget {
     if (location.startsWith(AppRoutes.play)) return 2;
     if (location.startsWith(AppRoutes.club)) return 3;
     if (location.startsWith(AppRoutes.contacts)) return 4;
-    if (location.startsWith(AppRoutes.profile)) return 5;
+    if (location.startsWith(AppRoutes.tournaments)) return 5;
     return 0;
   }
 
@@ -37,7 +36,7 @@ class AppScaffold extends ConsumerWidget {
       case 4:
         context.go(AppRoutes.contacts);
       case 5:
-        context.go(AppRoutes.profile);
+        context.go(AppRoutes.tournaments);
     }
   }
 
@@ -45,16 +44,14 @@ class AppScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = _currentIndex(context);
     final unreadContacts = ref.watch(contactsUnreadCountProvider);
-    final ongoingMatches = ref.watch(ongoingMatchesControllerProvider);
-    final matchesCount = ongoingMatches.matches.length;
 
     const items = <({IconData icon, String label})>[
       (icon: Icons.home_rounded, label: 'Accueil'),
       (icon: Icons.map_rounded, label: 'Carte'),
-      (icon: Icons.sports_score_rounded, label: 'Tournois'),
+      (icon: Icons.gps_fixed, label: 'Jouer'),
       (icon: Icons.groups_rounded, label: 'Club'),
       (icon: Icons.forum_rounded, label: 'Contacts'),
-      (icon: Icons.person_rounded, label: 'Profil'),
+      (icon: Icons.emoji_events_rounded, label: 'Tournois'),
     ];
 
     return Scaffold(
@@ -99,11 +96,7 @@ class AppScaffold extends ConsumerWidget {
                     child: _DockItem(
                       icon: items[i].icon,
                       label: items[i].label,
-                      badgeCount: i == 4
-                          ? unreadContacts
-                          : i == 2
-                          ? matchesCount
-                          : 0,
+                      badgeCount: i == 4 ? unreadContacts : 0,
                       selected: i == currentIndex,
                       onTap: () => _onTap(context, i),
                     ),
@@ -158,7 +151,7 @@ class _DockItem extends StatelessWidget {
                   children: [
                     Icon(
                       icon,
-                      size: 20,
+                      size: 26,
                       color: selected
                           ? AppColors.background
                           : AppColors.textSecondary,
@@ -203,19 +196,6 @@ class _DockItem extends StatelessWidget {
                         ),
                       ),
                   ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: selected
-                        ? AppColors.background
-                        : AppColors.textSecondary,
-                  ),
                 ),
               ],
             ),

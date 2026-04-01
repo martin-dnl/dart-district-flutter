@@ -222,7 +222,28 @@ export declare class MatchesService {
     }>;
     create(dto: CreateMatchDto): Promise<Match>;
     findById(id: string): Promise<Match>;
-    findByUser(userId: string, limit?: number): Promise<Match[]>;
+    findByUser(userId: string, limit?: number, offset?: number, status?: string, ranked?: string): Promise<Match[]>;
+    getMatchReport(matchId: string): Promise<{
+        match_id: string;
+        mode: string;
+        final_sets: number[];
+        players: {
+            user_id: string;
+            username: string;
+            avg_score: number;
+            legs_won: number;
+            count_180: number;
+            count_140_plus: number;
+            count_100_plus: number;
+            checkout_rate: number;
+            highest_checkout: number;
+        }[];
+        timeline: {
+            set: number;
+            leg: number;
+            winner_username: string;
+        }[];
+    }>;
     submitThrow(matchId: string, legId: string, playerId: string, dto: SubmitThrowDto): Promise<Throw>;
     private completeLeg;
     private checkMatchCompletion;

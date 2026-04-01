@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const platform_express_1 = require("@nestjs/platform-express");
+const multer_1 = require("multer");
 const users_service_1 = require("./users.service");
 const update_user_dto_1 = require("./dto/update-user.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
@@ -36,6 +38,12 @@ let UsersController = class UsersController {
     }
     update(req, dto) {
         return this.usersService.update(req.user.id, dto);
+    }
+    uploadAvatar(req, file) {
+        if (!file) {
+            throw new common_1.BadRequestException('avatar file is required');
+        }
+        return this.usersService.uploadAvatar(req.user.id, file);
     }
     remove(req) {
         return this.usersService.remove(req.user.id);
@@ -79,6 +87,21 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)('me/avatar'),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('avatar', {
+        storage: (0, multer_1.memoryStorage)(),
+        limits: {
+            fileSize: 5 * 1024 * 1024,
+        },
+    })),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "uploadAvatar", null);
 __decorate([
     (0, common_1.Delete)('me'),
     __param(0, (0, common_1.Req)()),

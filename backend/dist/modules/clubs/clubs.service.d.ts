@@ -8,7 +8,14 @@ export declare class ClubsService {
     private readonly memberRepo;
     constructor(clubRepo: Repository<Club>, memberRepo: Repository<ClubMember>);
     create(dto: CreateClubDto, userId: string): Promise<Club>;
-    findAll(limit?: number): Promise<Club[]>;
+    findAll(limit?: number, q?: string, city?: string): Promise<Club[]>;
+    search(params: {
+        q?: string;
+        lat?: number;
+        lng?: number;
+        radius?: number;
+        limit?: number;
+    }): Promise<Club[]>;
     findById(id: string): Promise<Club>;
     update(id: string, dto: UpdateClubDto, userId: string): Promise<Club>;
     addMember(clubId: string, userId: string, role?: 'president' | 'captain' | 'player'): Promise<ClubMember>;

@@ -35,6 +35,12 @@ export class PlayerStat {
   total_180s: number;
 
   @Column({ type: 'int', default: 0 })
+  count_140_plus: number;
+
+  @Column({ type: 'int', default: 0 })
+  count_100_plus: number;
+
+  @Column({ type: 'int', default: 0 })
   high_finish: number;
 
   @Column({ type: 'int', default: 0 })

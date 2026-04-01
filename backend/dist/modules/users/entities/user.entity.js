@@ -55,6 +55,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], User.prototype, "has_tournament_abandon", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], User.prototype, "is_admin", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 10, default: 'right' }),
     __metadata("design:type", String)
 ], User.prototype, "preferred_hand", void 0);

@@ -61,19 +61,35 @@ class TournamentService {
     return payload;
   }
 
+  List<Map<String, dynamic>> _extractRows(dynamic raw) {
+    if (raw is List) {
+      return raw.whereType<Map<String, dynamic>>().toList();
+    }
+    if (raw is Map<String, dynamic>) {
+      final items = raw['items'];
+      if (items is List) {
+        return items.whereType<Map<String, dynamic>>().toList();
+      }
+    }
+    return <Map<String, dynamic>>[];
+  }
+
   Future<List<TournamentModel>> listTournaments({String? status}) async {
     final api = ref.read(apiClientProvider);
     final auth = ref.read(authControllerProvider);
     final userId = auth.user?.id ?? '';
 
-    final response = await api.get<Map<String, dynamic>>(
+    final queryParameters = <String, dynamic>{};
+    if (status != null && status.trim().isNotEmpty) {
+      queryParameters['status'] = status.trim();
+    }
+
+    final response = await api.get<dynamic>(
       '/tournaments',
-      queryParameters: {'status': status},
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
     final raw = _extractData(response.data);
-    final rows = (raw is List ? raw : <dynamic>[])
-        .whereType<Map<String, dynamic>>()
-        .toList();
+    final rows = _extractRows(raw);
     return rows
         .map((row) => TournamentModel.fromApi(row, currentUserId: userId))
         .toList();
@@ -84,9 +100,7 @@ class TournamentService {
     final auth = ref.read(authControllerProvider);
     final userId = auth.user?.id ?? '';
 
-    final response = await api.get<Map<String, dynamic>>(
-      '/tournaments/$tournamentId',
-    );
+    final response = await api.get<dynamic>('/tournaments/$tournamentId');
     final raw = _extractData(response.data);
     final map = (raw as Map<String, dynamic>? ?? <String, dynamic>{});
 

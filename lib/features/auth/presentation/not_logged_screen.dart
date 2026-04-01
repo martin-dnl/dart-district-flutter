@@ -43,7 +43,25 @@ class NotLoggedScreen extends StatelessWidget {
                     fontSize: 15,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'ref_ui/notlogged_image.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Center(
+                    child: Image.asset(
+                      'ref_ui/notlogged_title.png',
+                      fit: BoxFit.contain,
+                      height: 46,
+                    ),
+                  ),
+                ),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),

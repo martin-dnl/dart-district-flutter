@@ -18,9 +18,10 @@ class AppScaffold extends ConsumerWidget {
     if (location.startsWith(AppRoutes.map)) return 1;
     if (location.startsWith(AppRoutes.play)) return 2;
     if (location.startsWith(AppRoutes.club)) return 3;
+    if (location.startsWith(AppRoutes.contactsChat)) return 4;
     if (location.startsWith(AppRoutes.contacts)) return 4;
     if (location.startsWith(AppRoutes.tournaments)) return 5;
-    return 0;
+    return -1;
   }
 
   void _onTap(BuildContext context, int index) {
@@ -55,7 +56,11 @@ class AppScaffold extends ConsumerWidget {
     ];
 
     return Scaffold(
-      body: child,
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+        child: child,
+      ),
       extendBody: true,
       bottomNavigationBar: SafeArea(
         top: false,

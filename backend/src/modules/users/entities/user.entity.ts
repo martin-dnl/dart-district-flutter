@@ -41,6 +41,9 @@ export class User {
   @Column({ type: 'boolean', default: false })
   has_tournament_abandon: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  is_admin: boolean;
+
   @Column({ type: 'varchar', length: 10, default: 'right' })
   preferred_hand: string;
 

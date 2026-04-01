@@ -12,6 +12,7 @@ export declare class User {
     is_guest: boolean;
     is_active: boolean;
     has_tournament_abandon: boolean;
+    is_admin: boolean;
     preferred_hand: string;
     level: string;
     city: string | null;

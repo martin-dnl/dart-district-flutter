@@ -177,9 +177,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
 
     final latRadians = latitude * math.pi / 180;
-    final metersPerPixelAtZoom0 = 156543.03392804097 * math.cos(latRadians).abs();
+    final metersPerPixelAtZoom0 =
+        156543.03392804097 * math.cos(latRadians).abs();
     final targetMeters = widthKm * 1000;
-    final rawZoom = math.log((metersPerPixelAtZoom0 * viewportWidthPx) / targetMeters) / math.ln2;
+    final rawZoom =
+        math.log((metersPerPixelAtZoom0 * viewportWidthPx) / targetMeters) /
+        math.ln2;
 
     if (rawZoom.isNaN || rawZoom.isInfinite) {
       return _cityDefaultZoom;
@@ -217,7 +220,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<_TilesetConfig?> _loadTilesetConfig() async {
     try {
       final api = ref.read(apiClientProvider);
-      final response = await api.get<Map<String, dynamic>>('/territories/tileset');
+      final response = await api.get<Map<String, dynamic>>(
+        '/territories/tileset',
+      );
       final payload = _asJsonMap(response.data);
       final data = _asJsonMap(payload?['data']);
       if (data == null) {
@@ -309,7 +314,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       'iris_france',
     ];
 
-    return candidates.where((name) => name.isNotEmpty).toSet().toList(growable: false);
+    return candidates
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
   }
 
   vtr.Theme _getOrBuildTheme(
@@ -360,10 +368,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'type': 'fill',
           'source': 'pmtiles',
           'source-layer': sourceLayer,
-          'paint': {
-            'fill-color': '#22c55e',
-            'fill-opacity': 0.12,
-          },
+          'paint': {'fill-color': '#22c55e', 'fill-opacity': 0.12},
         },
         {
           'id': 'iris-border-$sourceLayer',
@@ -387,10 +392,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _statusFilter(conquered),
-            'paint': {
-              'fill-color': '#c8ff00',
-              'fill-opacity': 0.18,
-            },
+            'paint': {'fill-color': '#c8ff00', 'fill-opacity': 0.18},
           },
           {
             'id': 'iris-conquered-border-$sourceLayer',
@@ -416,10 +418,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _statusFilter(locked),
-            'paint': {
-              'fill-color': '#3b82f6',
-              'fill-opacity': 0.22,
-            },
+            'paint': {'fill-color': '#3b82f6', 'fill-opacity': 0.22},
           },
           {
             'id': 'iris-locked-border-$sourceLayer',
@@ -445,10 +444,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _statusFilter(conflict),
-            'paint': {
-              'fill-color': '#ef4444',
-              'fill-opacity': 0.25,
-            },
+            'paint': {'fill-color': '#ef4444', 'fill-opacity': 0.25},
           },
           {
             'id': 'iris-conflict-border-$sourceLayer',
@@ -474,10 +470,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _statusFilter(alert),
-            'paint': {
-              'fill-color': '#ff6b6b',
-              'fill-opacity': 0.30,
-            },
+            'paint': {'fill-color': '#ff6b6b', 'fill-opacity': 0.30},
           },
           {
             'id': 'iris-alert-border-$sourceLayer',
@@ -536,13 +529,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Future<void> _openPanelForTerritoryCode(String codeIris) async {
     final api = ref.read(apiClientProvider);
-    final response = await api.get<Map<String, dynamic>>('/territories/$codeIris/panel');
+    final response = await api.get<Map<String, dynamic>>(
+      '/territories/$codeIris/panel',
+    );
     final panelData = response.data?['data'] as Map<String, dynamic>?;
     if (!mounted || panelData == null) {
       return;
     }
 
-    final territory = panelData['territory'] as Map<String, dynamic>? ?? const {};
+    final territory =
+        panelData['territory'] as Map<String, dynamic>? ?? const {};
     final activeDuel = panelData['active_duel'] as Map<String, dynamic>?;
     final latestEvents =
         (panelData['latest_events'] as List<dynamic>? ?? const <dynamic>[])
@@ -596,7 +592,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             color: statusClr.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Icon(_statusIcon(status), color: statusClr, size: 24),
+                          child: Icon(
+                            _statusIcon(status),
+                            color: statusClr,
+                            size: 24,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -604,7 +604,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (territory['name'] ?? territory['code_iris'] ?? codeIris).toString(),
+                                (territory['name'] ??
+                                        territory['code_iris'] ??
+                                        codeIris)
+                                    .toString(),
                                 style: const TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 18,
@@ -614,11 +617,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 'Code IRIS: $codeIris',
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: statusClr.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(12),
@@ -626,7 +635,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(_statusIcon(status), size: 12, color: statusClr),
+                                    Icon(
+                                      _statusIcon(status),
+                                      size: 12,
+                                      color: statusClr,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       _statusLabel(status),
@@ -654,7 +667,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             ),
                             const Text(
                               'points',
-                              style: TextStyle(color: AppColors.textHint, fontSize: 10),
+                              style: TextStyle(
+                                color: AppColors.textHint,
+                                fontSize: 10,
+                              ),
                             ),
                           ],
                         ),
@@ -680,7 +696,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                (ownerClub['name'] ?? '?').toString().substring(0, 1).toUpperCase(),
+                                (ownerClub['name'] ?? '?')
+                                    .toString()
+                                    .substring(0, 1)
+                                    .toUpperCase(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -703,16 +722,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                   ),
                                   const Text(
                                     'Club propriétaire',
-                                    style: TextStyle(color: AppColors.textHint, fontSize: 10),
+                                    style: TextStyle(
+                                      color: AppColors.textHint,
+                                      fontSize: 10,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             if (status == 'conflict' || status == 'alert')
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                  color: const Color(
+                                    0xFFEF4444,
+                                  ).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Text(
@@ -733,14 +760,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       activeDuel == null
                           ? 'Aucun duel actif'
                           : 'Duel actif: ${(activeDuel['status'] ?? 'pending')}',
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                      ),
                     ),
                     if (latestEvents.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           '${latestEvents.length} événement(s) récent(s)',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     const SizedBox(height: 8),
@@ -842,7 +875,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           const Duration(milliseconds: 150),
                           () {
                             if (!mounted) return;
-                            final shouldShow = _shouldRenderZones(viewportWidthPx);
+                            final shouldShow = _shouldRenderZones(
+                              viewportWidthPx,
+                            );
                             if (shouldShow != _showZones) {
                               setState(() => _showZones = shouldShow);
                             }
@@ -868,7 +903,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                     children: [
                       fm.TileLayer(
-                        urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                        urlTemplate:
+                            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
                         subdomains: const ['a', 'b', 'c', 'd'],
                         userAgentPackageName: 'fr.dartdistrict.app',
                         tileDisplay: const fm.TileDisplay.fadeIn(),
@@ -900,20 +936,32 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             child: Row(
                               children: [
                                 const SizedBox(width: 14),
-                                const Icon(Icons.search, color: AppColors.textHint, size: 20),
+                                const Icon(
+                                  Icons.search,
+                                  color: AppColors.textHint,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: TextField(
                                     controller: _searchController,
                                     focusNode: _searchFocus,
                                     onChanged: _onSearchChanged,
-                                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 14,
+                                    ),
                                     decoration: const InputDecoration(
                                       hintText: 'Rechercher une ville...',
-                                      hintStyle: TextStyle(color: AppColors.textHint, fontSize: 14),
+                                      hintStyle: TextStyle(
+                                        color: AppColors.textHint,
+                                        fontSize: 14,
+                                      ),
                                       border: InputBorder.none,
                                       isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -931,13 +979,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                   )
                                 else if (_searchController.text.isNotEmpty)
                                   IconButton(
-                                    icon: const Icon(Icons.close, color: AppColors.textHint, size: 18),
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: AppColors.textHint,
+                                      size: 18,
+                                    ),
                                     onPressed: () {
                                       _searchController.clear();
                                       _onSearchChanged('');
                                     },
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 36,
+                                      minHeight: 36,
+                                    ),
                                   ),
                                 // My-location button
                                 Container(
@@ -945,18 +1000,26 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                   child: IconButton(
                                     icon: Icon(
                                       Icons.my_location,
-                                      color: _userLocation != null ? AppColors.primary : AppColors.textHint,
+                                      color: _userLocation != null
+                                          ? AppColors.primary
+                                          : AppColors.textHint,
                                       size: 20,
                                     ),
                                     onPressed: () {
                                       if (_userLocation != null) {
-                                        _fmController.move(_userLocation!, _searchResultZoom);
+                                        _fmController.move(
+                                          _userLocation!,
+                                          _searchResultZoom,
+                                        );
                                       } else {
                                         _initUserLocation();
                                       }
                                     },
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 36,
+                                      minHeight: 36,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -970,7 +1033,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AppColors.surfaceLight),
+                                border: Border.all(
+                                  color: AppColors.surfaceLight,
+                                ),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(14),
@@ -978,10 +1043,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                   shrinkWrap: true,
                                   padding: EdgeInsets.zero,
                                   itemCount: _searchResults.length,
-                                  separatorBuilder: (context2, index2) => Divider(
-                                    height: 1,
-                                    color: AppColors.surfaceLight.withValues(alpha: 0.5),
-                                  ),
+                                  separatorBuilder: (context2, index2) =>
+                                      Divider(
+                                        height: 1,
+                                        color: AppColors.surfaceLight
+                                            .withValues(alpha: 0.5),
+                                      ),
                                   itemBuilder: (context, index) {
                                     final result = _searchResults[index];
                                     final parts = result.displayName.split(',');
@@ -1015,7 +1082,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                               ),
                                             )
                                           : null,
-                                      onTap: () => _onSearchResultSelected(result),
+                                      onTap: () =>
+                                          _onSearchResultSelected(result),
                                     );
                                   },
                                 ),
@@ -1031,7 +1099,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       alignment: Alignment.topLeft,
                       child: Container(
                         margin: const EdgeInsets.only(left: 12, top: 68),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.card.withValues(alpha: 0.90),
                           borderRadius: BorderRadius.circular(16),
@@ -1056,7 +1127,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               children: [
                                 _StatChip(
                                   count: mapState.territories
-                                      .where((t) => t.status == TerritoryStatus.conquered)
+                                      .where(
+                                        (t) =>
+                                            t.status ==
+                                            TerritoryStatus.conquered,
+                                      )
                                       .length,
                                   label: 'conquis',
                                   color: const Color(0xFFC8FF00),
@@ -1064,7 +1139,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 const SizedBox(width: 10),
                                 _StatChip(
                                   count: mapState.territories
-                                      .where((t) => t.status == TerritoryStatus.conflict || t.status == TerritoryStatus.alert)
+                                      .where(
+                                        (t) =>
+                                            t.status ==
+                                                TerritoryStatus.conflict ||
+                                            t.status == TerritoryStatus.alert,
+                                      )
                                       .length,
                                   label: 'en guerre',
                                   color: const Color(0xFFEF4444),
@@ -1076,41 +1156,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     ),
                   ),
-                  // Legend (top-right, shifted down for search bar)
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12, top: 68),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.card.withValues(alpha: 0.90),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.surfaceLight),
-                        ),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _LegendItem(color: Color(0xFF22C55E), label: 'Disponible', dashed: true),
-                            SizedBox(height: 6),
-                            _LegendItem(color: Color(0xFFC8FF00), label: 'Notre zone'),
-                            SizedBox(height: 6),
-                            _LegendItem(color: Color(0xFF3B82F6), label: 'Conquise'),
-                            SizedBox(height: 6),
-                            _LegendItem(color: Color(0xFFEF4444), label: 'En guerre'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                   // Legend bar (bottom)
                   SafeArea(
                     child: Align(
                       alignment: Alignment.bottomCenter,
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 12, left: 12, right: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        margin: const EdgeInsets.only(
+                          bottom: 12,
+                          left: 12,
+                          right: 12,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.card.withValues(alpha: 0.92),
                           borderRadius: BorderRadius.circular(16),
@@ -1119,10 +1178,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LegendItem(color: Color(0xFF22C55E), label: 'Disponible', dashed: true),
-                            _LegendItem(color: Color(0xFFC8FF00), label: 'Notre zone'),
-                            _LegendItem(color: Color(0xFF3B82F6), label: 'Conquise'),
-                            _LegendItem(color: Color(0xFFEF4444), label: 'En guerre'),
+                            _LegendItem(
+                              color: Color(0xFF22C55E),
+                              label: 'Disponible',
+                              dashed: true,
+                            ),
+                            _LegendItem(
+                              color: Color(0xFFC8FF00),
+                              label: 'Notre zone',
+                            ),
+                            _LegendItem(
+                              color: Color(0xFF3B82F6),
+                              label: 'Conquise',
+                            ),
+                            _LegendItem(
+                              color: Color(0xFFEF4444),
+                              label: 'En guerre',
+                            ),
                           ],
                         ),
                       ),
@@ -1156,7 +1228,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                   if (mapState.isLoading)
                     const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     ),
                 ],
               );
@@ -1197,7 +1271,10 @@ double? _asDouble(dynamic value) {
   return null;
 }
 
-TerritoryModel? _nearestTerritory(List<TerritoryModel> territories, LatLng tap) {
+TerritoryModel? _nearestTerritory(
+  List<TerritoryModel> territories,
+  LatLng tap,
+) {
   TerritoryModel? nearest;
   var bestDistance = double.infinity;
 
@@ -1293,11 +1370,19 @@ class _StatChip extends StatelessWidget {
         children: [
           TextSpan(
             text: '$count ',
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
           ),
           TextSpan(
             text: label,
-            style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.normal, fontSize: 12),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.normal,
+              fontSize: 12,
+            ),
           ),
         ],
       ),

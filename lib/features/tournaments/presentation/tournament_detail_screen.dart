@@ -26,63 +26,67 @@ class TournamentDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail tournoi'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
       ),
-      backgroundColor: AppColors.background,
-      body: detailAsync.when(
-        data: (detail) {
-          final isCreator =
-              ref.read(currentUserProvider)?.id == detail.tournament.creatorId;
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+        child: detailAsync.when(
+          data: (detail) {
+            final isCreator =
+                ref.read(currentUserProvider)?.id ==
+                detail.tournament.creatorId;
 
-          return DefaultTabController(
-            length: 3,
-            child: Column(
-              children: [
-                _HeaderCard(
-                  tournament: detail.tournament,
-                  onRegisterToggle: () async {
-                    final service = ref.read(tournamentServiceProvider);
-                    if (detail.tournament.isRegistered) {
-                      await service.unregister(tournamentId);
-                    } else {
-                      await service.register(tournamentId);
-                    }
-                    ref.invalidate(tournamentDetailProvider(tournamentId));
-                    ref.invalidate(tournamentsListProvider);
-                  },
-                ),
-                const TabBar(
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  tabs: [
-                    Tab(text: 'Joueurs'),
-                    Tab(text: 'Poules'),
-                    Tab(text: 'Bracket'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _PlayersTab(players: detail.players),
-                      _PoolsTab(poolsAsync: poolsAsync),
-                      _BracketTab(bracketAsync: bracketAsync),
+            return DefaultTabController(
+              length: 3,
+              child: Column(
+                children: [
+                  _HeaderCard(
+                    tournament: detail.tournament,
+                    onRegisterToggle: () async {
+                      final service = ref.read(tournamentServiceProvider);
+                      if (detail.tournament.isRegistered) {
+                        await service.unregister(tournamentId);
+                      } else {
+                        await service.register(tournamentId);
+                      }
+                      ref.invalidate(tournamentDetailProvider(tournamentId));
+                      ref.invalidate(tournamentsListProvider);
+                    },
+                  ),
+                  const TabBar(
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: AppColors.textSecondary,
+                    tabs: [
+                      Tab(text: 'Joueurs'),
+                      Tab(text: 'Poules'),
+                      Tab(text: 'Bracket'),
                     ],
                   ),
-                ),
-                if (isCreator)
-                  _AdminActions(
-                    tournamentId: tournamentId,
-                    phase: detail.tournament.currentPhase,
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _PlayersTab(players: detail.players),
+                        _PoolsTab(poolsAsync: poolsAsync),
+                        _BracketTab(bracketAsync: bracketAsync),
+                      ],
+                    ),
                   ),
-              ],
+                  if (isCreator)
+                    _AdminActions(
+                      tournamentId: tournamentId,
+                      phase: detail.tournament.currentPhase,
+                    ),
+                ],
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => const Center(
+            child: Text(
+              'Erreur de chargement du tournoi.',
+              style: TextStyle(color: AppColors.error),
             ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const Center(
-          child: Text(
-            'Erreur de chargement du tournoi.',
-            style: TextStyle(color: AppColors.error),
           ),
         ),
       ),

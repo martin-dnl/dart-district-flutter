@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
-import '../../../core/config/app_routes.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../controller/tournament_controller.dart';
 import '../models/tournament_model.dart';
@@ -44,7 +43,7 @@ class _TournamentsListScreenState extends ConsumerState<TournamentsListScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tournois'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,
@@ -57,45 +56,41 @@ class _TournamentsListScreenState extends ConsumerState<TournamentsListScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.tournamentCreate),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.background,
-        icon: const Icon(Icons.add),
-        label: const Text('Creer un tournoi'),
-      ),
-      backgroundColor: AppColors.background,
-      body: tournamentsAsync.when(
-        data: (tournaments) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _TournamentTab(
-                tournaments: tournaments
-                    .where((t) => t.scheduledAt.isAfter(DateTime.now()))
-                    .toList(),
-                onRefresh: _refresh,
-              ),
-              _TournamentTab(
-                tournaments: tournaments
-                    .where((t) => t.currentPhase != 'finished')
-                    .toList(),
-                onRefresh: _refresh,
-              ),
-              _TournamentTab(
-                tournaments: tournaments
-                    .where((t) => t.currentPhase == 'finished')
-                    .toList(),
-                onRefresh: _refresh,
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const Center(
-          child: Text(
-            'Impossible de charger les tournois.',
-            style: TextStyle(color: AppColors.error),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+        child: tournamentsAsync.when(
+          data: (tournaments) {
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _TournamentTab(
+                  tournaments: tournaments
+                      .where((t) => t.scheduledAt.isAfter(DateTime.now()))
+                      .toList(),
+                  onRefresh: _refresh,
+                ),
+                _TournamentTab(
+                  tournaments: tournaments
+                      .where((t) => t.currentPhase != 'finished')
+                      .toList(),
+                  onRefresh: _refresh,
+                ),
+                _TournamentTab(
+                  tournaments: tournaments
+                      .where((t) => t.currentPhase == 'finished')
+                      .toList(),
+                  onRefresh: _refresh,
+                ),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => const Center(
+            child: Text(
+              'Impossible de charger les tournois.',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ),
       ),

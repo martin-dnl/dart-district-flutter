@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../auth/controller/auth_controller.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_card.dart';
 import '../../../shared/widgets/glass_card.dart';
@@ -296,18 +297,11 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(clubSearchControllerProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final canCreateClub = currentUser?.isAdmin ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: AppColors.surface),
-        label: const Text(
-          'Créer un club',
-          style: TextStyle(color: AppColors.surface),
-        ),
-      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -370,6 +364,25 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
                   },
                 ),
               ),
+              if (canCreateClub) ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 82),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {},
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.background,
+                        minimumSize: const Size.fromHeight(50),
+                      ),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Créer un club'),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

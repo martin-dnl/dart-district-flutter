@@ -147,6 +147,14 @@ class HomeScreen extends ConsumerWidget {
                                 .toString(),
                         slotsLabel:
                             '${(tournament['enrolled_players'] ?? 0).toString()}/${(tournament['max_players'] ?? 0).toString()}',
+                        onTap: () {
+                          final id = tournament['id']?.toString();
+                          if (id != null && id.isNotEmpty) {
+                            context.push('/tournaments/$id');
+                            return;
+                          }
+                          context.go(AppRoutes.tournaments);
+                        },
                       );
                     },
                     loading: () => const Center(
@@ -543,6 +551,7 @@ class _TournamentPlaceholder extends StatelessWidget {
       name: title,
       scheduleLabel: countdown,
       slotsLabel: slots,
+      onTap: () => context.go(AppRoutes.tournaments),
     );
   }
 }

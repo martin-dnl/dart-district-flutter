@@ -174,32 +174,51 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(value: true, label: Text('Classe')),
-                    ButtonSegment<bool>(value: false, label: Text('Amical')),
-                  ],
-                  selected: {_isRanked},
-                  onSelectionChanged: _startOption == GameStartOption.guest
-                      ? null
-                      : (values) {
-                          setState(() {
-                            _isRanked = values.first;
-                          });
-                        },
-                  style: ButtonStyle(
-                    foregroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return AppColors.background;
-                      }
-                      return AppColors.textPrimary;
-                    }),
-                    backgroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return AppColors.primary;
-                      }
-                      return AppColors.surface;
-                    }),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment<bool>(value: true, label: Text('Classe')),
+                      ButtonSegment<bool>(value: false, label: Text('Amical')),
+                    ],
+                    selected: {_isRanked},
+                    onSelectionChanged: _startOption == GameStartOption.guest
+                        ? null
+                        : (values) {
+                            setState(() {
+                              _isRanked = values.first;
+                            });
+                          },
+                    showSelectedIcon: false,
+                    style: ButtonStyle(
+                      minimumSize: const WidgetStatePropertyAll(
+                        Size(double.infinity, 48),
+                      ),
+                      side: const WidgetStatePropertyAll(
+                        BorderSide(color: AppColors.stroke),
+                      ),
+                      shape: WidgetStatePropertyAll(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      foregroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppColors.background;
+                        }
+                        return AppColors.textSecondary;
+                      }),
+                      backgroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppColors.primary;
+                        }
+                        return AppColors.surface;
+                      }),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -283,17 +302,53 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                SegmentedButton<int>(
-                  segments: [
-                    ButtonSegment<int>(value: 0, label: Text(currentUserName)),
-                    ButtonSegment<int>(value: 1, label: Text(opponentLabel)),
-                  ],
-                  selected: {_startingPlayerIndex},
-                  onSelectionChanged: (values) {
-                    setState(() {
-                      _startingPlayerIndex = values.first;
-                    });
-                  },
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<int>(
+                    segments: [
+                      ButtonSegment<int>(
+                        value: 0,
+                        label: Text(currentUserName),
+                      ),
+                      ButtonSegment<int>(value: 1, label: Text(opponentLabel)),
+                    ],
+                    selected: {_startingPlayerIndex},
+                    onSelectionChanged: (values) {
+                      setState(() {
+                        _startingPlayerIndex = values.first;
+                      });
+                    },
+                    showSelectedIcon: false,
+                    style: ButtonStyle(
+                      minimumSize: const WidgetStatePropertyAll(
+                        Size(double.infinity, 48),
+                      ),
+                      side: const WidgetStatePropertyAll(
+                        BorderSide(color: AppColors.stroke),
+                      ),
+                      shape: WidgetStatePropertyAll(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      foregroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppColors.background;
+                        }
+                        return AppColors.textSecondary;
+                      }),
+                      backgroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppColors.primary;
+                        }
+                        return AppColors.surface;
+                      }),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 DartButton(

@@ -9,6 +9,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
+import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/match_history_list.dart';
 import '../../../shared/widgets/player_avatar.dart';
 import '../../../shared/widgets/section_header.dart';
@@ -133,235 +134,238 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final losses =
         (user?.stats.matchesPlayed ?? 0) - (user?.stats.matchesWon ?? 0);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // Profile header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: _showMyQrCode,
-                          icon: const Icon(
-                            Icons.qr_code_2,
-                            color: AppColors.textSecondary,
+    return AppScaffold(
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              // Profile header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _showMyQrCode,
+                            icon: const Icon(
+                              Icons.qr_code_2,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => context.push(AppRoutes.settings),
+                            icon: const Icon(
+                              Icons.settings_outlined,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      GestureDetector(
+                        onTap: _changeAvatar,
+                        child: PlayerAvatar(
+                          name: user?.username ?? 'Joueur',
+                          imageUrl: user?.avatarUrl,
+                          size: 90,
+                          showBorder: true,
                         ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: () => context.push(AppRoutes.settings),
-                          icon: const Icon(
-                            Icons.settings_outlined,
-                            color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Username
+                      Text(
+                        user?.username ?? 'Joueur',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.email ?? '',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      if (user?.clubName != null) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            user!.clubName!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.secondary,
+                            ),
                           ),
                         ),
                       ],
-                    ),
+                    ],
+                  ),
+                ),
+              ),
 
-                    GestureDetector(
-                      onTap: _changeAvatar,
-                      child: PlayerAvatar(
-                        name: user?.username ?? 'Joueur',
-                        imageUrl: user?.avatarUrl,
-                        size: 90,
-                        showBorder: true,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Username
-                    Text(
-                      user?.username ?? 'Joueur',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user?.email ?? '',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    if (user?.clubName != null) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+              // Stats cards
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: StatCard(
+                          label: 'ELO',
+                          value: '${user?.elo ?? 1000}',
+                          icon: Icons.trending_up,
+                          valueColor: AppColors.accent,
                         ),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: StatCard(
+                          label: 'Victoires',
+                          value: '${user?.stats.matchesWon ?? 0}',
+                          icon: Icons.emoji_events,
+                          valueColor: AppColors.success,
                         ),
-                        child: Text(
-                          user!.clubName!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.secondary,
-                          ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: StatCard(
+                          label: 'Defaites',
+                          value: '$losses',
+                          icon: Icons.close,
+                          valueColor: AppColors.error,
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: StatCard(
+                          label: 'Moyenne',
+                          value:
+                              user?.stats.averageScore.toStringAsFixed(1) ??
+                              '0',
+                          icon: Icons.analytics,
+                          valueColor: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: StatCard(
+                          label: 'Checkout',
+                          value:
+                              '${user?.stats.checkoutRate.toStringAsFixed(0) ?? 0}%',
+                          icon: Icons.check_circle,
+                          valueColor: AppColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: StatCard(
+                          label: '180s',
+                          value: '${user?.stats.highest180s ?? 0}',
+                          icon: Icons.stars,
+                          valueColor: AppColors.accent,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: StatCard(
+                          label: '140+',
+                          value: '${user?.stats.count140Plus ?? 0}',
+                          icon: Icons.local_fire_department,
+                          valueColor: AppColors.warning,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: StatCard(
+                          label: '100+',
+                          value: '${user?.stats.count100Plus ?? 0}',
+                          icon: Icons.bolt,
+                          valueColor: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-            // Stats cards
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: StatCard(
-                        label: 'ELO',
-                        value: '${user?.elo ?? 1000}',
-                        icon: Icons.trending_up,
-                        valueColor: AppColors.accent,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatCard(
-                        label: 'Victoires',
-                        value: '${user?.stats.matchesWon ?? 0}',
-                        icon: Icons.emoji_events,
-                        valueColor: AppColors.success,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatCard(
-                        label: 'Defaites',
-                        value: '$losses',
-                        icon: Icons.close,
-                        valueColor: AppColors.error,
-                      ),
-                    ),
-                  ],
+              // ELO chart
+              const SliverToBoxAdapter(
+                child: SectionHeader(title: 'Progression ELO'),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: EloChart(eloHistory: profileState.eloHistory),
                 ),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: StatCard(
-                        label: 'Moyenne',
-                        value:
-                            user?.stats.averageScore.toStringAsFixed(1) ?? '0',
-                        icon: Icons.analytics,
-                        valueColor: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatCard(
-                        label: 'Checkout',
-                        value:
-                            '${user?.stats.checkoutRate.toStringAsFixed(0) ?? 0}%',
-                        icon: Icons.check_circle,
-                        valueColor: AppColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: StatCard(
-                        label: '180s',
-                        value: '${user?.stats.highest180s ?? 0}',
-                        icon: Icons.stars,
-                        valueColor: AppColors.accent,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatCard(
-                        label: '140+',
-                        value: '${user?.stats.count140Plus ?? 0}',
-                        icon: Icons.local_fire_department,
-                        valueColor: AppColors.warning,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatCard(
-                        label: '100+',
-                        value: '${user?.stats.count100Plus ?? 0}',
-                        icon: Icons.bolt,
-                        valueColor: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
 
-            // ELO chart
-            const SliverToBoxAdapter(
-              child: SectionHeader(title: 'Progression ELO'),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: EloChart(eloHistory: profileState.eloHistory),
-              ),
-            ),
-
-            // Badges
-            SliverToBoxAdapter(
-              child: SectionHeader(
-                title: 'Badges',
-                actionText: 'Voir tout',
-                onAction: () => context.push(AppRoutes.badges),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: BadgeGrid(badges: profileState.badges, maxDisplay: 4),
-              ),
-            ),
-
-            // Match history
-            const SliverToBoxAdapter(
-              child: SectionHeader(title: 'Historique des matchs'),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: MatchHistoryList(
-                  matches: recentMatches,
-                  onMatchTap: (matchId) =>
-                      context.push('/match/$matchId/report'),
+              // Badges
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: 'Badges',
+                  actionText: 'Voir tout',
+                  onAction: () => context.push(AppRoutes.badges),
                 ),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: BadgeGrid(badges: profileState.badges, maxDisplay: 4),
+                ),
+              ),
+
+              // Match history
+              const SliverToBoxAdapter(
+                child: SectionHeader(title: 'Historique des matchs'),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: MatchHistoryList(
+                    matches: recentMatches,
+                    onMatchTap: (matchId) =>
+                        context.push('/match/$matchId/report'),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
         ),
       ),
     );

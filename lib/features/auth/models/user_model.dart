@@ -6,6 +6,7 @@ class UserModel {
   final int elo;
   final String? clubId;
   final String? clubName;
+  final bool isAdmin;
   final DateTime createdAt;
   final PlayerStats stats;
 
@@ -17,6 +18,7 @@ class UserModel {
     this.elo = 1000,
     this.clubId,
     this.clubName,
+    this.isAdmin = false,
     required this.createdAt,
     this.stats = const PlayerStats(),
   });
@@ -38,6 +40,7 @@ class UserModel {
       elo: json['elo'] as int? ?? 1000,
       clubId: json['clubId'] as String?,
       clubName: json['clubName'] as String?,
+      isAdmin: json['isAdmin'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       stats: json['stats'] != null
           ? PlayerStats.fromJson(json['stats'] as Map<String, dynamic>)
@@ -61,6 +64,7 @@ class UserModel {
       elo: (json['elo'] as num?)?.toInt() ?? 1000,
       clubId: club?['id'] as String?,
       clubName: club?['name'] as String?,
+      isAdmin: json['is_admin'] as bool? ?? false,
       createdAt:
           DateTime.tryParse((json['created_at'] ?? '').toString()) ??
           DateTime.now(),
@@ -76,6 +80,7 @@ class UserModel {
     'elo': elo,
     'clubId': clubId,
     'clubName': clubName,
+    'isAdmin': isAdmin,
     'createdAt': createdAt.toIso8601String(),
     'stats': stats.toJson(),
   };

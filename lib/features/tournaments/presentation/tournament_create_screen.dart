@@ -126,152 +126,246 @@ class _TournamentCreateScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Creer un tournoi'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
       ),
-      backgroundColor: AppColors.background,
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nouveau tournoi',
+                      style: TextStyle(
+                        color: AppColors.background,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Configurez format, inscriptions et calendrier.',
+                      style: TextStyle(
+                        color: AppColors.background,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _sectionCard(
+                title: 'Informations',
+                children: [
+                  _field(_nameCtrl, 'Nom', required: true),
+                  const SizedBox(height: 12),
+                  _field(_descCtrl, 'Description', maxLines: 3),
+                  const SizedBox(height: 12),
+                  _field(_venueCtrl, 'Lieu'),
+                  const SizedBox(height: 12),
+                  _field(_cityCtrl, 'Ville'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _sectionCard(
+                title: 'Regles de jeu',
+                children: [
+                  _segment(
+                    label: 'Mode',
+                    value: _mode,
+                    options: const ['301', '501', '701', 'cricket'],
+                    onChanged: (value) => setState(() => _mode = value),
+                  ),
+                  const SizedBox(height: 12),
+                  _segment(
+                    label: 'Finish',
+                    value: _finish,
+                    options: const ['double_out', 'single_out', 'master_out'],
+                    labels: const {
+                      'double_out': 'Double out',
+                      'single_out': 'Single out',
+                      'master_out': 'Master out',
+                    },
+                    onChanged: (value) => setState(() => _finish = value),
+                  ),
+                  const SizedBox(height: 12),
+                  _segment(
+                    label: 'Max joueurs',
+                    value: _maxPlayers.toString(),
+                    options: const ['4', '8', '16', '32'],
+                    onChanged: (value) =>
+                        setState(() => _maxPlayers = int.parse(value)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _sectionCard(
+                title: 'Format tournoi',
+                children: [
+                  _segment(
+                    label: 'Format',
+                    value: _format,
+                    options: const [
+                      'single_elimination',
+                      'pools_then_elimination',
+                    ],
+                    labels: const {
+                      'single_elimination': 'Elimination directe',
+                      'pools_then_elimination': 'Poules + Elimination',
+                    },
+                    onChanged: (value) => setState(() => _format = value),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_format == 'pools_then_elimination') ...[
+                    _counter(
+                      'Nombre de poules',
+                      _poolCount,
+                      min: 2,
+                      max: 8,
+                      onChanged: (v) => setState(() => _poolCount = v),
+                    ),
+                    const SizedBox(height: 8),
+                    _counter(
+                      'Qualifies par poule',
+                      _qualifiedPerPool,
+                      min: 1,
+                      max: 4,
+                      onChanged: (v) => setState(() => _qualifiedPerPool = v),
+                    ),
+                    const SizedBox(height: 8),
+                    _counter(
+                      'Legs par set (poules)',
+                      _legsPool,
+                      min: 1,
+                      max: 9,
+                      onChanged: (v) => setState(() => _legsPool = v),
+                    ),
+                    const SizedBox(height: 8),
+                    _counter(
+                      'Sets pour gagner (poules)',
+                      _setsPool,
+                      min: 1,
+                      max: 5,
+                      onChanged: (v) => setState(() => _setsPool = v),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  _counter(
+                    'Legs par set (bracket)',
+                    _legsBracket,
+                    min: 1,
+                    max: 11,
+                    onChanged: (v) => setState(() => _legsBracket = v),
+                  ),
+                  const SizedBox(height: 8),
+                  _counter(
+                    'Sets pour gagner (bracket)',
+                    _setsBracket,
+                    min: 1,
+                    max: 5,
+                    onChanged: (v) => setState(() => _setsBracket = v),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _sectionCard(
+                title: 'Tarif et date',
+                children: [
+                  _field(
+                    _feeCtrl,
+                    'Frais inscription (EUR)',
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    tileColor: AppColors.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: AppColors.stroke),
+                    ),
+                    title: const Text(
+                      'Date et heure',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                    subtitle: Text(
+                      _formatDate(_scheduledAt),
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                    trailing: const Icon(
+                      Icons.calendar_today,
+                      color: AppColors.primary,
+                    ),
+                    onTap: _pickDateTime,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: _submitting ? null : _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.background,
+                  minimumSize: const Size(double.infinity, 54),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Creer le tournoi'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => context.pop(),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                  side: const BorderSide(color: AppColors.stroke),
+                ),
+                child: const Text('Annuler'),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionCard({required String title, required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _field(_nameCtrl, 'Nom', required: true),
-          const SizedBox(height: 12),
-          _field(_descCtrl, 'Description', maxLines: 3),
-          const SizedBox(height: 12),
-          _segment(
-            label: 'Mode',
-            value: _mode,
-            options: const ['301', '501', '701', 'cricket'],
-            onChanged: (value) => setState(() => _mode = value),
-          ),
-          const SizedBox(height: 12),
-          _segment(
-            label: 'Finish',
-            value: _finish,
-            options: const ['double_out', 'single_out', 'master_out'],
-            onChanged: (value) => setState(() => _finish = value),
-          ),
-          const SizedBox(height: 12),
-          _segment(
-            label: 'Max joueurs',
-            value: _maxPlayers.toString(),
-            options: const ['4', '8', '16', '32'],
-            onChanged: (value) =>
-                setState(() => _maxPlayers = int.parse(value)),
-          ),
-          const SizedBox(height: 12),
-          _segment(
-            label: 'Format',
-            value: _format,
-            options: const ['single_elimination', 'pools_then_elimination'],
-            labels: const {
-              'single_elimination': 'Elimination directe',
-              'pools_then_elimination': 'Poules + Elimination',
-            },
-            onChanged: (value) => setState(() => _format = value),
-          ),
-          if (_format == 'pools_then_elimination') ...[
-            const SizedBox(height: 12),
-            _counter(
-              'Nombre de poules',
-              _poolCount,
-              min: 2,
-              max: 8,
-              onChanged: (v) => setState(() => _poolCount = v),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 8),
-            _counter(
-              'Qualifies par poule',
-              _qualifiedPerPool,
-              min: 1,
-              max: 4,
-              onChanged: (v) => setState(() => _qualifiedPerPool = v),
-            ),
-            const SizedBox(height: 8),
-            _counter(
-              'Legs par set (poules)',
-              _legsPool,
-              min: 1,
-              max: 9,
-              onChanged: (v) => setState(() => _legsPool = v),
-            ),
-            const SizedBox(height: 8),
-            _counter(
-              'Sets pour gagner (poules)',
-              _setsPool,
-              min: 1,
-              max: 5,
-              onChanged: (v) => setState(() => _setsPool = v),
-            ),
-          ],
-          const SizedBox(height: 12),
-          _counter(
-            'Legs par set (bracket)',
-            _legsBracket,
-            min: 1,
-            max: 11,
-            onChanged: (v) => setState(() => _legsBracket = v),
           ),
-          const SizedBox(height: 8),
-          _counter(
-            'Sets pour gagner (bracket)',
-            _setsBracket,
-            min: 1,
-            max: 5,
-            onChanged: (v) => setState(() => _setsBracket = v),
-          ),
-          const SizedBox(height: 12),
-          _field(_venueCtrl, 'Lieu'),
-          const SizedBox(height: 12),
-          _field(_cityCtrl, 'Ville'),
-          const SizedBox(height: 12),
-          _field(
-            _feeCtrl,
-            'Frais inscription (EUR)',
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          ),
-          const SizedBox(height: 12),
-          ListTile(
-            tileColor: AppColors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            title: const Text(
-              'Date et heure',
-              style: TextStyle(color: AppColors.textPrimary),
-            ),
-            subtitle: Text(
-              _formatDate(_scheduledAt),
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-            trailing: const Icon(
-              Icons.calendar_today,
-              color: AppColors.primary,
-            ),
-            onTap: _pickDateTime,
-          ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _submitting ? null : _submit,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
-              minimumSize: const Size(double.infinity, 52),
-            ),
-            child: _submitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Creer'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () => context.pop(),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-            ),
-            child: const Text('Annuler'),
-          ),
+          const SizedBox(height: 10),
+          ...children,
         ],
       ),
     );
@@ -294,7 +388,18 @@ class _TournamentCreateScreenState
         filled: true,
         fillColor: AppColors.surface,
         labelStyle: const TextStyle(color: AppColors.textSecondary),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.stroke),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.stroke),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+        ),
       ),
     );
   }
@@ -313,11 +418,23 @@ class _TournamentCreateScreenState
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: options
               .map(
                 (option) => ChoiceChip(
                   label: Text(labels?[option] ?? option),
                   selected: value == option,
+                  showCheckmark: true,
+                  checkmarkColor: AppColors.background,
+                  selectedColor: AppColors.primary,
+                  backgroundColor: AppColors.surface,
+                  labelStyle: TextStyle(
+                    color: value == option
+                        ? AppColors.background
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  side: const BorderSide(color: AppColors.stroke),
                   onSelected: (_) => onChanged(option),
                 ),
               )

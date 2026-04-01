@@ -52,6 +52,9 @@ let AuthController = class AuthController {
         });
     }
     async appleLogin(dto) {
+        if (!dto.id_token) {
+            throw new common_1.UnauthorizedException('Missing Apple id_token');
+        }
         const payload = this.decodeIdToken(dto.id_token);
         return this.authService.socialLogin('apple', {
             email: payload.email,

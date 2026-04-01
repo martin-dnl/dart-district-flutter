@@ -63,6 +63,10 @@ export class AuthController {
   @Post('apple')
   @HttpCode(HttpStatus.OK)
   async appleLogin(@Body() dto: SocialLoginDto) {
+    if (!dto.id_token) {
+      throw new UnauthorizedException('Missing Apple id_token');
+    }
+
     const payload = this.decodeIdToken(dto.id_token);
     return this.authService.socialLogin('apple', {
       email: payload.email,

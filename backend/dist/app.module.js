@@ -24,6 +24,7 @@ const offline_sync_module_1 = require("./modules/offline_sync/offline-sync.modul
 const notifications_module_1 = require("./modules/notifications/notifications.module");
 const qr_module_1 = require("./modules/qr/qr.module");
 const contacts_module_1 = require("./modules/contacts/contacts.module");
+const app_version_module_1 = require("./modules/app_version/app-version.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -58,6 +59,7 @@ exports.AppModule = AppModule = __decorate([
             notifications_module_1.NotificationsModule,
             qr_module_1.QrModule,
             contacts_module_1.ContactsModule,
+            app_version_module_1.AppVersionModule,
         ],
         providers: [
             {

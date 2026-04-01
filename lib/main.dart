@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_routes.dart';
 import 'core/config/app_theme.dart';
 import 'core/database/local_storage.dart';
+import 'core/version/version_gate.dart';
 import 'features/match/widgets/match_invitation_overlay.dart';
 
 void main() async {
@@ -40,7 +41,11 @@ class DartDistrictApp extends ConsumerWidget {
       theme: AppTheme.darkTheme,
       routerConfig: router,
       builder: (context, child) {
-        return MatchInvitationOverlay(child: child ?? const SizedBox.shrink());
+        return VersionGate(
+          child: MatchInvitationOverlay(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
       },
     );
   }

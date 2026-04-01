@@ -43,7 +43,8 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
 
   // Local PMTiles assets for development
-  const irisDataDir = join(__dirname, '..', '..', 'iris_data');
+  // Resolve from process root to avoid dist path depth differences between environments.
+  const irisDataDir = join(process.cwd(), 'iris_data');
   if (existsSync(irisDataDir)) {
     app.use('/tiles', serveStatic(irisDataDir, { index: false }));
     logger.log(`Serving local tiles from ${irisDataDir} at /tiles`);
@@ -64,6 +65,7 @@ async function bootstrap() {
     .addTag('tournaments', 'Tournament management')
     .addTag('notifications', 'User notifications')
     .addTag('contacts', 'Friends & direct messages')
+    .addTag('app-version', 'Mobile app version policies')
     .addTag('qr-codes', 'QR code generation & scanning')
     .addTag('offline-sync', 'Offline sync queue')
     .build();

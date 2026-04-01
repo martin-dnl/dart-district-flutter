@@ -16,13 +16,18 @@ class ContactsRealtimeService {
   void connect({required String userId}) {
     if (_socket != null) return;
 
+    final baseUri = Uri.parse(AppConstants.apiBaseUrl);
+    final origin =
+      '${baseUri.scheme}://${baseUri.host}${baseUri.hasPort ? ':${baseUri.port}' : ''}';
+
     final socket = io.io(
-      '${AppConstants.wsBaseUrl}/system',
+      '$origin/ws/system',
       io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .enableForceNew()
-          .build(),
+        .setTransports(['websocket'])
+        .setPath('/socket.io')
+        .disableAutoConnect()
+        .enableForceNew()
+        .build(),
     );
 
     socket.onConnect((_) {

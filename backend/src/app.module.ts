@@ -16,6 +16,7 @@ import { OfflineSyncModule } from './modules/offline_sync/offline-sync.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { QrModule } from './modules/qr/qr.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
+import { AppVersionModule } from './modules/app_version/app-version.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ContactsModule } from './modules/contacts/contacts.module';
     NotificationsModule,
     QrModule,
     ContactsModule,
+    AppVersionModule,
   ],
   providers: [
     {

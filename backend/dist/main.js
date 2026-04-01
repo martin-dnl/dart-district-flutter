@@ -29,7 +29,7 @@ async function bootstrap() {
     }));
     app.useGlobalFilters(new global_exception_filter_1.GlobalExceptionFilter());
     app.useGlobalInterceptors(new logging_interceptor_1.LoggingInterceptor(), new transform_interceptor_1.TransformInterceptor());
-    const irisDataDir = (0, path_1.join)(__dirname, '..', '..', 'iris_data');
+    const irisDataDir = (0, path_1.join)(process.cwd(), 'iris_data');
     if ((0, fs_1.existsSync)(irisDataDir)) {
         app.use('/tiles', (0, express_1.static)(irisDataDir, { index: false }));
         logger.log(`Serving local tiles from ${irisDataDir} at /tiles`);
@@ -48,6 +48,7 @@ async function bootstrap() {
         .addTag('tournaments', 'Tournament management')
         .addTag('notifications', 'User notifications')
         .addTag('contacts', 'Friends & direct messages')
+        .addTag('app-version', 'Mobile app version policies')
         .addTag('qr-codes', 'QR code generation & scanning')
         .addTag('offline-sync', 'Offline sync queue')
         .build();

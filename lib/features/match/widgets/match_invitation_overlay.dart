@@ -27,26 +27,28 @@ class MatchInvitationOverlay extends ConsumerWidget {
           invitationResponse.id == pendingInvitation.match!.id;
       if (sameInvitation && pendingInvitation.isWaiting) {
         if (invitationResponse.invitationStatus == InvitationStatus.accepted) {
-          ref.read(pendingInvitationProvider.notifier).clearInvitation();
-          ref
-              .read(matchControllerProvider.notifier)
-              .loadMatch(invitationResponse);
-          ref
-              .read(ongoingMatchesControllerProvider.notifier)
-              .clearLastInvitationResponse();
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(pendingInvitationProvider.notifier).clearInvitation();
+            ref
+                .read(matchControllerProvider.notifier)
+                .loadMatch(invitationResponse);
+            ref
+                .read(ongoingMatchesControllerProvider.notifier)
+                .clearLastInvitationResponse();
             if (context.mounted) {
               context.push(AppRoutes.matchLive);
             }
           });
         } else if (invitationResponse.invitationStatus ==
             InvitationStatus.refused) {
-          ref
-              .read(pendingInvitationProvider.notifier)
-              .respondToInvitation(InvitationStatus.refused);
-          ref
-              .read(ongoingMatchesControllerProvider.notifier)
-              .clearLastInvitationResponse();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref
+                .read(pendingInvitationProvider.notifier)
+                .respondToInvitation(InvitationStatus.refused);
+            ref
+                .read(ongoingMatchesControllerProvider.notifier)
+                .clearLastInvitationResponse();
+          });
         }
       }
     }

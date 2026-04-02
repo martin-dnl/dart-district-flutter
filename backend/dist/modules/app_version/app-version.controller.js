@@ -20,8 +20,8 @@ let AppVersionController = class AppVersionController {
     constructor(appVersionService) {
         this.appVersionService = appVersionService;
     }
-    getVersionPolicy(platform, appVersion) {
-        return this.appVersionService.getPolicyForClient(platform, appVersion);
+    getVersionPolicy(platform, appVersion, appBuild) {
+        return this.appVersionService.getPolicyForClient(platform, appVersion, appBuild);
     }
 };
 exports.AppVersionController = AppVersionController;
@@ -29,8 +29,9 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('platform')),
     __param(1, (0, common_1.Query)('app_version')),
+    __param(2, (0, common_1.Query)('app_build')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], AppVersionController.prototype, "getVersionPolicy", null);
 exports.AppVersionController = AppVersionController = __decorate([

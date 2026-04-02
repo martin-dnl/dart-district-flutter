@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/network/api_providers.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../auth/controller/auth_controller.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -15,6 +17,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isSigningOut = false;
+  bool _isDeletingAccount = false;
 
   Future<void> _confirmAndSignOut() async {
     final shouldSignOut = await showDialog<bool>(
@@ -54,6 +57,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _confirmAndDeleteAccount() async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Supprimer votre compte',
+      message:
+          'Cette action est irreversible. Votre compte sera anonymise et vos amities supprimees.',
+      confirmLabel: 'Supprimer',
+      confirmColor: AppColors.error,
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+
+    setState(() => _isDeletingAccount = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.delete<Map<String, dynamic>>('/users/me');
+      await ref.read(authControllerProvider.notifier).signOut();
+      if (mounted) {
+        context.go(AppRoutes.notLogged);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isDeletingAccount = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de supprimer le compte.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,6 +111,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => context.push(AppRoutes.about),
+                icon: const Icon(Icons.info_outline),
+                label: const Text('A propos'),
+              ),
+              const SizedBox(height: 10),
               ElevatedButton.icon(
                 onPressed: _isSigningOut ? null : _confirmAndSignOut,
                 icon: _isSigningOut
@@ -87,6 +127,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       )
                     : const Icon(Icons.logout),
                 label: Text(_isSigningOut ? 'Deconnexion...' : 'Deconnexion'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: _isDeletingAccount ? null : _confirmAndDeleteAccount,
+                icon: const Icon(Icons.delete_forever),
+                label: Text(
+                  _isDeletingAccount
+                      ? 'Suppression...'
+                      : 'Supprimer mon compte',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,

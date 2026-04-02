@@ -48,13 +48,6 @@ class _TournamentsListScreenState extends ConsumerState<TournamentsListScreen>
         child: Column(
           children: [
             const SizedBox(height: 4),
-            Center(
-              child: OutlinedButton.icon(
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Rafraichir'),
-              ),
-            ),
             TabBar(
               controller: _tabController,
               labelColor: AppColors.primary,

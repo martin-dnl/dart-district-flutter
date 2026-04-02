@@ -36,6 +36,7 @@ let TournamentsService = class TournamentsService {
             : null;
         const tournament = this.tournamentRepo.create({
             ...dto,
+            club_id: dto.club_id ?? null,
             current_phase: 'registration',
             pool_count: poolCount,
             players_per_pool: playersPerPool,
@@ -48,6 +49,7 @@ let TournamentsService = class TournamentsService {
             .createQueryBuilder('t')
             .leftJoinAndSelect('t.territory', 'territory')
             .leftJoinAndSelect('t.creator', 'creator')
+            .leftJoinAndSelect('t.club', 'club')
             .orderBy('t.scheduled_at', 'ASC');
         if (options?.status) {
             qb.andWhere('t.status = :status', { status: options.status });
@@ -63,7 +65,7 @@ let TournamentsService = class TournamentsService {
     async findById(id) {
         const t = await this.tournamentRepo.findOne({
             where: { id },
-            relations: ['territory', 'creator'],
+            relations: ['territory', 'creator', 'club'],
         });
         if (!t)
             throw new common_1.NotFoundException('Tournament not found');

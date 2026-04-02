@@ -45,6 +45,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTournamentDto.prototype, "city", void 0);
 __decorate([
+    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTournamentDto.prototype, "club_id", void 0);
+__decorate([
     (0, class_validator_1.IsBoolean)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)

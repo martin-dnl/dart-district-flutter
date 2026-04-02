@@ -222,6 +222,24 @@ class ContactsController extends StateNotifier<ContactsState> {
     }
   }
 
+  Future<void> blockUser(String userId) async {
+    try {
+      await repository.blockUser(userId);
+      state = state.copyWith(
+        friends: state.friends.where((f) => f.id != userId).toList(),
+        incomingRequests: state.incomingRequests
+            .where((r) => r.user.id != userId)
+            .toList(),
+        outgoingRequests: state.outgoingRequests
+            .where((r) => r.user.id != userId)
+            .toList(),
+        clearError: true,
+      );
+    } catch (_) {
+      state = state.copyWith(error: 'Impossible de bloquer cet utilisateur.');
+    }
+  }
+
   Future<void> selectFriend(ContactModel friend) async {
     state = state.copyWith(selectedFriend: friend, clearError: true);
     await _loadConversation(friend.id);

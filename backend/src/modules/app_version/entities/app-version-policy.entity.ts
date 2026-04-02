@@ -22,6 +22,12 @@ export class AppVersionPolicy {
   @Column({ type: 'varchar', length: 32 })
   recommended_version: string;
 
+  @Column({ type: 'int', default: 1 })
+  min_build: number;
+
+  @Column({ type: 'int', default: 1 })
+  recommended_build: number;
+
   @Column({ type: 'text', nullable: true })
   store_url_android: string | null;
 

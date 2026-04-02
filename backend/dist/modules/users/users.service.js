@@ -23,10 +23,16 @@ const path_1 = require("path");
 const user_entity_1 = require("./entities/user.entity");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
 const user_badge_entity_1 = require("../badges/entities/user-badge.entity");
+const friendship_entity_1 = require("../contacts/entities/friendship.entity");
+const friend_request_entity_1 = require("../contacts/entities/friend-request.entity");
+const refresh_token_entity_1 = require("../auth/entities/refresh-token.entity");
 let UsersService = class UsersService {
-    constructor(repo, userBadgeRepo) {
+    constructor(repo, userBadgeRepo, friendshipRepo, friendRequestRepo, refreshTokenRepo) {
         this.repo = repo;
         this.userBadgeRepo = userBadgeRepo;
+        this.friendshipRepo = friendshipRepo;
+        this.friendRequestRepo = friendRequestRepo;
+        this.refreshTokenRepo = refreshTokenRepo;
     }
     async findById(id) {
         const user = await this.repo.findOne({
@@ -121,9 +127,37 @@ let UsersService = class UsersService {
         });
     }
     async remove(id) {
-        const result = await this.repo.softDelete(id);
-        if (result.affected === 0)
+        const user = await this.repo.findOne({ where: { id } });
+        if (!user) {
             throw new common_1.NotFoundException('User not found');
+        }
+        const baseCount = await this.repo
+            .createQueryBuilder('u')
+            .where("u.username LIKE 'deleted#%'")
+            .getCount();
+        let cursor = baseCount + 1;
+        let candidate = `deleted#${String(cursor).padStart(4, '0')}`;
+        while (await this.repo.findOne({ where: { username: candidate } })) {
+            cursor += 1;
+            candidate = `deleted#${String(cursor).padStart(4, '0')}`;
+        }
+        await this.friendshipRepo.delete([
+            { user_id: id },
+            { friend_id: id },
+        ]);
+        await this.friendRequestRepo.delete([
+            { sender_id: id },
+            { receiver_id: id },
+        ]);
+        await this.refreshTokenRepo.update({ user_id: id }, { revoked: true });
+        await this.repo.update(id, {
+            username: candidate,
+            email: null,
+            avatar_url: null,
+            password_hash: null,
+            is_active: false,
+        });
+        return { success: true };
     }
 };
 exports.UsersService = UsersService;
@@ -131,7 +165,13 @@ exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(1, (0, typeorm_1.InjectRepository)(user_badge_entity_1.UserBadge)),
+    __param(2, (0, typeorm_1.InjectRepository)(friendship_entity_1.Friendship)),
+    __param(3, (0, typeorm_1.InjectRepository)(friend_request_entity_1.FriendRequest)),
+    __param(4, (0, typeorm_1.InjectRepository)(refresh_token_entity_1.RefreshToken)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

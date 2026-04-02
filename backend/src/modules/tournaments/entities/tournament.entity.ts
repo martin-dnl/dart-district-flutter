@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Territory } from '../../territories/entities/territory.entity';
 import { User } from '../../users/entities/user.entity';
+import { Club } from '../../clubs/entities/club.entity';
 import { TournamentPlayer } from './tournament-player.entity';
 import { TournamentPool } from './tournament-pool.entity';
 import { TournamentBracketMatch } from './tournament-bracket-match.entity';
@@ -44,6 +45,9 @@ export class Tournament {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   city: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  club_id: string | null;
 
   @Column({ type: 'numeric', precision: 8, scale: 2, default: 0 })
   entry_fee: number;
@@ -103,6 +107,10 @@ export class Tournament {
   @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'created_by' })
   creator: User;
+
+  @ManyToOne(() => Club, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'club_id' })
+  club: Club;
 
   @OneToMany(() => TournamentPlayer, (player) => player.tournament)
   players: TournamentPlayer[];

@@ -29,7 +29,7 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
 
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
-        context.go(AppRoutes.home);
+        context.go(AppRoutes.subscriptionStep3);
       }
     });
 
@@ -53,7 +53,7 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'TUTORIEL',
+                      'CONDITIONS',
                       style: GoogleFonts.rajdhani(
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
@@ -62,8 +62,11 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
                     ),
                     const Spacer(),
                     TextButton(
-                      onPressed: () => context.go(AppRoutes.home),
-                      child: const Text('Passer'),
+                      onPressed: () => context.go(
+                        AppRoutes.subscriptionStep1,
+                        extra: widget.payload,
+                      ),
+                      child: const Text('Refuser'),
                     ),
                   ],
                 ),
@@ -85,9 +88,9 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
                 const SizedBox(height: 26),
                 Center(
                   child: Text(
-                    'Comment ca marche ?',
+                    'Conditions d\'utilisation',
                     style: GoogleFonts.rajdhani(
-                      fontSize: 42,
+                      fontSize: 34,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
@@ -95,27 +98,32 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
                 ),
                 const SizedBox(height: 16),
                 const _RuleCard(
-                  title: 'Conquete de Territoires',
+                  icon: Icons.photo_camera_outlined,
+                  title: 'Utilisation de vos donnees',
                   text:
-                      'Gagnez un match dans un bar pour prendre le controle de sa zone.',
+                      'L\'application enregistre les photos de profil et messages que vous partagez afin de fournir les fonctionnalites sociales du service.',
                 ),
                 const SizedBox(height: 12),
                 const _RuleCard(
-                  title: 'Format des Matchs',
+                  icon: Icons.gavel,
+                  title: 'Contenus inappropries',
                   text:
-                      'Les rencontres se jouent en format 501 Double Out. Le premier a 3 sets gagne.',
+                      'La diffusion de messages haineux, discriminatoires ou d\'images a caractere inapproprie est strictement interdite.',
                 ),
                 const SizedBox(height: 12),
                 const _RuleCard(
-                  title: 'Validation & Fair-Play',
+                  icon: Icons.shield_outlined,
+                  title: 'Moderation et sanctions',
                   text:
-                      'Les deux capitaines valident le score en fin de match pour confirmer le resultat.',
+                      'Le non-respect de ces regles entrainera une moderation pouvant aller jusqu\'au bannissement du compte, voire au blocage de la signature physique de l\'appareil.',
+                  warning: true,
                 ),
                 const SizedBox(height: 12),
                 const _RuleCard(
-                  title: 'Prevention Triche',
+                  icon: Icons.emoji_events_outlined,
+                  title: 'Engagement en tournoi',
                   text:
-                      'La geolocalisation est requise lors de la validation pour securiser la partie.',
+                      'S\'inscrire a un tournoi implique de jouer sur place. En cas d\'absence, un malus est applique pouvant interdire temporairement ou definitivement l\'inscription aux tournois. Et en plus, c\'est la honte.',
                   warning: true,
                 ),
                 const SizedBox(height: 14),
@@ -131,7 +139,7 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
                       child: Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Text(
-                          'J\'ai lu et je comprends les regles de conquete et de fair-play.',
+                          'J\'ai lu et j\'accepte les conditions d\'utilisation.',
                           style: GoogleFonts.manrope(color: AppColors.textSecondary),
                         ),
                       ),
@@ -164,21 +172,11 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
                     child: Text(
                       authState.status == AuthStatus.loading
                           ? 'Creation du compte...'
-                          : 'Acceder au dashboard',
+                          : 'Commencer',
                       style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
                     ),
                   ),
-                ),
-                if (authState.error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    authState.error!,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.error,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                )
               ],
             ),
           ),
@@ -190,11 +188,13 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
 
 class _RuleCard extends StatelessWidget {
   const _RuleCard({
+    required this.icon,
     required this.title,
     required this.text,
     this.warning = false,
   });
 
+  final IconData icon;
   final String title;
   final String text;
   final bool warning;
@@ -221,7 +221,7 @@ class _RuleCard extends StatelessWidget {
               color: color.withValues(alpha: 0.16),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.shield, color: color, size: 18),
+            child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(width: 10),
           Expanded(

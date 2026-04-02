@@ -30,6 +30,7 @@ export declare class TournamentsService {
         venue_name: string | null;
         venue_address: string | null;
         city: string | null;
+        club_id: string | null;
         entry_fee: number;
         max_players: number;
         enrolled_players: number;
@@ -49,6 +50,7 @@ export declare class TournamentsService {
         created_at: Date;
         territory: import("../territories/entities/territory.entity").Territory;
         creator: import("../users/entities/user.entity").User;
+        club: import("../clubs/entities/club.entity").Club;
         pools: TournamentPool[];
         bracket_matches: TournamentBracketMatch[];
     }>;

@@ -26,8 +26,8 @@ export declare class AuthService {
         email: string;
         name: string;
         provider_uid: string;
-        avatar_url?: string;
     }): Promise<{
+        is_new_user: boolean;
         access_token: string;
         refresh_token: `${string}-${string}-${string}-${string}-${string}`;
         user_id: string;

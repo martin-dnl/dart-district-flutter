@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../club/controller/club_search_controller.dart';
 import '../controller/tournament_controller.dart';
 import '../data/tournament_service.dart';
 
@@ -21,6 +22,7 @@ class _TournamentCreateScreenState
   final _venueCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
   final _feeCtrl = TextEditingController(text: '0');
+  final _clubCtrl = TextEditingController();
 
   String _mode = '501';
   String _finish = 'double_out';
@@ -32,6 +34,7 @@ class _TournamentCreateScreenState
   int _setsPool = 1;
   int _legsBracket = 5;
   int _setsBracket = 1;
+  String? _selectedClubId;
   DateTime _scheduledAt = DateTime.now().add(const Duration(days: 7));
   bool _submitting = false;
 
@@ -42,6 +45,7 @@ class _TournamentCreateScreenState
     _venueCtrl.dispose();
     _cityCtrl.dispose();
     _feeCtrl.dispose();
+    _clubCtrl.dispose();
     super.dispose();
   }
 
@@ -102,6 +106,7 @@ class _TournamentCreateScreenState
             ? null
             : _venueCtrl.text.trim(),
         'city': _cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim(),
+        'club_id': _selectedClubId,
         'entry_fee': double.tryParse(_feeCtrl.text.trim()) ?? 0,
         'scheduled_at': _scheduledAt.toIso8601String(),
       });
@@ -123,6 +128,8 @@ class _TournamentCreateScreenState
 
   @override
   Widget build(BuildContext context) {
+    final clubSearchState = ref.watch(clubSearchControllerProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Creer un tournoi'),
@@ -175,6 +182,56 @@ class _TournamentCreateScreenState
                   _field(_venueCtrl, 'Lieu'),
                   const SizedBox(height: 12),
                   _field(_cityCtrl, 'Ville'),
+                  const SizedBox(height: 12),
+                  _field(
+                    _clubCtrl,
+                    'Club partenaire',
+                    onChanged: (value) {
+                      _selectedClubId = null;
+                      ref
+                          .read(clubSearchControllerProvider.notifier)
+                          .searchByText(value);
+                    },
+                  ),
+                  if (clubSearchState.results.isNotEmpty &&
+                      (_selectedClubId == null || _clubCtrl.text.isNotEmpty)) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.stroke),
+                      ),
+                      child: Column(
+                        children: clubSearchState.results.take(5).map((club) {
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              club.name,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: Text(
+                              club.address ?? club.city ?? '',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _selectedClubId = club.id;
+                                _clubCtrl.text = club.name;
+                              });
+                              ref
+                                  .read(clubSearchControllerProvider.notifier)
+                                  .clear();
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 12),
@@ -377,11 +434,13 @@ class _TournamentCreateScreenState
     int maxLines = 1,
     bool required = false,
     TextInputType? keyboardType,
+    ValueChanged<String>? onChanged,
   }) {
     return TextField(
       controller: ctrl,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      onChanged: onChanged,
       style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         labelText: required ? '$label *' : label,

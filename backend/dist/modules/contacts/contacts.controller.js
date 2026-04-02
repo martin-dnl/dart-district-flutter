@@ -47,6 +47,15 @@ let ContactsController = class ContactsController {
     removeFriend(req, friendId) {
         return this.contactsService.removeFriend(req.user.id, friendId);
     }
+    blockUser(req, userId) {
+        return this.contactsService.blockUser(req.user.id, userId);
+    }
+    unblockUser(req, userId) {
+        return this.contactsService.unblockUser(req.user.id, userId);
+    }
+    status(req, userId) {
+        return this.contactsService.getFriendshipStatus(req.user.id, userId);
+    }
     listConversation(req, contactId, limit) {
         return this.contactsService.listConversation(req.user.id, contactId, limit);
     }
@@ -119,6 +128,30 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], ContactsController.prototype, "removeFriend", null);
+__decorate([
+    (0, common_1.Post)('block/:userId'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ContactsController.prototype, "blockUser", null);
+__decorate([
+    (0, common_1.Delete)('block/:userId'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ContactsController.prototype, "unblockUser", null);
+__decorate([
+    (0, common_1.Get)('status/:userId'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ContactsController.prototype, "status", null);
 __decorate([
     (0, common_1.Get)('messages/:contactId'),
     __param(0, (0, common_1.Req)()),

@@ -1,0 +1,27 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: dartdistrict-reverse-proxy
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - /opt/site:/opt/site
+
+    networks:
+      - shared
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  shared:
+    external: true
+    name: dartdistrict_default

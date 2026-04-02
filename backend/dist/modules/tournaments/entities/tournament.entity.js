@@ -13,6 +13,7 @@ exports.Tournament = void 0;
 const typeorm_1 = require("typeorm");
 const territory_entity_1 = require("../../territories/entities/territory.entity");
 const user_entity_1 = require("../../users/entities/user.entity");
+const club_entity_1 = require("../../clubs/entities/club.entity");
 const tournament_player_entity_1 = require("./tournament-player.entity");
 const tournament_pool_entity_1 = require("./tournament-pool.entity");
 const tournament_bracket_match_entity_1 = require("./tournament-bracket-match.entity");
@@ -59,6 +60,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),
     __metadata("design:type", Object)
 ], Tournament.prototype, "city", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Tournament.prototype, "club_id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'numeric', precision: 8, scale: 2, default: 0 }),
     __metadata("design:type", Number)
@@ -137,6 +142,11 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'created_by' }),
     __metadata("design:type", user_entity_1.User)
 ], Tournament.prototype, "creator", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => club_entity_1.Club, { onDelete: 'SET NULL' }),
+    (0, typeorm_1.JoinColumn)({ name: 'club_id' }),
+    __metadata("design:type", club_entity_1.Club)
+], Tournament.prototype, "club", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => tournament_player_entity_1.TournamentPlayer, (player) => player.tournament),
     __metadata("design:type", Array)

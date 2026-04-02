@@ -1,6 +1,6 @@
 # dart_district
 
-A new Flutter project.
+flutter build appbundle --release --build-name 1.0.3 --build-number 6 --dart-define-from-file=config/flutter.env.prod.json
 
 ## Environment Variables
 

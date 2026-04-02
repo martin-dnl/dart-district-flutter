@@ -13,6 +13,7 @@ import {
   FriendRequest,
   FriendRequestStatus,
 } from './entities/friend-request.entity';
+import { UserBlock } from './entities/user-block.entity';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
 
 @Injectable()
@@ -22,6 +23,8 @@ export class ContactsService {
     private readonly friendshipRepo: Repository<Friendship>,
     @InjectRepository(FriendRequest)
     private readonly friendRequestRepo: Repository<FriendRequest>,
+    @InjectRepository(UserBlock)
+    private readonly userBlockRepo: Repository<UserBlock>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(DirectMessage)
@@ -63,6 +66,16 @@ export class ContactsService {
   }
 
   async sendFriendRequest(userId: string, receiverId: string) {
+        const blockedBetweenUsers = await this.userBlockRepo.findOne({
+          where: [
+            { blocker_id: userId, blocked_id: receiverId },
+            { blocker_id: receiverId, blocked_id: userId },
+          ],
+        });
+        if (blockedBetweenUsers) {
+          throw new ForbiddenException('Friend request unavailable for this user');
+        }
+
     if (userId === receiverId) {
       throw new BadRequestException('You cannot send a friend request to yourself');
     }
@@ -226,6 +239,94 @@ export class ContactsService {
       { user_id: friendId, friend_id: userId },
     ]);
     return { success: true };
+  }
+
+  async blockUser(blockerId: string, blockedId: string) {
+    if (blockerId === blockedId) {
+      throw new BadRequestException('You cannot block yourself');
+    }
+
+    const target = await this.userRepo.findOne({ where: { id: blockedId } });
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.friendshipRepo.delete([
+      { user_id: blockerId, friend_id: blockedId },
+      { user_id: blockedId, friend_id: blockerId },
+    ]);
+
+    await this.friendRequestRepo
+      .createQueryBuilder()
+      .update(FriendRequest)
+      .set({ status: FriendRequestStatus.REJECTED, responded_at: () => 'NOW()' })
+      .where(
+        'status = :status AND ((sender_id = :blockerId AND receiver_id = :blockedId) OR (sender_id = :blockedId AND receiver_id = :blockerId))',
+        {
+          status: FriendRequestStatus.PENDING,
+          blockerId,
+          blockedId,
+        },
+      )
+      .execute();
+
+    const existing = await this.userBlockRepo.findOne({
+      where: { blocker_id: blockerId, blocked_id: blockedId },
+    });
+    if (!existing) {
+      await this.userBlockRepo.save(
+        this.userBlockRepo.create({ blocker_id: blockerId, blocked_id: blockedId }),
+      );
+    }
+
+    return { success: true };
+  }
+
+  async unblockUser(blockerId: string, blockedId: string) {
+    await this.userBlockRepo.delete({ blocker_id: blockerId, blocked_id: blockedId });
+    return { success: true };
+  }
+
+  async getFriendshipStatus(userId: string, targetId: string) {
+    if (userId === targetId) {
+      return {
+        is_friend: false,
+        is_blocked: false,
+        has_pending_request: false,
+      };
+    }
+
+    const [friendship, blockedByMe, blockedMe, pendingRequest] = await Promise.all([
+      this.friendshipRepo.findOne({
+        where: { user_id: userId, friend_id: targetId },
+      }),
+      this.userBlockRepo.findOne({
+        where: { blocker_id: userId, blocked_id: targetId },
+      }),
+      this.userBlockRepo.findOne({
+        where: { blocker_id: targetId, blocked_id: userId },
+      }),
+      this.friendRequestRepo.findOne({
+        where: [
+          {
+            sender_id: userId,
+            receiver_id: targetId,
+            status: FriendRequestStatus.PENDING,
+          },
+          {
+            sender_id: targetId,
+            receiver_id: userId,
+            status: FriendRequestStatus.PENDING,
+          },
+        ],
+      }),
+    ]);
+
+    return {
+      is_friend: !!friendship,
+      is_blocked: !!blockedByMe || !!blockedMe,
+      has_pending_request: !!pendingRequest,
+    };
   }
 
   async listConversation(userId: string, contactId: string, limit = 100) {

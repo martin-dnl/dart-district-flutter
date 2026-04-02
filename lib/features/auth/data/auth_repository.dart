@@ -47,7 +47,7 @@ class AuthRepository {
     return _fetchCurrentUser();
   }
 
-  Future<UserModel> signInWithGoogleIdToken({
+  Future<({UserModel user, bool isNewUser})> signInWithGoogleIdToken({
     required String idToken,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
@@ -62,11 +62,12 @@ class AuthRepository {
       accessToken: authData['access_token'] as String,
       refreshToken: authData['refresh_token'] as String,
     );
-
-    return _fetchCurrentUser();
+    final isNewUser = authData['is_new_user'] as bool? ?? false;
+    final user = await _fetchCurrentUser();
+    return (user: user, isNewUser: isNewUser);
   }
 
-  Future<UserModel> signInWithGoogleAccessToken({
+  Future<({UserModel user, bool isNewUser})> signInWithGoogleAccessToken({
     required String accessToken,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
@@ -81,8 +82,9 @@ class AuthRepository {
       accessToken: authData['access_token'] as String,
       refreshToken: authData['refresh_token'] as String,
     );
-
-    return _fetchCurrentUser();
+    final isNewUser = authData['is_new_user'] as bool? ?? false;
+    final user = await _fetchCurrentUser();
+    return (user: user, isNewUser: isNewUser);
   }
 
   Future<UserModel> signUpWithEmail({

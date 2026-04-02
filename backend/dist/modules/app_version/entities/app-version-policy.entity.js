@@ -31,6 +31,14 @@ __decorate([
     __metadata("design:type", String)
 ], AppVersionPolicy.prototype, "recommended_version", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], AppVersionPolicy.prototype, "min_build", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], AppVersionPolicy.prototype, "recommended_build", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], AppVersionPolicy.prototype, "store_url_android", void 0);

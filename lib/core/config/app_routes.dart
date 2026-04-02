@@ -8,6 +8,8 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/subscription_screen.dart';
 import '../../features/auth/presentation/subscription_step1_screen.dart';
 import '../../features/auth/presentation/subscription_step2_screen.dart';
+import '../../features/auth/presentation/subscription_step3_screen.dart';
+import '../../features/auth/presentation/sso_username_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/play/presentation/play_screen.dart';
@@ -23,6 +25,7 @@ import '../../features/contacts/models/contact_models.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/badges_screen.dart';
 import '../../features/profile/presentation/settings_screen.dart';
+import '../../features/profile/presentation/about_screen.dart';
 import '../../features/match/presentation/match_live_screen.dart';
 import '../../features/match/presentation/match_history_screen.dart';
 import '../../features/match/presentation/match_report_screen.dart';
@@ -40,6 +43,7 @@ class AppRoutes {
   static const String subscription = '/subscription';
   static const String subscriptionStep1 = '/subscription/step1';
   static const String subscriptionStep2 = '/subscription/step2';
+  static const String subscriptionStep3 = '/subscription/step3';
   static const String home = '/home';
   static const String map = '/map';
   static const String play = '/play';
@@ -56,11 +60,13 @@ class AppRoutes {
   static const String tournamentDetail = '/tournaments/:id';
   static const String profile = '/profile';
   static const String settings = '/profile/settings';
+  static const String about = '/profile/about';
   static const String badges = '/profile/badges';
   static const String matchLive = '/match';
   static const String matchHistory = '/match-history';
   static const String matchReport = '/match/:id/report';
   static const String matchSpectate = '/match/:id/spectate';
+  static const String ssoUsernameSetup = '/onboarding/username';
 
   static const Set<String> publicRoutes = {
     notLogged,
@@ -68,6 +74,7 @@ class AppRoutes {
     subscription,
     subscriptionStep1,
     subscriptionStep2,
+    subscriptionStep3,
   };
 }
 
@@ -88,10 +95,18 @@ class _RouterNotifier extends ChangeNotifier {
     final isInitializing =
         authState.status == AuthStatus.initial ||
         authState.status == AuthStatus.loading;
+    final needsUsername = authState.status == AuthStatus.needsUsernameSetup;
 
     // While restoring session, keep auth pages but block protected ones.
     if (isInitializing) {
       return isPublic ? null : AppRoutes.notLogged;
+    }
+
+    // SSO new user: must pick a username before accessing the app.
+    if (needsUsername) {
+      return state.matchedLocation == AppRoutes.ssoUsernameSetup
+          ? null
+          : AppRoutes.ssoUsernameSetup;
     }
 
     // Not logged in trying to access a protected route.
@@ -101,6 +116,9 @@ class _RouterNotifier extends ChangeNotifier {
 
     // Logged-in user cannot visit public (auth) pages.
     if (isAuthenticated && isPublic) {
+      if (state.matchedLocation == AppRoutes.subscriptionStep3) {
+        return null;
+      }
       return AppRoutes.home;
     }
 
@@ -151,6 +169,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               state.extra as Map<String, dynamic>? ?? const <String, dynamic>{};
           return SubscriptionStep2Screen(payload: payload);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.subscriptionStep3,
+        builder: (_, _) => const SubscriptionStep3Screen(),
+      ),
+      GoRoute(
+        path: AppRoutes.ssoUsernameSetup,
+        builder: (_, _) => const SsoUsernameScreen(),
       ),
       // ── Protected shell routes (bottom nav) ───────────────────────────────
       ShellRoute(
@@ -239,8 +265,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.profile,
         parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (_, state) =>
-            NoTransitionPage(key: state.pageKey, child: const ProfileScreen()),
+        pageBuilder: (_, state) {
+          final userId = state.extra as String?;
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: ProfileScreen(userId: userId),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.matchHistory,
@@ -315,6 +346,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, state) =>
             NoTransitionPage(key: state.pageKey, child: const SettingsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.about,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) =>
+        NoTransitionPage(key: state.pageKey, child: const AboutScreen()),
       ),
       GoRoute(
         path: AppRoutes.badges,

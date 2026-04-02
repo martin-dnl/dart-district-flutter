@@ -14,14 +14,18 @@ import '../../../shared/widgets/match_history_list.dart';
 import '../../../shared/widgets/player_avatar.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_card.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../auth/models/user_model.dart';
 import '../controller/profile_controller.dart';
 import '../data/profile_service.dart';
 import '../widgets/elo_chart.dart';
 import '../widgets/badge_grid.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.userId});
+
+  final String? userId;
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -29,6 +33,68 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final ImagePicker _imagePicker = ImagePicker();
+  UserModel? _visitorUser;
+  bool _isLoadingVisitor = false;
+  bool _isMutatingVisitorAction = false;
+  bool _isFriend = false;
+  bool _isBlocked = false;
+  bool _hasPendingRequest = false;
+
+  bool _isOwnProfile(UserModel? currentUser) {
+    return widget.userId == null || widget.userId == currentUser?.id;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVisitorProfileIfNeeded());
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _loadVisitorProfileIfNeeded();
+    }
+  }
+
+  Future<void> _loadVisitorProfileIfNeeded() async {
+    final currentUser = ref.read(currentUserProvider);
+    if (_isOwnProfile(currentUser) || widget.userId == null) {
+      if (mounted) {
+        setState(() {
+          _visitorUser = null;
+          _isLoadingVisitor = false;
+          _isFriend = false;
+          _isBlocked = false;
+          _hasPendingRequest = false;
+        });
+      }
+      return;
+    }
+
+    setState(() => _isLoadingVisitor = true);
+    try {
+      final service = ProfileService(ref.read(apiClientProvider));
+      final userFuture = service.fetchUserById(widget.userId!);
+      final statusFuture = service.getFriendshipStatus(widget.userId!);
+      final results = await Future.wait([userFuture, statusFuture]);
+      final user = results[0] as UserModel;
+      final status = results[1] as Map<String, bool>;
+
+      if (!mounted) return;
+      setState(() {
+        _visitorUser = user;
+        _isFriend = status['is_friend'] ?? false;
+        _isBlocked = status['is_blocked'] ?? false;
+        _hasPendingRequest = status['has_pending_request'] ?? false;
+        _isLoadingVisitor = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingVisitor = false);
+    }
+  }
 
   Future<void> _changeAvatar() async {
     final source = await showModalBottomSheet<ImageSource>(
@@ -84,6 +150,76 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _handleVisitorFriendAction(UserModel visitorUser) async {
+    if (_isMutatingVisitorAction) return;
+
+    final service = ProfileService(ref.read(apiClientProvider));
+    setState(() => _isMutatingVisitorAction = true);
+    try {
+      if (_isFriend) {
+        final confirmed = await showConfirmDialog(
+          context: context,
+          title: 'Retirer cet ami ?',
+          message: 'Cette personne sera retiree de votre liste d\'amis.',
+          confirmLabel: 'Retirer',
+          confirmColor: AppColors.error,
+        );
+        if (!confirmed) return;
+        await service.removeFriend(visitorUser.id);
+        setState(() {
+          _isFriend = false;
+          _hasPendingRequest = false;
+        });
+      } else {
+        final confirmed = await showConfirmDialog(
+          context: context,
+          title: 'Ajouter ${visitorUser.username} ?',
+          message: 'Une demande d\'ami sera envoyee.',
+          confirmLabel: 'Envoyer',
+        );
+        if (!confirmed) return;
+        await service.sendFriendRequest(visitorUser.id);
+        setState(() => _hasPendingRequest = true);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Action indisponible pour le moment.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isMutatingVisitorAction = false);
+      }
+    }
+  }
+
+  Future<void> _handleVisitorBlock(UserModel visitorUser) async {
+    if (_isMutatingVisitorAction) return;
+
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Bloquer ${visitorUser.username} ?',
+      message: 'Cet utilisateur ne pourra plus vous contacter.',
+      confirmLabel: 'Bloquer',
+      confirmColor: AppColors.error,
+    );
+    if (!confirmed) return;
+
+    setState(() => _isMutatingVisitorAction = true);
+    try {
+      final service = ProfileService(ref.read(apiClientProvider));
+      await service.blockUser(visitorUser.id);
+      if (!mounted) return;
+      context.pop();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Blocage impossible pour le moment.')),
+      );
+      setState(() => _isMutatingVisitorAction = false);
+    }
+  }
+
   void _showMyQrCode() {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
@@ -128,11 +264,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final isOwnProfile = _isOwnProfile(currentUser);
+    final user = isOwnProfile ? currentUser : _visitorUser;
     final profileState = ref.watch(profileControllerProvider);
     final recentMatches = profileState.matchHistory.take(5).toList();
     final losses =
         (user?.stats.matchesPlayed ?? 0) - (user?.stats.matchesWon ?? 0);
+
+    if (!isOwnProfile && _isLoadingVisitor) {
+      return AppScaffold(
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!isOwnProfile && user == null) {
+      return AppScaffold(
+        child: const Center(
+          child: Text(
+            'Profil introuvable',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+      );
+    }
 
     return AppScaffold(
       child: Scaffold(
@@ -148,26 +303,57 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          IconButton(
-                            onPressed: _showMyQrCode,
-                            icon: const Icon(
-                              Icons.qr_code_2,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
+                          if (isOwnProfile)
+                            IconButton(
+                              onPressed: _showMyQrCode,
+                              icon: const Icon(
+                                Icons.qr_code_2,
+                                color: AppColors.textSecondary,
+                              ),
+                            )
+                          else
+                            const SizedBox(width: 48),
                           const Spacer(),
-                          IconButton(
-                            onPressed: () => context.push(AppRoutes.settings),
-                            icon: const Icon(
-                              Icons.settings_outlined,
-                              color: AppColors.textSecondary,
+                          if (isOwnProfile)
+                            IconButton(
+                              onPressed: () => context.push(AppRoutes.settings),
+                              icon: const Icon(
+                                Icons.settings_outlined,
+                                color: AppColors.textSecondary,
+                              ),
+                            )
+                          else ...[
+                            if (!_isFriend)
+                              IconButton(
+                                onPressed: _isBlocked || _isMutatingVisitorAction
+                                    ? null
+                                    : () => _handleVisitorBlock(user!),
+                                icon: const Icon(
+                                  Icons.block,
+                                  color: AppColors.error,
+                                ),
+                                tooltip: 'Bloquer',
+                              ),
+                            IconButton(
+                              onPressed: _isBlocked || _isMutatingVisitorAction
+                                  ? null
+                                  : () => _handleVisitorFriendAction(user!),
+                              icon: Icon(
+                                _isFriend ? Icons.person_remove : Icons.person_add,
+                                color: _isFriend ? AppColors.error : AppColors.primary,
+                              ),
+                              tooltip: _isFriend
+                                  ? 'Retirer ami'
+                                  : (_hasPendingRequest
+                                        ? 'Demande envoyee'
+                                        : 'Ajouter ami'),
                             ),
-                          ),
+                          ],
                         ],
                       ),
 
                       GestureDetector(
-                        onTap: _changeAvatar,
+                        onTap: isOwnProfile ? _changeAvatar : null,
                         child: PlayerAvatar(
                           name: user?.username ?? 'Joueur',
                           imageUrl: user?.avatarUrl,
@@ -188,7 +374,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        user?.email ?? '',
+                        isOwnProfile ? (user?.email ?? '') : '',
                         style: const TextStyle(
                           fontSize: 14,
                           color: AppColors.textSecondary,
@@ -323,46 +509,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
 
-              // ELO chart
-              const SliverToBoxAdapter(
-                child: SectionHeader(title: 'Progression ELO'),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: EloChart(eloHistory: profileState.eloHistory),
+              if (isOwnProfile)
+                const SliverToBoxAdapter(
+                  child: SectionHeader(title: 'Progression ELO'),
                 ),
-              ),
-
-              // Badges
-              SliverToBoxAdapter(
-                child: SectionHeader(
-                  title: 'Badges',
-                  actionText: 'Voir tout',
-                  onAction: () => context.push(AppRoutes.badges),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: BadgeGrid(badges: profileState.badges, maxDisplay: 4),
-                ),
-              ),
-
-              // Match history
-              const SliverToBoxAdapter(
-                child: SectionHeader(title: 'Historique des matchs'),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: MatchHistoryList(
-                    matches: recentMatches,
-                    onMatchTap: (matchId) =>
-                        context.push('/match/$matchId/report'),
+              if (isOwnProfile)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: EloChart(eloHistory: profileState.eloHistory),
                   ),
                 ),
-              ),
+
+              if (isOwnProfile)
+                SliverToBoxAdapter(
+                  child: SectionHeader(
+                    title: 'Badges',
+                    actionText: 'Voir tout',
+                    onAction: () => context.push(AppRoutes.badges),
+                  ),
+                ),
+              if (isOwnProfile)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: BadgeGrid(badges: profileState.badges, maxDisplay: 4),
+                  ),
+                ),
+
+              if (isOwnProfile)
+                const SliverToBoxAdapter(
+                  child: SectionHeader(title: 'Historique des matchs'),
+                ),
+              if (isOwnProfile)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: MatchHistoryList(
+                      matches: recentMatches,
+                      onMatchTap: (matchId) =>
+                          context.push('/match/$matchId/report'),
+                    ),
+                  ),
+                ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),

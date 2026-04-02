@@ -22,6 +22,7 @@ export declare class TournamentsController {
         venue_name: string | null;
         venue_address: string | null;
         city: string | null;
+        club_id: string | null;
         entry_fee: number;
         max_players: number;
         enrolled_players: number;
@@ -41,6 +42,7 @@ export declare class TournamentsController {
         created_at: Date;
         territory: import("../territories/entities/territory.entity").Territory;
         creator: import("../users/entities/user.entity").User;
+        club: import("../clubs/entities/club.entity").Club;
         pools: import("./entities/tournament-pool.entity").TournamentPool[];
         bracket_matches: import("./entities/tournament-bracket-match.entity").TournamentBracketMatch[];
     }>;

@@ -140,6 +140,11 @@ Y copier les sections correspondantes.
   - controller
   - test minimal
 
+### Patch Notes
+- A chaque merge dans master qui modifie le comportement utilisateur, ajouter une entree dans lib/core/config/patch_notes.dart.
+- Incrementer version dans pubspec.yaml et ajouter l'entree correspondante dans patchNotes avec la date du jour.
+- Les nouveautes vont dans highlights, les bugs corriges dans fixes.
+
 ## 11. Emplacement officiel des fichiers de règles
 - Racine du repo : `ai_project_guidelines.md`
 - Copilot : `.github/copilot.md`

@@ -1,0 +1,6 @@
+# Copy this file to android/key.properties (local only, ignored by git)
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=your_key_alias
+# Use an absolute path on your machine
+storeFile=C:/path/to/your-release-key.jks

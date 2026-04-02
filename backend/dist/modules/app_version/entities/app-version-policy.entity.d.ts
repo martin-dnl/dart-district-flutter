@@ -3,6 +3,8 @@ export declare class AppVersionPolicy {
     platform: 'android' | 'ios';
     min_version: string;
     recommended_version: string;
+    min_build: number;
+    recommended_build: number;
     store_url_android: string | null;
     store_url_ios: string | null;
     message_force_update: string;

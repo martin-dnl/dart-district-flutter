@@ -106,6 +106,10 @@ class ContactsRepository {
     );
   }
 
+  Future<void> blockUser(String userId) async {
+    await _api.post<Map<String, dynamic>>('/contacts/block/$userId');
+  }
+
   Future<List<ContactMessage>> fetchConversation(
     String contactId, {
     int limit = 100,

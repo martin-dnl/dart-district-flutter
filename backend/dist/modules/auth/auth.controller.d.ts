@@ -20,11 +20,13 @@ export declare class AuthController {
         user_id: string;
     }>;
     googleLogin(dto: SocialLoginDto): Promise<{
+        is_new_user: boolean;
         access_token: string;
         refresh_token: `${string}-${string}-${string}-${string}-${string}`;
         user_id: string;
     }>;
     appleLogin(dto: SocialLoginDto): Promise<{
+        is_new_user: boolean;
         access_token: string;
         refresh_token: `${string}-${string}-${string}-${string}-${string}`;
         user_id: string;

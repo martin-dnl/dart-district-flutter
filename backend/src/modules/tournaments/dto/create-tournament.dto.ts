@@ -9,6 +9,7 @@ import {
   Matches,
   IsIn,
   Max,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateTournamentDto {
@@ -35,6 +36,10 @@ export class CreateTournamentDto {
   @IsString()
   @IsOptional()
   city?: string;
+
+  @IsUUID()
+  @IsOptional()
+  club_id?: string;
 
   @IsBoolean()
   @IsOptional()

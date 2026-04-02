@@ -20,11 +20,13 @@ const friendship_entity_1 = require("./entities/friendship.entity");
 const user_entity_1 = require("../users/entities/user.entity");
 const direct_message_entity_1 = require("../realtime/entities/direct-message.entity");
 const friend_request_entity_1 = require("./entities/friend-request.entity");
+const user_block_entity_1 = require("./entities/user-block.entity");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
 let ContactsService = class ContactsService {
-    constructor(friendshipRepo, friendRequestRepo, userRepo, dmRepo) {
+    constructor(friendshipRepo, friendRequestRepo, userBlockRepo, userRepo, dmRepo) {
         this.friendshipRepo = friendshipRepo;
         this.friendRequestRepo = friendRequestRepo;
+        this.userBlockRepo = userBlockRepo;
         this.userRepo = userRepo;
         this.dmRepo = dmRepo;
     }
@@ -59,6 +61,15 @@ let ContactsService = class ContactsService {
         }));
     }
     async sendFriendRequest(userId, receiverId) {
+        const blockedBetweenUsers = await this.userBlockRepo.findOne({
+            where: [
+                { blocker_id: userId, blocked_id: receiverId },
+                { blocker_id: receiverId, blocked_id: userId },
+            ],
+        });
+        if (blockedBetweenUsers) {
+            throw new common_1.ForbiddenException('Friend request unavailable for this user');
+        }
         if (userId === receiverId) {
             throw new common_1.BadRequestException('You cannot send a friend request to yourself');
         }
@@ -197,6 +208,79 @@ let ContactsService = class ContactsService {
         ]);
         return { success: true };
     }
+    async blockUser(blockerId, blockedId) {
+        if (blockerId === blockedId) {
+            throw new common_1.BadRequestException('You cannot block yourself');
+        }
+        const target = await this.userRepo.findOne({ where: { id: blockedId } });
+        if (!target) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        await this.friendshipRepo.delete([
+            { user_id: blockerId, friend_id: blockedId },
+            { user_id: blockedId, friend_id: blockerId },
+        ]);
+        await this.friendRequestRepo
+            .createQueryBuilder()
+            .update(friend_request_entity_1.FriendRequest)
+            .set({ status: friend_request_entity_1.FriendRequestStatus.REJECTED, responded_at: () => 'NOW()' })
+            .where('status = :status AND ((sender_id = :blockerId AND receiver_id = :blockedId) OR (sender_id = :blockedId AND receiver_id = :blockerId))', {
+            status: friend_request_entity_1.FriendRequestStatus.PENDING,
+            blockerId,
+            blockedId,
+        })
+            .execute();
+        const existing = await this.userBlockRepo.findOne({
+            where: { blocker_id: blockerId, blocked_id: blockedId },
+        });
+        if (!existing) {
+            await this.userBlockRepo.save(this.userBlockRepo.create({ blocker_id: blockerId, blocked_id: blockedId }));
+        }
+        return { success: true };
+    }
+    async unblockUser(blockerId, blockedId) {
+        await this.userBlockRepo.delete({ blocker_id: blockerId, blocked_id: blockedId });
+        return { success: true };
+    }
+    async getFriendshipStatus(userId, targetId) {
+        if (userId === targetId) {
+            return {
+                is_friend: false,
+                is_blocked: false,
+                has_pending_request: false,
+            };
+        }
+        const [friendship, blockedByMe, blockedMe, pendingRequest] = await Promise.all([
+            this.friendshipRepo.findOne({
+                where: { user_id: userId, friend_id: targetId },
+            }),
+            this.userBlockRepo.findOne({
+                where: { blocker_id: userId, blocked_id: targetId },
+            }),
+            this.userBlockRepo.findOne({
+                where: { blocker_id: targetId, blocked_id: userId },
+            }),
+            this.friendRequestRepo.findOne({
+                where: [
+                    {
+                        sender_id: userId,
+                        receiver_id: targetId,
+                        status: friend_request_entity_1.FriendRequestStatus.PENDING,
+                    },
+                    {
+                        sender_id: targetId,
+                        receiver_id: userId,
+                        status: friend_request_entity_1.FriendRequestStatus.PENDING,
+                    },
+                ],
+            }),
+        ]);
+        return {
+            is_friend: !!friendship,
+            is_blocked: !!blockedByMe || !!blockedMe,
+            has_pending_request: !!pendingRequest,
+        };
+    }
     async listConversation(userId, contactId, limit = 100) {
         const take = (0, normalize_limit_1.normalizeLimit)(limit, 100);
         const isFriend = await this.friendshipRepo.findOne({
@@ -290,9 +374,11 @@ exports.ContactsService = ContactsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(friendship_entity_1.Friendship)),
     __param(1, (0, typeorm_1.InjectRepository)(friend_request_entity_1.FriendRequest)),
-    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __param(3, (0, typeorm_1.InjectRepository)(direct_message_entity_1.DirectMessage)),
+    __param(2, (0, typeorm_1.InjectRepository)(user_block_entity_1.UserBlock)),
+    __param(3, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(4, (0, typeorm_1.InjectRepository)(direct_message_entity_1.DirectMessage)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])

@@ -13,6 +13,7 @@ const contacts_controller_1 = require("./contacts.controller");
 const contacts_service_1 = require("./contacts.service");
 const friendship_entity_1 = require("./entities/friendship.entity");
 const friend_request_entity_1 = require("./entities/friend-request.entity");
+const user_block_entity_1 = require("./entities/user-block.entity");
 const user_entity_1 = require("../users/entities/user.entity");
 const direct_message_entity_1 = require("../realtime/entities/direct-message.entity");
 let ContactsModule = class ContactsModule {
@@ -21,7 +22,13 @@ exports.ContactsModule = ContactsModule;
 exports.ContactsModule = ContactsModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([friendship_entity_1.Friendship, friend_request_entity_1.FriendRequest, user_entity_1.User, direct_message_entity_1.DirectMessage]),
+            typeorm_1.TypeOrmModule.forFeature([
+                friendship_entity_1.Friendship,
+                friend_request_entity_1.FriendRequest,
+                user_block_entity_1.UserBlock,
+                user_entity_1.User,
+                direct_message_entity_1.DirectMessage,
+            ]),
         ],
         controllers: [contacts_controller_1.ContactsController],
         providers: [contacts_service_1.ContactsService],

@@ -11,7 +11,12 @@ export class AppVersionController {
   getVersionPolicy(
     @Query('platform') platform: string,
     @Query('app_version') appVersion?: string,
+    @Query('app_build') appBuild?: string,
   ) {
-    return this.appVersionService.getPolicyForClient(platform, appVersion);
+    return this.appVersionService.getPolicyForClient(
+      platform,
+      appVersion,
+      appBuild,
+    );
   }
 }

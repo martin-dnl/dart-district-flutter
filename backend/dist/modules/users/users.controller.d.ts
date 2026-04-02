@@ -34,5 +34,7 @@ export declare class UsersController {
         user: {
             id: string;
         };
-    }): Promise<void>;
+    }): Promise<{
+        success: boolean;
+    }>;
 }

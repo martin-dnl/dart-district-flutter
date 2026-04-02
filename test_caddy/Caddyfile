@@ -1,0 +1,60 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+  encode gzip zstd
+
+  @privacy_exact path /privacy-policy
+  handle @privacy_exact {
+    root * /opt/site/privacy-policy
+    rewrite * /index.html
+    file_server
+  }
+
+  @privacy_all path /privacy-policy/*
+  handle @privacy_all {
+    root * /opt/site/privacy-policy
+    uri strip_prefix /privacy-policy
+    try_files {path} /index.html
+    file_server
+  }
+
+  @api path /api/*
+  reverse_proxy @api dartdistrict-backend-nest-prod:8081
+
+  @socketio path /socket.io/*
+  reverse_proxy @socketio dartdistrict-backend-nest-prod:8081
+
+  @ws path /ws*
+  reverse_proxy @ws dartdistrict-backend-nest-prod:8081
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Cross-Origin-Opener-Policy "same-origin-allow-popups"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}
+
+
+
+{$API_DOMAIN} {
+  encode gzip zstd
+
+
+
+  handle /tiles/* {
+    reverse_proxy dartdistrict-backend-nest-prod:8081
+  }
+
+  reverse_proxy dartdistrict-backend-nest-prod:8081
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}

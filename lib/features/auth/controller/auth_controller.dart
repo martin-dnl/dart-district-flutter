@@ -11,7 +11,7 @@ import '../../../core/network/api_providers.dart';
 import '../data/auth_repository.dart';
 import '../models/user_model.dart';
 
-enum AuthStatus { initial, authenticated, unauthenticated, loading }
+enum AuthStatus { initial, authenticated, unauthenticated, loading, needsUsernameSetup }
 
 class AuthState {
   final AuthStatus status;
@@ -246,14 +246,16 @@ class AuthController extends StateNotifier<AuthState> {
         );
       }
 
-      final user = (idToken != null && idToken.isNotEmpty)
+      final result = (idToken != null && idToken.isNotEmpty)
           ? await _repository.signInWithGoogleIdToken(idToken: idToken)
           : await _repository.signInWithGoogleAccessToken(
               accessToken: accessToken!,
             );
       state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
+        status: result.isNewUser
+            ? AuthStatus.needsUsernameSetup
+            : AuthStatus.authenticated,
+        user: result.user,
         error: null,
         debugDetails: null,
       );
@@ -406,6 +408,24 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(user: user, error: null, debugDetails: null);
     } catch (_) {
       // Keep existing user in state when refresh fails.
+    }
+  }
+
+  Future<void> confirmUsernameSetup() async {
+    try {
+      final user = await _repository.fetchCurrentUser();
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: user,
+        error: null,
+        debugDetails: null,
+      );
+    } catch (_) {
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        error: null,
+        debugDetails: null,
+      );
     }
   }
 

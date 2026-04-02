@@ -2,10 +2,12 @@ import { AppVersionService } from './app-version.service';
 export declare class AppVersionController {
     private readonly appVersionService;
     constructor(appVersionService: AppVersionService);
-    getVersionPolicy(platform: string, appVersion?: string): Promise<{
+    getVersionPolicy(platform: string, appVersion?: string, appBuild?: string): Promise<{
         platform: "android" | "ios";
         min_version: string;
         recommended_version: string;
+        min_build: number;
+        recommended_build: number;
         store_url_android: string | null;
         store_url_ios: string | null;
         message_force_update: string;

@@ -75,6 +75,30 @@ export class ContactsController {
     return this.contactsService.removeFriend(req.user.id, friendId);
   }
 
+  @Post('block/:userId')
+  blockUser(
+    @Req() req: { user: { id: string } },
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.contactsService.blockUser(req.user.id, userId);
+  }
+
+  @Delete('block/:userId')
+  unblockUser(
+    @Req() req: { user: { id: string } },
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.contactsService.unblockUser(req.user.id, userId);
+  }
+
+  @Get('status/:userId')
+  status(
+    @Req() req: { user: { id: string } },
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.contactsService.getFriendshipStatus(req.user.id, userId);
+  }
+
   @Get('messages/:contactId')
   listConversation(
     @Req() req: { user: { id: string } },

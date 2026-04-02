@@ -13,6 +13,9 @@ import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
 import { UserBadge } from '../badges/entities/user-badge.entity';
+import { Friendship } from '../contacts/entities/friendship.entity';
+import { FriendRequest } from '../contacts/entities/friend-request.entity';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +23,12 @@ export class UsersService {
     @InjectRepository(User) private readonly repo: Repository<User>,
     @InjectRepository(UserBadge)
     private readonly userBadgeRepo: Repository<UserBadge>,
+    @InjectRepository(Friendship)
+    private readonly friendshipRepo: Repository<Friendship>,
+    @InjectRepository(FriendRequest)
+    private readonly friendRequestRepo: Repository<FriendRequest>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepo: Repository<RefreshToken>,
   ) {}
 
   async findById(id: string) {
@@ -132,7 +141,44 @@ export class UsersService {
   }
 
   async remove(id: string) {
-    const result = await this.repo.softDelete(id);
-    if (result.affected === 0) throw new NotFoundException('User not found');
+    const user = await this.repo.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const baseCount = await this.repo
+      .createQueryBuilder('u')
+      .where("u.username LIKE 'deleted#%'")
+      .getCount();
+
+    let cursor = baseCount + 1;
+    let candidate = `deleted#${String(cursor).padStart(4, '0')}`;
+
+    while (await this.repo.findOne({ where: { username: candidate } })) {
+      cursor += 1;
+      candidate = `deleted#${String(cursor).padStart(4, '0')}`;
+    }
+
+    await this.friendshipRepo.delete([
+      { user_id: id },
+      { friend_id: id },
+    ]);
+
+    await this.friendRequestRepo.delete([
+      { sender_id: id },
+      { receiver_id: id },
+    ]);
+
+    await this.refreshTokenRepo.update({ user_id: id }, { revoked: true });
+
+    await this.repo.update(id, {
+      username: candidate,
+      email: null,
+      avatar_url: null,
+      password_hash: null,
+      is_active: false,
+    });
+
+    return { success: true };
   }
 }

@@ -1,5 +1,6 @@
 import { Territory } from '../../territories/entities/territory.entity';
 import { User } from '../../users/entities/user.entity';
+import { Club } from '../../clubs/entities/club.entity';
 import { TournamentPlayer } from './tournament-player.entity';
 import { TournamentPool } from './tournament-pool.entity';
 import { TournamentBracketMatch } from './tournament-bracket-match.entity';
@@ -14,6 +15,7 @@ export declare class Tournament {
     venue_name: string | null;
     venue_address: string | null;
     city: string | null;
+    club_id: string | null;
     entry_fee: number;
     max_players: number;
     enrolled_players: number;
@@ -33,6 +35,7 @@ export declare class Tournament {
     created_at: Date;
     territory: Territory;
     creator: User;
+    club: Club;
     players: TournamentPlayer[];
     pools: TournamentPool[];
     bracket_matches: TournamentBracketMatch[];

@@ -93,14 +93,17 @@ export class AuthService {
   }
 
   /* ───── Social Login (Google / Apple) ───── */
-  async socialLogin(provider: 'google' | 'apple', payload: { email: string; name: string; provider_uid: string; avatar_url?: string }) {
+  async socialLogin(provider: 'google' | 'apple', payload: { email: string; name: string; provider_uid: string }) {
     let user = await this.userRepo.findOne({ where: { email: payload.email } });
+    let isNewUser = false;
 
     if (!user) {
+      isNewUser = true;
+      // Use a random temporary username; user will pick their real one after SSO.
+      const tempUsername = `Joueur_${randomUUID().slice(0, 6)}`;
       user = this.userRepo.create({
-        username: payload.name,
+        username: tempUsername,
         email: payload.email,
-        avatar_url: payload.avatar_url ?? null,
       });
       await this.userRepo.save(user);
     }
@@ -118,7 +121,8 @@ export class AuthService {
       await this.authProviderRepo.save(ap);
     }
 
-    return this.generateTokens(user);
+    const tokens = await this.generateTokens(user);
+    return { ...tokens, is_new_user: isNewUser };
   }
 
   /* ───── Guest Login ───── */

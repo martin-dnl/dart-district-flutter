@@ -43,6 +43,7 @@ export class TournamentsService {
 
     const tournament = this.tournamentRepo.create({
       ...dto,
+      club_id: dto.club_id ?? null,
       current_phase: 'registration',
       pool_count: poolCount,
       players_per_pool: playersPerPool,
@@ -56,6 +57,7 @@ export class TournamentsService {
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.territory', 'territory')
       .leftJoinAndSelect('t.creator', 'creator')
+      .leftJoinAndSelect('t.club', 'club')
       .orderBy('t.scheduled_at', 'ASC');
 
     if (options?.status) {
@@ -74,7 +76,7 @@ export class TournamentsService {
   async findById(id: string) {
     const t = await this.tournamentRepo.findOne({
       where: { id },
-      relations: ['territory', 'creator'],
+      relations: ['territory', 'creator', 'club'],
     });
     if (!t) throw new NotFoundException('Tournament not found');
 

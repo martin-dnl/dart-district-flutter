@@ -87,11 +87,13 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async socialLogin(provider, payload) {
         let user = await this.userRepo.findOne({ where: { email: payload.email } });
+        let isNewUser = false;
         if (!user) {
+            isNewUser = true;
+            const tempUsername = `Joueur_${(0, crypto_1.randomUUID)().slice(0, 6)}`;
             user = this.userRepo.create({
-                username: payload.name,
+                username: tempUsername,
                 email: payload.email,
-                avatar_url: payload.avatar_url ?? null,
             });
             await this.userRepo.save(user);
         }
@@ -106,7 +108,8 @@ let AuthService = AuthService_1 = class AuthService {
             });
             await this.authProviderRepo.save(ap);
         }
-        return this.generateTokens(user);
+        const tokens = await this.generateTokens(user);
+        return { ...tokens, is_new_user: isNewUser };
     }
     async guestLogin() {
         const guestName = `Joueur_${(0, crypto_1.randomUUID)().slice(0, 6)}`;

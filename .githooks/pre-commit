@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+set -eu
+
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+# Block known local secret files from being committed.
+for file in $staged_files; do
+  case "$file" in
+    backend/.env|backend/.env.prod|android/key.properties|config/flutter.env.json|config/flutter.env.prod.json|*.jks|*.keystore)
+      echo "ERROR: refusing to commit sensitive file: $file"
+      echo "Use example/template files instead and keep real values local."
+      exit 1
+      ;;
+  esac
+done
+
+# Block common high-risk secret patterns in staged added lines.
+if git diff --cached -U0 -- . ':(exclude).githooks/pre-commit' ':(exclude)android/key.properties.example' | grep -E '^\+' | grep -Ev '^\+\+\+' | grep -Ev 'CHANGE_ME' | grep -E -i '(storePassword=|keyPassword=|JWT_SECRET=|POSTGRES_PASSWORD=|GOOGLE_CLIENT_SECRET=|-----BEGIN[[:space:]].*PRIVATE KEY-----)' >/dev/null; then
+  echo "ERROR: potential secret detected in staged changes."
+  echo "Remove the secret or move it to a local-only file before committing."
+  exit 1
+fi
+
+exit 0

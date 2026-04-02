@@ -15,6 +15,9 @@ class TournamentModel {
     required this.status,
     required this.isRegistered,
     this.description,
+    this.clubId,
+    this.clubName,
+    this.clubAddress,
     this.venueName,
     this.venueAddress,
     this.city,
@@ -36,6 +39,9 @@ class TournamentModel {
   final int maxPlayers;
   final int enrolledPlayers;
   final String currentPhase;
+  final String? clubId;
+  final String? clubName;
+  final String? clubAddress;
   final String? venueName;
   final String? venueAddress;
   final String? city;
@@ -85,6 +91,7 @@ class TournamentModel {
     );
 
     final creator = json['creator'];
+    final club = json['club'] as Map<String, dynamic>?;
     final creatorId = creator is Map<String, dynamic>
         ? (creator['id'] ?? '').toString()
         : (json['created_by'] ?? '').toString();
@@ -102,6 +109,9 @@ class TournamentModel {
       maxPlayers: _toInt(json['max_players'], fallback: 16),
       enrolledPlayers: _toInt(json['enrolled_players'], fallback: 0),
       currentPhase: (json['current_phase'] ?? 'registration').toString(),
+      clubId: club?['id']?.toString(),
+      clubName: club?['name']?.toString(),
+      clubAddress: club?['address']?.toString(),
       venueName: json['venue_name']?.toString(),
       venueAddress: json['venue_address']?.toString(),
       city: json['city']?.toString(),

@@ -97,6 +97,29 @@ export declare class ContactsController {
     }, friendId: string): Promise<{
         success: boolean;
     }>;
+    blockUser(req: {
+        user: {
+            id: string;
+        };
+    }, userId: string): Promise<{
+        success: boolean;
+    }>;
+    unblockUser(req: {
+        user: {
+            id: string;
+        };
+    }, userId: string): Promise<{
+        success: boolean;
+    }>;
+    status(req: {
+        user: {
+            id: string;
+        };
+    }, userId: string): Promise<{
+        is_friend: boolean;
+        is_blocked: boolean;
+        has_pending_request: boolean;
+    }>;
     listConversation(req: {
         user: {
             id: string;

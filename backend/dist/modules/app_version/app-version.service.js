@@ -21,7 +21,7 @@ let AppVersionService = class AppVersionService {
     constructor(repo) {
         this.repo = repo;
     }
-    async getPolicyForClient(platformRaw, appVersion) {
+    async getPolicyForClient(platformRaw, appVersion, appBuildRaw) {
         const platform = this.normalizePlatform(platformRaw);
         const policy = await this.repo.findOne({
             where: { platform, is_active: true },
@@ -30,11 +30,14 @@ let AppVersionService = class AppVersionService {
         if (!policy) {
             throw new common_1.NotFoundException(`No active app version policy for ${platform}`);
         }
-        const status = this.resolveStatus(appVersion, policy);
+        const appBuild = this.normalizeBuild(appBuildRaw);
+        const status = this.resolveStatus(appVersion, appBuild, policy);
         return {
             platform,
             min_version: policy.min_version,
             recommended_version: policy.recommended_version,
+            min_build: policy.min_build,
+            recommended_build: policy.recommended_build,
             store_url_android: policy.store_url_android,
             store_url_ios: policy.store_url_ios,
             message_force_update: policy.message_force_update,
@@ -51,20 +54,40 @@ let AppVersionService = class AppVersionService {
         }
         return platform;
     }
-    resolveStatus(installedVersion, policy) {
+    resolveStatus(installedVersion, installedBuild, policy) {
         if (!installedVersion || !installedVersion.trim()) {
             return 'up_to_date';
         }
         const installed = this.normalizeVersion(installedVersion);
         const minVersion = this.normalizeVersion(policy.min_version);
         const recommendedVersion = this.normalizeVersion(policy.recommended_version);
-        if (this.compareVersions(installed, minVersion) < 0) {
+        const cmpMin = this.compareVersions(installed, minVersion);
+        const cmpRecommended = this.compareVersions(installed, recommendedVersion);
+        if (cmpMin < 0) {
             return 'force_update';
         }
-        if (this.compareVersions(installed, recommendedVersion) < 0) {
+        if (cmpMin === 0 && installedBuild !== null && installedBuild < policy.min_build) {
+            return 'force_update';
+        }
+        if (cmpRecommended < 0) {
+            return 'soft_update';
+        }
+        if (cmpRecommended === 0 &&
+            installedBuild !== null &&
+            installedBuild < policy.recommended_build) {
             return 'soft_update';
         }
         return 'up_to_date';
+    }
+    normalizeBuild(raw) {
+        if (!raw || !raw.trim()) {
+            return null;
+        }
+        const parsed = Number.parseInt(raw.trim(), 10);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            throw new common_1.BadRequestException(`Invalid app_build format: ${raw}`);
+        }
+        return parsed;
     }
     normalizeVersion(raw) {
         const clean = raw.trim().replace(/^v/i, '');

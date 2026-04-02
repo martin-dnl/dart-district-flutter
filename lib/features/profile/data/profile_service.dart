@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../auth/models/user_model.dart';
 import '../controller/profile_controller.dart';
 
 class ProfileService {
@@ -34,8 +36,16 @@ class ProfileService {
   }
 
   Future<String> uploadAvatar(File imageFile) async {
+    final path = imageFile.path.toLowerCase();
+    final contentType = path.endsWith('.png')
+        ? MediaType('image', 'png')
+        : MediaType('image', 'jpeg');
+
     final formData = FormData.fromMap({
-      'avatar': await MultipartFile.fromFile(imageFile.path),
+      'avatar': await MultipartFile.fromFile(
+        imageFile.path,
+        contentType: contentType,
+      ),
     });
 
     final response = await _api.post<Map<String, dynamic>>(
@@ -49,5 +59,39 @@ class ProfileService {
         : body;
 
     return (data['avatar_url'] ?? '').toString();
+  }
+
+  Future<UserModel> fetchUserById(String userId) async {
+    final response = await _api.get<Map<String, dynamic>>('/users/$userId');
+    final data = response.data ?? const <String, dynamic>{};
+    final inner = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+    return UserModel.fromApi(inner);
+  }
+
+  Future<Map<String, bool>> getFriendshipStatus(String userId) async {
+    final response = await _api.get<Map<String, dynamic>>('/contacts/status/$userId');
+    final data = response.data?['data'] as Map<String, dynamic>? ?? response.data ?? {};
+    return {
+      'is_friend': data['is_friend'] as bool? ?? false,
+      'is_blocked': data['is_blocked'] as bool? ?? false,
+      'has_pending_request': data['has_pending_request'] as bool? ?? false,
+    };
+  }
+
+  Future<void> sendFriendRequest(String userId) async {
+    await _api.post<Map<String, dynamic>>(
+      '/contacts/requests',
+      data: {'receiver_id': userId},
+    );
+  }
+
+  Future<void> removeFriend(String userId) async {
+    await _api.delete<Map<String, dynamic>>('/contacts/friends/$userId');
+  }
+
+  Future<void> blockUser(String userId) async {
+    await _api.post<Map<String, dynamic>>('/contacts/block/$userId');
   }
 }

@@ -3,12 +3,14 @@ import { Friendship } from './entities/friendship.entity';
 import { User } from '../users/entities/user.entity';
 import { DirectMessage } from '../realtime/entities/direct-message.entity';
 import { FriendRequest } from './entities/friend-request.entity';
+import { UserBlock } from './entities/user-block.entity';
 export declare class ContactsService {
     private readonly friendshipRepo;
     private readonly friendRequestRepo;
+    private readonly userBlockRepo;
     private readonly userRepo;
     private readonly dmRepo;
-    constructor(friendshipRepo: Repository<Friendship>, friendRequestRepo: Repository<FriendRequest>, userRepo: Repository<User>, dmRepo: Repository<DirectMessage>);
+    constructor(friendshipRepo: Repository<Friendship>, friendRequestRepo: Repository<FriendRequest>, userBlockRepo: Repository<UserBlock>, userRepo: Repository<User>, dmRepo: Repository<DirectMessage>);
     listIncomingRequests(userId: string): Promise<{
         id: string;
         created_at: Date;
@@ -69,6 +71,17 @@ export declare class ContactsService {
     }>;
     removeFriend(userId: string, friendId: string): Promise<{
         success: boolean;
+    }>;
+    blockUser(blockerId: string, blockedId: string): Promise<{
+        success: boolean;
+    }>;
+    unblockUser(blockerId: string, blockedId: string): Promise<{
+        success: boolean;
+    }>;
+    getFriendshipStatus(userId: string, targetId: string): Promise<{
+        is_friend: boolean;
+        is_blocked: boolean;
+        has_pending_request: boolean;
     }>;
     listConversation(userId: string, contactId: string, limit?: number): Promise<{
         id: string;

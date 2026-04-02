@@ -17,7 +17,11 @@ export class AppVersionService {
     private readonly repo: Repository<AppVersionPolicy>,
   ) {}
 
-  async getPolicyForClient(platformRaw: string, appVersion?: string) {
+  async getPolicyForClient(
+    platformRaw: string,
+    appVersion?: string,
+    appBuildRaw?: string,
+  ) {
     const platform = this.normalizePlatform(platformRaw);
     const policy = await this.repo.findOne({
       where: { platform, is_active: true },
@@ -28,12 +32,15 @@ export class AppVersionService {
       throw new NotFoundException(`No active app version policy for ${platform}`);
     }
 
-    const status = this.resolveStatus(appVersion, policy);
+    const appBuild = this.normalizeBuild(appBuildRaw);
+    const status = this.resolveStatus(appVersion, appBuild, policy);
 
     return {
       platform,
       min_version: policy.min_version,
       recommended_version: policy.recommended_version,
+      min_build: policy.min_build,
+      recommended_build: policy.recommended_build,
       store_url_android: policy.store_url_android,
       store_url_ios: policy.store_url_ios,
       message_force_update: policy.message_force_update,
@@ -54,6 +61,7 @@ export class AppVersionService {
 
   private resolveStatus(
     installedVersion: string | undefined,
+    installedBuild: number | null,
     policy: AppVersionPolicy,
   ): VersionStatus {
     if (!installedVersion || !installedVersion.trim()) {
@@ -63,16 +71,43 @@ export class AppVersionService {
     const installed = this.normalizeVersion(installedVersion);
     const minVersion = this.normalizeVersion(policy.min_version);
     const recommendedVersion = this.normalizeVersion(policy.recommended_version);
+    const cmpMin = this.compareVersions(installed, minVersion);
+    const cmpRecommended = this.compareVersions(installed, recommendedVersion);
 
-    if (this.compareVersions(installed, minVersion) < 0) {
+    if (cmpMin < 0) {
       return 'force_update';
     }
 
-    if (this.compareVersions(installed, recommendedVersion) < 0) {
+    if (cmpMin === 0 && installedBuild !== null && installedBuild < policy.min_build) {
+      return 'force_update';
+    }
+
+    if (cmpRecommended < 0) {
+      return 'soft_update';
+    }
+
+    if (
+      cmpRecommended === 0 &&
+      installedBuild !== null &&
+      installedBuild < policy.recommended_build
+    ) {
       return 'soft_update';
     }
 
     return 'up_to_date';
+  }
+
+  private normalizeBuild(raw: string | undefined): number | null {
+    if (!raw || !raw.trim()) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(raw.trim(), 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      throw new BadRequestException(`Invalid app_build format: ${raw}`);
+    }
+
+    return parsed;
   }
 
   private normalizeVersion(raw: string): string {

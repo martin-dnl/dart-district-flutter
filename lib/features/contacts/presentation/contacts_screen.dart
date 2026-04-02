@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../controller/contacts_controller.dart';
 import '../models/contact_models.dart';
 
@@ -134,6 +135,9 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                                 onReject: () => ref
                                     .read(contactsControllerProvider.notifier)
                                     .rejectFriendRequest(request),
+                                onBlock: () => ref
+                                    .read(contactsControllerProvider.notifier)
+                                    .blockUser(request.user.id),
                               ),
                             ),
                           ),
@@ -164,6 +168,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                               friend: friend,
                               unreadCount:
                                   contacts.unreadByContact[friend.id] ?? 0,
+                              onOpenProfile: () => context.push(
+                                AppRoutes.profile,
+                                extra: friend.id,
+                              ),
                               onChallenge: () {
                                 ref
                                     .read(contactsControllerProvider.notifier)
@@ -319,11 +327,13 @@ class _IncomingRequestTile extends StatelessWidget {
     required this.request,
     required this.onAccept,
     required this.onReject,
+    required this.onBlock,
   });
 
   final FriendRequestModel request;
   final VoidCallback onAccept;
   final VoidCallback onReject;
+  final VoidCallback onBlock;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +365,23 @@ class _IncomingRequestTile extends StatelessWidget {
                   onPressed: onReject,
                   child: const Text('Refuser'),
                 ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () async {
+                  final confirmed = await showConfirmDialog(
+                    context: context,
+                    title: 'Bloquer ${request.user.username} ?',
+                    message: 'Cet utilisateur ne pourra plus vous contacter.',
+                    confirmLabel: 'Bloquer',
+                    confirmColor: AppColors.error,
+                  );
+                  if (confirmed) {
+                    onBlock();
+                  }
+                },
+                icon: const Icon(Icons.block, color: AppColors.error, size: 20),
+                tooltip: 'Bloquer',
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -413,12 +440,14 @@ class _FriendTile extends StatelessWidget {
   const _FriendTile({
     required this.friend,
     required this.unreadCount,
+    required this.onOpenProfile,
     required this.onChallenge,
     required this.onOpenChat,
   });
 
   final ContactModel friend;
   final int unreadCount;
+  final VoidCallback onOpenProfile;
   final VoidCallback onChallenge;
   final VoidCallback onOpenChat;
 
@@ -427,14 +456,23 @@ class _FriendTile extends StatelessWidget {
     return _BaseTile(
       child: Row(
         children: [
-          _AvatarLetter(name: friend.username),
-          const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              friend.username,
-              style: GoogleFonts.manrope(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
+            child: GestureDetector(
+              onTap: onOpenProfile,
+              child: Row(
+                children: [
+                  _AvatarLetter(name: friend.username),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      friend.username,
+                      style: GoogleFonts.manrope(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -464,14 +502,14 @@ class _FriendTile extends StatelessWidget {
             tooltip: 'Defier',
             onPressed: onChallenge,
           ),
-          ElevatedButton.icon(
+          IconButton(
             onPressed: onOpenChat,
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-            label: const Text('Chat'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
+            icon: const Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: AppColors.primary,
+              size: 22,
             ),
+            tooltip: 'Message',
           ),
         ],
       ),

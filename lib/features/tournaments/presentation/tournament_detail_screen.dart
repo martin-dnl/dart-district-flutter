@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/app_routes.dart';
 import '../../../features/auth/controller/auth_controller.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/glass_card.dart';
@@ -41,8 +44,8 @@ class TournamentDetailScreen extends ConsumerWidget {
                     labelColor: AppColors.primary,
                     unselectedLabelColor: AppColors.textSecondary,
                     tabs: [
-                      Tab(text: 'Joueurs'),
                       Tab(text: 'Infos'),
+                      Tab(text: 'Joueurs'),
                       Tab(text: 'Poules'),
                       Tab(text: 'Bracket'),
                     ],
@@ -50,11 +53,6 @@ class TournamentDetailScreen extends ConsumerWidget {
                   Expanded(
                     child: TabBarView(
                       children: [
-                        _PlayersTab(
-                          players: detail.players,
-                          tournamentId: tournamentId,
-                          canDisqualify: canDisqualify,
-                        ),
                         _InfoTab(
                           tournament: detail.tournament,
                           onRegisterToggle: () async {
@@ -67,6 +65,11 @@ class TournamentDetailScreen extends ConsumerWidget {
                             ref.invalidate(tournamentDetailProvider(tournamentId));
                             ref.invalidate(tournamentsListProvider);
                           },
+                        ),
+                        _PlayersTab(
+                          players: detail.players,
+                          tournamentId: tournamentId,
+                          canDisqualify: canDisqualify,
                         ),
                         _PoolsTab(poolsAsync: poolsAsync),
                         _BracketTab(bracketAsync: bracketAsync),
@@ -129,6 +132,20 @@ class _InfoTab extends ConsumerWidget {
       default:
         return AppColors.textSecondary;
     }
+  }
+
+  Future<void> _launchMapsNavigation(String address) async {
+    final encoded = Uri.encodeComponent(address);
+    final geoUri = Uri.parse('geo:0,0?q=$encoded');
+    if (await canLaunchUrl(geoUri)) {
+      await launchUrl(geoUri);
+      return;
+    }
+
+    final webUri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$encoded',
+    );
+    await launchUrl(webUri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -261,6 +278,23 @@ class _InfoTab extends ConsumerWidget {
                   label: 'Description',
                   value: tournament.description!.trim(),
                 ),
+              if ((tournament.clubName ?? '').trim().isNotEmpty)
+                _InfoRow(
+                  label: 'Club partenaire',
+                  value: tournament.clubName!.trim(),
+                  onTap: () {
+                    if ((tournament.clubId ?? '').isEmpty) return;
+                    context.push('/club/${tournament.clubId}');
+                  },
+                ),
+              if ((tournament.venueAddress ?? '').trim().isNotEmpty)
+                _InfoRow(
+                  label: 'Adresse',
+                  value: tournament.venueAddress!.trim(),
+                  onTap: () => _launchMapsNavigation(
+                    tournament.venueAddress!.trim(),
+                  ),
+                ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -280,35 +314,44 @@ class _InfoTab extends ConsumerWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textHint,
-                fontWeight: FontWeight.w600,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 120,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textHint,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: AppColors.textPrimary),
+            Expanded(
+              child: Text(
+                value,
+                style: TextStyle(
+                  color: onTap == null ? AppColors.textPrimary : AppColors.primary,
+                  decoration: onTap == null
+                      ? TextDecoration.none
+                      : TextDecoration.underline,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -341,6 +384,7 @@ class _PlayersTab extends ConsumerWidget {
         final player = players[index];
         return GlassCard(
           child: ListTile(
+            onTap: () => context.push(AppRoutes.profile, extra: player.userId),
             contentPadding: EdgeInsets.zero,
             leading: PlayerAvatar(
               name: player.username,

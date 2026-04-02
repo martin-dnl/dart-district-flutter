@@ -48,7 +48,6 @@ let AuthController = class AuthController {
             email: payload.email,
             name: payload.name ?? payload.email.split('@')[0],
             provider_uid: payload.sub,
-            avatar_url: payload.picture,
         });
     }
     async appleLogin(dto) {

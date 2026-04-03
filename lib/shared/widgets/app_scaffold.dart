@@ -7,6 +7,7 @@ import '../../core/config/app_colors.dart';
 import '../../core/config/app_routes.dart';
 import '../../features/auth/controller/auth_controller.dart';
 import '../../features/contacts/controller/contacts_controller.dart';
+import '../../features/match/controller/ongoing_matches_controller.dart';
 import 'player_avatar.dart';
 
 class AppScaffold extends ConsumerWidget {
@@ -49,6 +50,7 @@ class AppScaffold extends ConsumerWidget {
     final location = GoRouterState.of(context).uri.path;
     final user = ref.watch(currentUserProvider);
     final unreadContacts = ref.watch(contactsUnreadCountProvider);
+    final ongoingMatchCount = ref.watch(ongoingMatchesControllerProvider).matches.length;
     final showPageHeader = _shouldShowPageHeader(location);
     final pageTitle = _pageTitle(location);
 
@@ -158,7 +160,9 @@ class AppScaffold extends ConsumerWidget {
                     child: _DockItem(
                       icon: items[i].icon,
                       label: items[i].label,
-                      badgeCount: i == 4 ? unreadContacts : 0,
+                      badgeCount: i == 2
+                          ? ongoingMatchCount
+                          : (i == 4 ? unreadContacts : 0),
                       selected: i == currentIndex,
                       onTap: () => _onTap(context, i),
                     ),

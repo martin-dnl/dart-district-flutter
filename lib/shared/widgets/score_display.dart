@@ -122,6 +122,8 @@ class _AnimatedScoreNumberState extends State<_AnimatedScoreNumber>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late Animation<double> _animation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _glowAnimation;
   late int _displayedScore;
   int _fromScore = 0;
   int _toScore = 0;
@@ -132,22 +134,55 @@ class _AnimatedScoreNumberState extends State<_AnimatedScoreNumber>
     _displayedScore = widget.score;
     _fromScore = widget.score;
     _toScore = widget.score;
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 420),
-    )..addListener(() {
-      final value = (_fromScore + (_toScore - _fromScore) * _animation.value)
-          .round();
-      if (value != _displayedScore && mounted) {
-        setState(() {
-          _displayedScore = value;
+    _controller =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 700),
+        )..addListener(() {
+          final value =
+              (_fromScore + (_toScore - _fromScore) * _animation.value).round();
+          if (value != _displayedScore && mounted) {
+            setState(() {
+              _displayedScore = value;
+            });
+          }
         });
-      }
-    });
     _animation = CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeOutQuart,
     );
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 1.0,
+          end: 1.06,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 20,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 1.06,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 80,
+      ),
+    ]).animate(_controller);
+    _glowAnimation = TweenSequence<double>([
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 0.0,
+          end: 0.6,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 20,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 0.6,
+          end: 0.0,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 80,
+      ),
+    ]).animate(_controller);
   }
 
   @override
@@ -161,6 +196,7 @@ class _AnimatedScoreNumberState extends State<_AnimatedScoreNumber>
         widget.animate && widget.score < oldWidget.score && widget.score > 0;
     if (!shouldAnimate) {
       _controller.stop();
+      _controller.value = 0;
       setState(() {
         _displayedScore = widget.score;
       });
@@ -169,6 +205,9 @@ class _AnimatedScoreNumberState extends State<_AnimatedScoreNumber>
 
     _fromScore = oldWidget.score;
     _toScore = widget.score;
+    final delta = (_fromScore - _toScore).abs();
+    final durationMs = (520 + (delta * 3)).clamp(520, 1200);
+    _controller.duration = Duration(milliseconds: durationMs);
     _controller
       ..reset()
       ..forward();
@@ -182,13 +221,33 @@ class _AnimatedScoreNumberState extends State<_AnimatedScoreNumber>
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      '$_displayedScore',
-      style: TextStyle(
-        fontSize: 48,
-        fontWeight: FontWeight.bold,
-        color: widget.isActive ? AppColors.primary : AppColors.textPrimary,
-      ),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final scale = widget.isActive ? _scaleAnimation.value : 1.0;
+        final glow = widget.isActive ? _glowAnimation.value : 0.0;
+        final baseColor = widget.isActive
+            ? AppColors.primary
+            : AppColors.textPrimary;
+
+        return Transform.scale(
+          scale: scale,
+          child: Text(
+            '$_displayedScore',
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: baseColor,
+              shadows: [
+                Shadow(
+                  color: AppColors.primary.withValues(alpha: glow),
+                  blurRadius: 6 + (14 * glow),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

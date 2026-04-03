@@ -15,7 +15,7 @@ Flutter:
 Example Flutter run commands:
 
 ```powershell
-flutter run -d chrome --dart-define-from-file=config/flutter.env.json
+flutter run -d chrome --web-port 8090 --dart-define-from-file=config/flutter.env.prod.json
 ```
 
 ```powershell

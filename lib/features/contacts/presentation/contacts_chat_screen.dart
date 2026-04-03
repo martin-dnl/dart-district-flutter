@@ -35,6 +35,7 @@ class _ContactsChatScreenState extends ConsumerState<ContactsChatScreen> {
 
   @override
   void dispose() {
+    ref.read(contactsControllerProvider.notifier).clearSelectedFriend();
     _messageController.dispose();
     super.dispose();
   }

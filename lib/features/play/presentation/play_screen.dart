@@ -18,8 +18,7 @@ class PlayScreen extends ConsumerWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // Ongoing Matches
-            SliverToBoxAdapter(child: OngoingMatchesTile()),
+            
 
             // X01 Modes
             const SliverToBoxAdapter(child: SectionHeader(title: 'Modes X01')),
@@ -97,7 +96,8 @@ class PlayScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
+            // Ongoing Matches
+            SliverToBoxAdapter(child: OngoingMatchesTile()),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),

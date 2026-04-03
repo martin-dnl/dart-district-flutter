@@ -264,6 +264,10 @@ class ContactsController extends StateNotifier<ContactsState> {
     await _markRead(friend.id);
   }
 
+  void clearSelectedFriend() {
+    state = state.copyWith(clearSelectedFriend: true, clearError: true);
+  }
+
   void sendMessage(String rawText) {
     final fromUserId = currentUserId;
     final selected = state.selectedFriend;
@@ -423,7 +427,7 @@ class ContactsController extends StateNotifier<ContactsState> {
       ...friends.map((friend) => friend.id),
       ...incomingRequests.map((request) => request.user.id),
       ...outgoingRequests.map((request) => request.user.id),
-      if (selfId != null) selfId,
+      ...(selfId == null ? const <String>[] : <String>[selfId]),
     };
 
     return results.where((contact) => !excludedIds.contains(contact.id)).toList();

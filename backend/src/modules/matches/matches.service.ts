@@ -472,6 +472,9 @@ export class MatchesService {
     const qb = this.matchRepo
       .createQueryBuilder('m')
       .innerJoin('m.players', 'mp', 'mp.user_id = :userId', { userId })
+      .leftJoinAndSelect('m.players', 'allPlayers')
+      .leftJoinAndSelect('allPlayers.user', 'u')
+      .leftJoinAndSelect('m.sets', 's')
       .orderBy('m.created_at', 'DESC')
       .skip(skip)
       .take(take);
@@ -484,7 +487,30 @@ export class MatchesService {
       qb.andWhere('m.is_ranked = :isRanked', { isRanked: true });
     }
 
-    return qb.getMany();
+    const matches = await qb.getMany();
+
+    return matches.map((m) => {
+      const orderedPlayers = this.getOrderedPlayers(m);
+      const winnerId = orderedPlayers.find((p) => p.is_winner)?.user_id ?? null;
+      return {
+        id: m.id,
+        mode: m.mode,
+        status: this.toClientStatus(m.status),
+        is_ranked: m.is_ranked,
+        created_at: m.created_at,
+        started_at: m.started_at,
+        completed_at: m.ended_at,
+        surrendered_by: m.surrendered_by,
+        winner_id: winnerId,
+        players: orderedPlayers.map((p) => ({
+          user_id: p.user_id,
+          username: p.user?.username ?? 'Joueur',
+          avatar_url: p.user?.avatar_url ?? null,
+          is_winner: p.is_winner,
+          sets_won: (m.sets ?? []).filter((s) => s.winner_id === p.user_id).length,
+        })),
+      };
+    });
   }
 
   async getMatchReport(matchId: string) {
@@ -640,9 +666,10 @@ export class MatchesService {
 
     if (legsWon >= legsToWin) {
       // Set won
-      set.winner = { id: winnerId } as any;
-      await this.setRepo.save(set);
-      await this.checkMatchCompletion(match, winnerId);
+      await this.setRepo.update({ id: set.id }, { winner_id: winnerId });
+      // Reload match so sets carry the updated winner_id
+      const freshMatch = await this.findById(match.id);
+      await this.checkMatchCompletion(freshMatch, winnerId);
     } else {
       // New leg
       const newLeg = this.legRepo.create({

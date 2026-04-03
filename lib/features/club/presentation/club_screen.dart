@@ -426,27 +426,6 @@ class _ClubSearchResults extends StatelessWidget {
       );
     }
 
-    if (state.results.isEmpty && (state.query ?? '').trim().isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Aucun club trouvé',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            if (canCreateClub) ...[
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: onCreateClub,
-                icon: const Icon(Icons.add),
-                label: const Text('Créer un club'),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
 
     if (state.results.isEmpty) {
       return Center(

@@ -609,6 +609,8 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     if (shouldOpenReport == true) {
       final reportPath = AppRoutes.matchReport.replaceFirst(':id', match.id);
       context.pushReplacement(reportPath, extra: match);
+    } else {
+      context.go(AppRoutes.home);
     }
   }
 

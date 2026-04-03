@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_routes.dart';
 import '../controller/match_controller.dart';
@@ -35,9 +34,7 @@ class MatchInvitationOverlay extends ConsumerWidget {
             ref
                 .read(ongoingMatchesControllerProvider.notifier)
                 .clearLastInvitationResponse();
-            if (context.mounted) {
-              context.push(AppRoutes.matchLive);
-            }
+            ref.read(routerProvider).push(AppRoutes.matchLive);
           });
         } else if (invitationResponse.invitationStatus ==
             InvitationStatus.refused) {
@@ -99,7 +96,7 @@ class MatchInvitationOverlay extends ConsumerWidget {
         }
 
         ref.read(matchControllerProvider.notifier).loadMatch(acceptedMatch);
-        context.push(AppRoutes.matchLive);
+        ref.read(routerProvider).push(AppRoutes.matchLive);
       },
       onRefuse: () async {
         await ref

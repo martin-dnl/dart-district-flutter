@@ -475,6 +475,14 @@ class AuthController extends StateNotifier<AuthState> {
         ..writeln('platform_exception_details=${error.details}');
     }
 
+    if (error is DioException) {
+      details
+        ..writeln('dio_status_code=${error.response?.statusCode}')
+        ..writeln('dio_response_data=${error.response?.data}')
+        ..writeln('dio_request_path=${error.requestOptions.path}')
+        ..writeln('dio_request_method=${error.requestOptions.method}');
+    }
+
     if (stackTrace != null) {
       details.writeln('stack=$stackTrace');
     }

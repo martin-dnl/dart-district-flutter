@@ -110,12 +110,29 @@ export class AuthService {
     if (!user) {
       isNewUser = true;
       // Use a random temporary username; user will pick their real one after SSO.
-      const tempUsername = `Joueur_${randomUUID().slice(0, 6)}`;
+      // Include more entropy to avoid UNIQUE constraint collisions.
+      const tempUsername = `Joueur_${randomUUID().slice(0, 8)}`;
       user = this.userRepo.create({
         username: tempUsername,
         email: payload.email,
       });
-      await this.userRepo.save(user);
+      try {
+        await this.userRepo.save(user);
+      } catch (saveError: unknown) {
+        // Handle race condition: user may have been created concurrently.
+        const msg = saveError instanceof Error ? saveError.message : '';
+        if (msg.includes('duplicate') || msg.includes('unique') || msg.includes('23505')) {
+          const retryUser = await this.userRepo.findOne({ where: { email: payload.email } });
+          if (retryUser) {
+            user = retryUser;
+            isNewUser = false;
+          } else {
+            throw saveError;
+          }
+        } else {
+          throw saveError;
+        }
+      }
     }
 
     if (!linkedProvider) {
@@ -128,12 +145,20 @@ export class AuthService {
       }
 
       if (!existingAp) {
-      const ap = this.authProviderRepo.create({
-        user,
-        provider,
-        provider_uid: payload.provider_uid,
-      });
-      await this.authProviderRepo.save(ap);
+        try {
+          const ap = this.authProviderRepo.create({
+            user,
+            provider,
+            provider_uid: payload.provider_uid,
+          });
+          await this.authProviderRepo.save(ap);
+        } catch (apError: unknown) {
+          // Ignore duplicate auth_provider (race condition or retry).
+          const msg = apError instanceof Error ? apError.message : '';
+          if (!(msg.includes('duplicate') || msg.includes('unique') || msg.includes('23505'))) {
+            throw apError;
+          }
+        }
       }
     }
 

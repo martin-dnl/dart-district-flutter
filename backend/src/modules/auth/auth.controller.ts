@@ -7,7 +7,10 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
+import * as https from 'https';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
@@ -21,6 +24,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
@@ -45,31 +50,49 @@ export class AuthController {
     let payload: { email: string; name?: string; sub: string; picture?: string } | null =
       null;
 
-    if (dto.id_token) {
-      try {
-        payload = await this.verifyGoogleIdToken(dto.id_token);
-      } catch (error) {
-        // Some Android builds return ID tokens with audiences not listed server-side.
-        // If an access token is present, fallback to userinfo verification instead.
-        if (dto.access_token) {
-          payload = await this.verifyGoogleAccessToken(dto.access_token);
-        } else {
-          throw error;
+    try {
+      if (dto.id_token) {
+        try {
+          payload = await this.verifyGoogleIdToken(dto.id_token);
+        } catch (error) {
+          this.logger.warn(
+            `Google id_token verification failed: ${error instanceof Error ? error.message : error}`,
+          );
+          // Fallback to access_token if available.
+          if (dto.access_token) {
+            payload = await this.verifyGoogleAccessToken(dto.access_token);
+          } else {
+            throw error;
+          }
         }
+      } else if (dto.access_token) {
+        payload = await this.verifyGoogleAccessToken(dto.access_token);
       }
-    } else if (dto.access_token) {
-      payload = await this.verifyGoogleAccessToken(dto.access_token);
-    }
 
-    if (!payload) {
-      throw new UnauthorizedException('Missing Google token payload');
-    }
+      if (!payload) {
+        throw new UnauthorizedException('Missing Google token payload');
+      }
 
-    return this.authService.socialLogin('google', {
-      email: payload.email,
-      name: payload.name ?? payload.email.split('@')[0],
-      provider_uid: payload.sub,
-    });
+      this.logger.log(
+        `Google auth verified for ${payload.email} (sub=${payload.sub})`,
+      );
+
+      return await this.authService.socialLogin('google', {
+        email: payload.email,
+        name: payload.name ?? payload.email.split('@')[0],
+        provider_uid: payload.sub,
+      });
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      const detail = error instanceof Error
+        ? `${error.constructor.name}: ${error.message}`
+        : String(error);
+      this.logger.error(`Google login failed: ${detail}`, error instanceof Error ? error.stack : undefined);
+      throw new InternalServerErrorException(`Google login failed: ${detail}`);
+    }
   }
 
   @Post('apple')
@@ -167,23 +190,7 @@ export class AuthController {
     sub: string;
     picture?: string;
   }> {
-    const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new UnauthorizedException('Invalid Google access token');
-    }
-
-    const payload = (await response.json()) as {
-      sub?: string;
-      email?: string;
-      email_verified?: boolean;
-      name?: string;
-      picture?: string;
-    };
+    const payload = await this.fetchGoogleUserInfo(accessToken);
 
     if (!payload?.email || !payload?.sub) {
       throw new UnauthorizedException('Invalid Google token payload');
@@ -200,4 +207,58 @@ export class AuthController {
       picture: payload.picture,
     };
   }
+
+  private fetchGoogleUserInfo(accessToken: string): Promise<{
+    sub?: string;
+    email?: string;
+    email_verified?: boolean;
+    name?: string;
+    picture?: string;
+  }> {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        'https://openidconnect.googleapis.com/v1/userinfo',
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+        (res) => {
+          let raw = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            raw += chunk;
+          });
+          res.on('end', () => {
+            const statusCode = res.statusCode ?? 500;
+            if (statusCode < 200 || statusCode >= 300) {
+              reject(new UnauthorizedException('Invalid Google access token'));
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(raw) as {
+                sub?: string;
+                email?: string;
+                email_verified?: boolean;
+                name?: string;
+                picture?: string;
+              };
+              resolve(parsed);
+            } catch {
+              reject(new UnauthorizedException('Invalid Google token payload'));
+            }
+          });
+        },
+      );
+
+      req.on('error', () => {
+        reject(new UnauthorizedException('Unable to verify Google access token'));
+      });
+
+      req.end();
+    });
+  }
+
 }

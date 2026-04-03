@@ -23,6 +23,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       const res = exception.getResponse();
       message = typeof res === 'string' ? res : (res as Record<string, unknown>).message as string;
+    } else if (exception instanceof Error) {
+      message = `[${exception.constructor.name}] ${exception.message}`;
     }
 
     this.logger.error(

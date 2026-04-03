@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../play/presentation/qr_scan_screen.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/player_avatar.dart';
 import '../controller/contacts_controller.dart';
 import '../models/contact_models.dart';
 
@@ -19,6 +21,30 @@ class ContactsScreen extends ConsumerStatefulWidget {
 
 class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   late final TextEditingController _searchController;
+
+  Future<void> _scanUserQrAndOpenProfile() async {
+    final result = await context.push<Object?>(
+      AppRoutes.qrScan,
+      extra: {'mode': QrScanMode.user.name},
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    String? userId;
+    if (result is ContactModel) {
+      userId = result.id;
+    } else if (result is Map<String, dynamic>) {
+      userId = result['id']?.toString();
+    }
+
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    context.push(AppRoutes.profile, extra: userId);
+  }
 
   @override
   void initState() {
@@ -43,21 +69,32 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       contacts.isConnected
-                          ? 'Connecte en temps reel'
-                          : 'Connexion realtime en attente',
+                          ? 'Connecté'
+                          : 'Hors ligne',
                       style: GoogleFonts.manrope(
                         color: contacts.isConnected
-                            ? AppColors.success
+                            ? AppColors.primary
                             : AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => ref
+                        .read(contactsControllerProvider.notifier)
+                        .refreshContacts(),
+                    tooltip: 'Rafraichir',
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: AppColors.textSecondary,
+                      size: 20,
                     ),
                   ),
                   Container(
@@ -65,7 +102,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     height: 12,
                     decoration: BoxDecoration(
                       color: contacts.isConnected
-                          ? AppColors.success
+                          ? AppColors.primary
                           : AppColors.warning,
                       shape: BoxShape.circle,
                     ),
@@ -81,6 +118,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 onChanged: (value) => ref
                     .read(contactsControllerProvider.notifier)
                     .searchUsers(value),
+                onScanQr: _scanUserQrAndOpenProfile,
               ),
             ),
             if (contacts.error != null)
@@ -104,98 +142,117 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         color: AppColors.primary,
                       ),
                     )
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                      children: [
-                        if (contacts.searchResults.isNotEmpty) ...[
-                          _SectionTitle('Resultats de recherche'),
+                  : RefreshIndicator(
+                      onRefresh: () => ref
+                          .read(contactsControllerProvider.notifier)
+                          .refreshContacts(),
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                        children: [
+                          if (contacts.searchResults.isNotEmpty) ...[
+                            _SectionTitle('Resultats de recherche'),
+                            const SizedBox(height: 8),
+                            ...contacts.searchResults.map(
+                              (c) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _SearchResultTile(
+                                  contact: c,
+                                  canAdd: !isGuest,
+                                  onOpenProfile: () => context.push(
+                                    AppRoutes.profile,
+                                    extra: c.id,
+                                  ),
+                                  onAdd: () => ref
+                                      .read(contactsControllerProvider.notifier)
+                                      .addFriend(c),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          if (contacts.incomingRequests.isNotEmpty) ...[
+                            _SectionTitle('Demandes recues'),
+                            const SizedBox(height: 8),
+                            ...contacts.incomingRequests.map(
+                              (request) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _IncomingRequestTile(
+                                  request: request,
+                                  onOpenProfile: () => context.push(
+                                    AppRoutes.profile,
+                                    extra: request.user.id,
+                                  ),
+                                  onAccept: () => ref
+                                      .read(contactsControllerProvider.notifier)
+                                      .acceptFriendRequest(request),
+                                  onReject: () => ref
+                                      .read(contactsControllerProvider.notifier)
+                                      .rejectFriendRequest(request),
+                                  onBlock: () => ref
+                                      .read(contactsControllerProvider.notifier)
+                                      .blockUser(request.user.id),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          if (contacts.outgoingRequests.isNotEmpty) ...[
+                            _SectionTitle('Demandes en attente'),
+                            const SizedBox(height: 8),
+                            ...contacts.outgoingRequests.map(
+                              (request) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _OutgoingRequestTile(
+                                  request: request,
+                                  onOpenProfile: () => context.push(
+                                    AppRoutes.profile,
+                                    extra: request.user.id,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          _SectionTitle('Amis'),
                           const SizedBox(height: 8),
-                          ...contacts.searchResults.map(
-                            (c) => Padding(
+                          if (contacts.friends.isEmpty)
+                            const _EmptyStateCard(
+                              message:
+                                  'Aucun ami pour le moment. Recherchez un joueur pour commencer.',
+                            ),
+                          ...contacts.friends.map(
+                            (friend) => Padding(
                               padding: const EdgeInsets.only(bottom: 10),
-                              child: _SearchResultTile(
-                                contact: c,
-                                canAdd: !isGuest,
-                                onAdd: () => ref
-                                    .read(contactsControllerProvider.notifier)
-                                    .addFriend(c),
+                              child: _FriendTile(
+                                friend: friend,
+                                unreadCount:
+                                    contacts.unreadByContact[friend.id] ?? 0,
+                                onOpenProfile: () => context.push(
+                                  AppRoutes.profile,
+                                  extra: friend.id,
+                                ),
+                                onChallenge: () {
+                                  ref
+                                      .read(contactsControllerProvider.notifier)
+                                      .selectFriend(friend);
+                                  context.go(AppRoutes.play);
+                                },
+                                onOpenChat: () async {
+                                  await ref
+                                      .read(contactsControllerProvider.notifier)
+                                      .selectFriend(friend);
+                                  if (context.mounted) {
+                                    context.push(
+                                      AppRoutes.contactsChat,
+                                      extra: friend,
+                                    );
+                                  }
+                                },
                               ),
                             ),
                           ),
-                          const SizedBox(height: 6),
                         ],
-                        if (contacts.incomingRequests.isNotEmpty) ...[
-                          _SectionTitle('Demandes recues'),
-                          const SizedBox(height: 8),
-                          ...contacts.incomingRequests.map(
-                            (request) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _IncomingRequestTile(
-                                request: request,
-                                onAccept: () => ref
-                                    .read(contactsControllerProvider.notifier)
-                                    .acceptFriendRequest(request),
-                                onReject: () => ref
-                                    .read(contactsControllerProvider.notifier)
-                                    .rejectFriendRequest(request),
-                                onBlock: () => ref
-                                    .read(contactsControllerProvider.notifier)
-                                    .blockUser(request.user.id),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                        ],
-                        if (contacts.outgoingRequests.isNotEmpty) ...[
-                          _SectionTitle('Demandes en attente'),
-                          const SizedBox(height: 8),
-                          ...contacts.outgoingRequests.map(
-                            (request) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _OutgoingRequestTile(request: request),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                        ],
-                        _SectionTitle('Amis'),
-                        const SizedBox(height: 8),
-                        if (contacts.friends.isEmpty)
-                          const _EmptyStateCard(
-                            message:
-                                'Aucun ami pour le moment. Recherchez un joueur pour commencer.',
-                          ),
-                        ...contacts.friends.map(
-                          (friend) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _FriendTile(
-                              friend: friend,
-                              unreadCount:
-                                  contacts.unreadByContact[friend.id] ?? 0,
-                              onOpenProfile: () => context.push(
-                                AppRoutes.profile,
-                                extra: friend.id,
-                              ),
-                              onChallenge: () {
-                                ref
-                                    .read(contactsControllerProvider.notifier)
-                                    .selectFriend(friend);
-                                context.go(AppRoutes.play);
-                              },
-                              onOpenChat: () async {
-                                await ref
-                                    .read(contactsControllerProvider.notifier)
-                                    .selectFriend(friend);
-                                if (context.mounted) {
-                                  context.push(
-                                    AppRoutes.contactsChat,
-                                    extra: friend,
-                                  );
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
             ),
           ],
@@ -228,11 +285,13 @@ class _SearchBox extends StatelessWidget {
     required this.controller,
     required this.isLoading,
     required this.onChanged,
+    required this.onScanQr,
   });
 
   final TextEditingController controller;
   final bool isLoading;
   final ValueChanged<String> onChanged;
+  final VoidCallback onScanQr;
 
   @override
   Widget build(BuildContext context) {
@@ -247,16 +306,32 @@ class _SearchBox extends StatelessWidget {
           Icons.search_rounded,
           color: AppColors.textSecondary,
         ),
-        suffixIcon: isLoading
-            ? const Padding(
-                padding: EdgeInsets.all(12),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+        suffixIcon: SizedBox(
+          width: 74,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(right: 2),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 ),
-              )
-            : null,
+              IconButton(
+                onPressed: onScanQr,
+                tooltip: 'Scanner QR',
+                icon: const Icon(
+                  Icons.qr_code_scanner,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
         filled: true,
         fillColor: AppColors.surface.withValues(alpha: 0.85),
         border: OutlineInputBorder(
@@ -284,11 +359,13 @@ class _SearchResultTile extends StatelessWidget {
   const _SearchResultTile({
     required this.contact,
     required this.canAdd,
+    required this.onOpenProfile,
     required this.onAdd,
   });
 
   final ContactModel contact;
   final bool canAdd;
+  final VoidCallback onOpenProfile;
   final VoidCallback onAdd;
 
   @override
@@ -296,14 +373,21 @@ class _SearchResultTile extends StatelessWidget {
     return _BaseTile(
       child: Row(
         children: [
-          _AvatarLetter(name: contact.username),
+          PlayerAvatar(
+            name: contact.username,
+            imageUrl: contact.avatarUrl,
+            size: 32,
+          ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              contact.username,
-              style: GoogleFonts.manrope(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
+            child: GestureDetector(
+              onTap: onOpenProfile,
+              child: Text(
+                contact.username,
+                style: GoogleFonts.manrope(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -317,13 +401,14 @@ class _SearchResultTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           if (canAdd)
-            ElevatedButton(
+            IconButton(
               onPressed: onAdd,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.background,
+              tooltip: 'Ajouter',
+              icon: const Icon(
+                Icons.add_box_outlined,
+                color: AppColors.primary,
+                size: 24,
               ),
-              child: const Text('Ajouter'),
             ),
         ],
       ),
@@ -334,12 +419,14 @@ class _SearchResultTile extends StatelessWidget {
 class _IncomingRequestTile extends StatelessWidget {
   const _IncomingRequestTile({
     required this.request,
+    required this.onOpenProfile,
     required this.onAccept,
     required this.onReject,
     required this.onBlock,
   });
 
   final FriendRequestModel request;
+  final VoidCallback onOpenProfile;
   final VoidCallback onAccept;
   final VoidCallback onReject;
   final VoidCallback onBlock;
@@ -353,14 +440,21 @@ class _IncomingRequestTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              _AvatarLetter(name: request.user.username),
+              PlayerAvatar(
+                name: request.user.username,
+                imageUrl: request.user.avatarUrl,
+                size: 32,
+              ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  '${request.user.username} veut vous ajouter',
-                  style: GoogleFonts.manrope(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                child: GestureDetector(
+                  onTap: onOpenProfile,
+                  child: Text(
+                    '${request.user.username} veut vous ajouter',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -412,23 +506,34 @@ class _IncomingRequestTile extends StatelessWidget {
 }
 
 class _OutgoingRequestTile extends StatelessWidget {
-  const _OutgoingRequestTile({required this.request});
+  const _OutgoingRequestTile({
+    required this.request,
+    required this.onOpenProfile,
+  });
 
   final FriendRequestModel request;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
     return _BaseTile(
       child: Row(
         children: [
-          _AvatarLetter(name: request.user.username),
+          PlayerAvatar(
+            name: request.user.username,
+            imageUrl: request.user.avatarUrl,
+            size: 32,
+          ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              'En attente: ${request.user.username}',
-              style: GoogleFonts.manrope(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
+            child: GestureDetector(
+              onTap: onOpenProfile,
+              child: Text(
+                request.user.username,
+                style: GoogleFonts.manrope(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -470,7 +575,11 @@ class _FriendTile extends StatelessWidget {
               onTap: onOpenProfile,
               child: Row(
                 children: [
-                  _AvatarLetter(name: friend.username),
+                  PlayerAvatar(
+                    name: friend.username,
+                    imageUrl: friend.avatarUrl,
+                    size: 32,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -521,27 +630,6 @@ class _FriendTile extends StatelessWidget {
             tooltip: 'Message',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AvatarLetter extends StatelessWidget {
-  const _AvatarLetter({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: AppColors.surfaceLight,
-      child: Text(
-        name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-        style: GoogleFonts.manrope(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w700,
-        ),
       ),
     );
   }

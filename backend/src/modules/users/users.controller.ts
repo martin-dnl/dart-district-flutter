@@ -62,6 +62,17 @@ export class UsersController {
     return this.usersService.findMyBadges(req.user.id);
   }
 
+  @Get('me/settings')
+  mySettings(
+    @Req() req: { user: { id: string; is_guest?: boolean } },
+    @Query('key') key?: string,
+  ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot access user settings');
+    }
+    return this.usersService.getSettings(req.user.id, key);
+  }
+
   @Get('leaderboard')
   leaderboard(@Query('limit') limit?: number) {
     return this.usersService.leaderboard(limit);
@@ -83,6 +94,24 @@ export class UsersController {
       throw new ForbiddenException('Guest account cannot be updated');
     }
     return this.usersService.update(req.user.id, dto);
+  }
+
+  @Patch('me/settings')
+  updateSetting(
+    @Req() req: { user: { id: string; is_guest?: boolean } },
+    @Body() body: { key?: string; value?: string },
+  ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot be updated');
+    }
+
+    const key = (body.key ?? '').trim();
+    const value = (body.value ?? '').trim();
+    if (!key || !value) {
+      throw new BadRequestException('key and value are required');
+    }
+
+    return this.usersService.upsertSetting(req.user.id, key, value);
   }
 
   @Post('me/avatar')

@@ -16,6 +16,7 @@ import { UserBadge } from '../badges/entities/user-badge.entity';
 import { Friendship } from '../contacts/entities/friendship.entity';
 import { FriendRequest } from '../contacts/entities/friend-request.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
+import { UserSetting } from './entities/user-setting.entity';
 
 @Injectable()
 export class UsersService {
@@ -29,6 +30,8 @@ export class UsersService {
     private readonly friendRequestRepo: Repository<FriendRequest>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
+    @InjectRepository(UserSetting)
+    private readonly userSettingsRepo: Repository<UserSetting>,
   ) {}
 
   async findById(id: string) {
@@ -51,6 +54,55 @@ export class UsersService {
       relations: ['badge'],
       order: { earned_at: 'DESC' },
     });
+  }
+
+  async getSettings(userId: string, key?: string) {
+    const normalizedKey = (key ?? '').trim();
+    if (normalizedKey) {
+      const row = await this.userSettingsRepo.findOne({
+        where: { user_id: userId, key: normalizedKey },
+      });
+      return {
+        key: normalizedKey,
+        value: row?.value ?? null,
+      };
+    }
+
+    const rows = await this.userSettingsRepo.find({
+      where: { user_id: userId },
+      order: { key: 'ASC' },
+    });
+    return rows.map((row) => ({ key: row.key, value: row.value }));
+  }
+
+  async upsertSetting(userId: string, key: string, value: string) {
+    const normalizedKey = key.trim();
+    const normalizedValue = value.trim();
+
+    if (!normalizedKey || normalizedKey.length > 120) {
+      throw new BadRequestException('Invalid key');
+    }
+    if (!normalizedValue) {
+      throw new BadRequestException('Invalid value');
+    }
+
+    const existing = await this.userSettingsRepo.findOne({
+      where: { user_id: userId, key: normalizedKey },
+    });
+
+    if (existing) {
+      existing.value = normalizedValue;
+      const saved = await this.userSettingsRepo.save(existing);
+      return { key: saved.key, value: saved.value };
+    }
+
+    const created = this.userSettingsRepo.create({
+      user_id: userId,
+      key: normalizedKey,
+      value: normalizedValue,
+    });
+    const saved = await this.userSettingsRepo.save(created);
+    return { key: saved.key, value: saved.value };
   }
 
   async uploadAvatar(userId: string, file: Express.Multer.File) {

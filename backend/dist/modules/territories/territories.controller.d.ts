@@ -73,6 +73,10 @@ export declare class TerritoriesController {
         clubs: any;
         warning?: undefined;
     }>;
+    getClubZones(): Promise<{
+        count: any;
+        zones: any;
+    }>;
     mapHit(latRaw: string, lngRaw: string, zoomRaw?: string, viewportWidthRaw?: string): Promise<{
         code_iris: null;
     } | {

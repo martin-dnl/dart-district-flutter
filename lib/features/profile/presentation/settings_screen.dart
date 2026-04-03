@@ -18,6 +18,83 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isSigningOut = false;
   bool _isDeletingAccount = false;
+  bool _isLoadingGameOptions = true;
+  bool _isSavingGameOptions = false;
+  static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
+  static const String _manualScoreMode = 'MANUAL';
+  String _scoreMode = _manualScoreMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGameOptions();
+  }
+
+  Future<void> _loadGameOptions() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get<Map<String, dynamic>>(
+        '/users/me/settings',
+        queryParameters: {'key': _scoreModeSettingKey},
+      );
+      final raw = response.data ?? const <String, dynamic>{};
+      final data = raw['data'] is Map<String, dynamic>
+          ? raw['data'] as Map<String, dynamic>
+          : raw;
+      final value = (data['value'] ?? '').toString().trim();
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _scoreMode = value.isEmpty ? _manualScoreMode : value;
+        _isLoadingGameOptions = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _scoreMode = _manualScoreMode;
+        _isLoadingGameOptions = false;
+      });
+    }
+  }
+
+  Future<void> _saveScoreMode(String mode) async {
+    final nextMode = mode.trim().isEmpty ? _manualScoreMode : mode.trim();
+    final previous = _scoreMode;
+    setState(() {
+      _scoreMode = nextMode;
+      _isSavingGameOptions = true;
+    });
+
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.patch<Map<String, dynamic>>(
+        '/users/me/settings',
+        data: {
+          'key': _scoreModeSettingKey,
+          'value': nextMode,
+        },
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _scoreMode = previous;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible de sauvegarder les options de jeu.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingGameOptions = false);
+      }
+    }
+  }
 
   Future<void> _confirmAndSignOut() async {
     final shouldSignOut = await showDialog<bool>(
@@ -105,6 +182,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               const SizedBox(height: 8),
               const Text(
+                'Game options',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (_isLoadingGameOptions)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: LinearProgressIndicator(minHeight: 2),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: _scoreMode,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Score mode',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: _manualScoreMode, child: Text('MANUAL')),
+                  ],
+                  onChanged: _isSavingGameOptions
+                      ? null
+                      : (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          _saveScoreMode(value);
+                        },
+                ),
+              const SizedBox(height: 12),
+              const Divider(color: AppColors.stroke),
+              const SizedBox(height: 8),
+              const Text(
                 'Compte',
                 style: TextStyle(
                   color: AppColors.textSecondary,
@@ -161,6 +275,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 ),
+              const SizedBox(height: 8),
+              const Divider(color: AppColors.stroke),
             ],
           ),
         ),

@@ -25,6 +25,9 @@ let ClubsController = class ClubsController {
         this.clubsService = clubsService;
     }
     create(dto, req) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot create a club');
+        }
         return this.clubsService.create(dto, req.user.id);
     }
     findAll(limit, q, city) {
@@ -36,13 +39,22 @@ let ClubsController = class ClubsController {
     ranking(limit) {
         return this.clubsService.ranking(limit);
     }
+    mapClubs() {
+        return this.clubsService.findForMap();
+    }
     findOne(id) {
         return this.clubsService.findById(id);
     }
     update(id, dto, req) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot update a club');
+        }
         return this.clubsService.update(id, dto, req.user.id);
     }
-    addMember(id, dto) {
+    addMember(id, dto, req) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot join a club');
+        }
         return this.clubsService.addMember(id, dto.user_id, dto.role);
     }
     updateRole(id, userId, dto, req) {
@@ -91,6 +103,12 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ClubsController.prototype, "ranking", null);
 __decorate([
+    (0, common_1.Get)('map'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ClubsController.prototype, "mapClubs", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
     __metadata("design:type", Function),
@@ -114,8 +132,9 @@ __decorate([
     (0, common_1.Post)(':id/members'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, manage_member_dto_1.ManageMemberDto]),
+    __metadata("design:paramtypes", [String, manage_member_dto_1.ManageMemberDto, Object]),
     __metadata("design:returntype", void 0)
 ], ClubsController.prototype, "addMember", null);
 __decorate([

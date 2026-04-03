@@ -102,38 +102,50 @@ class ContactsController extends StateNotifier<ContactsState> {
   Future<void> _bootstrap() async {
     state = state.copyWith(isBootstrapping: true, clearError: true);
     try {
-      final friendsFuture = repository.fetchFriends();
-      final unreadFuture = repository.fetchUnreadByContact();
-      final incomingFuture = repository.fetchIncomingRequests();
-      final outgoingFuture = repository.fetchOutgoingRequests();
-
-      final friends = await friendsFuture;
-      final unreadByContact = await unreadFuture;
-      final incoming = await incomingFuture;
-      final outgoing = await outgoingFuture;
-
-      final enrichedFriends = friends
-          .map(
-            (friend) => friend.copyWith(
-              unreadCount: unreadByContact[friend.id] ?? friend.unreadCount,
-            ),
-          )
-          .toList();
-
-      state = state.copyWith(
-        friends: enrichedFriends,
-        incomingRequests: incoming,
-        outgoingRequests: outgoing,
-        unreadByContact: unreadByContact,
-        isBootstrapping: false,
-        clearError: true,
-      );
+      await refreshContacts();
+      state = state.copyWith(isBootstrapping: false);
     } catch (_) {
       state = state.copyWith(
         isBootstrapping: false,
         error: 'Impossible de charger les contacts.',
       );
     }
+  }
+
+  Future<void> refreshContacts() async {
+    final friendsFuture = repository.fetchFriends();
+    final unreadFuture = repository.fetchUnreadByContact();
+    final incomingFuture = repository.fetchIncomingRequests();
+    final outgoingFuture = repository.fetchOutgoingRequests();
+
+    final friends = await friendsFuture;
+    final unreadByContact = await unreadFuture;
+    final incoming = await incomingFuture;
+    final outgoing = await outgoingFuture;
+
+    final enrichedFriends = friends
+        .map(
+          (friend) => friend.copyWith(
+            unreadCount: unreadByContact[friend.id] ?? friend.unreadCount,
+          ),
+        )
+        .toList();
+
+    final filteredResults = _filterSearchResults(
+      state.searchResults,
+      friends: enrichedFriends,
+      incomingRequests: incoming,
+      outgoingRequests: outgoing,
+    );
+
+    state = state.copyWith(
+      friends: enrichedFriends,
+      incomingRequests: incoming,
+      outgoingRequests: outgoing,
+      unreadByContact: unreadByContact,
+      searchResults: filteredResults,
+      clearError: true,
+    );
   }
 
   Future<void> searchUsers(String query) async {
@@ -145,9 +157,15 @@ class ContactsController extends StateNotifier<ContactsState> {
     state = state.copyWith(isSearching: true, clearError: true);
     try {
       final results = await repository.searchUsers(query);
+      final filteredResults = _filterSearchResults(
+        results,
+        friends: state.friends,
+        incomingRequests: state.incomingRequests,
+        outgoingRequests: state.outgoingRequests,
+      );
       state = state.copyWith(
         isSearching: false,
-        searchResults: results,
+        searchResults: filteredResults,
         clearError: true,
       );
     } catch (_) {
@@ -378,11 +396,37 @@ class ContactsController extends StateNotifier<ContactsState> {
     final outgoingFuture = repository.fetchOutgoingRequests();
     final incoming = await incomingFuture;
     final outgoing = await outgoingFuture;
+
+    final filteredResults = _filterSearchResults(
+      state.searchResults,
+      friends: state.friends,
+      incomingRequests: incoming,
+      outgoingRequests: outgoing,
+    );
+
     state = state.copyWith(
       incomingRequests: incoming,
       outgoingRequests: outgoing,
+      searchResults: filteredResults,
       clearError: true,
     );
+  }
+
+  List<ContactModel> _filterSearchResults(
+    List<ContactModel> results, {
+    required List<ContactModel> friends,
+    required List<FriendRequestModel> incomingRequests,
+    required List<FriendRequestModel> outgoingRequests,
+  }) {
+    final selfId = currentUserId;
+    final excludedIds = <String>{
+      ...friends.map((friend) => friend.id),
+      ...incomingRequests.map((request) => request.user.id),
+      ...outgoingRequests.map((request) => request.user.id),
+      if (selfId != null) selfId,
+    };
+
+    return results.where((contact) => !excludedIds.contains(contact.id)).toList();
   }
 
   Future<void> _markRead(String contactId) async {

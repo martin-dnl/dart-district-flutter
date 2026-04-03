@@ -86,42 +86,82 @@ let AuthService = AuthService_1 = class AuthService {
         return this.generateTokens(user);
     }
     async socialLogin(provider, payload) {
-        let user = await this.userRepo.findOne({ where: { email: payload.email } });
-        let isNewUser = false;
-        if (!user) {
-            isNewUser = true;
-            const tempUsername = `Joueur_${(0, crypto_1.randomUUID)().slice(0, 6)}`;
-            user = this.userRepo.create({
-                username: tempUsername,
-                email: payload.email,
-            });
-            await this.userRepo.save(user);
-        }
-        const existingAp = await this.authProviderRepo.findOne({
-            where: { user: { id: user.id }, provider },
+        const linkedProvider = await this.authProviderRepo.findOne({
+            where: { provider, provider_uid: payload.provider_uid },
+            relations: ['user'],
         });
-        if (!existingAp) {
-            const ap = this.authProviderRepo.create({
-                user,
-                provider,
-                provider_uid: payload.provider_uid,
-            });
-            await this.authProviderRepo.save(ap);
+        if (linkedProvider?.user) {
+            const tokens = await this.generateTokens(linkedProvider.user);
+            const needsOnboarding = linkedProvider.user.username.startsWith('Joueur_');
+            return { ...tokens, is_new_user: false, needs_onboarding: needsOnboarding, email: linkedProvider.user.email, provider };
         }
-        const tokens = await this.generateTokens(user);
-        return { ...tokens, is_new_user: isNewUser };
+        const existingUser = await this.userRepo.findOne({ where: { email: payload.email } });
+        if (existingUser) {
+            const existingAp = await this.authProviderRepo.findOne({
+                where: { user: { id: existingUser.id }, provider },
+            });
+            if (!existingAp) {
+                const ap = this.authProviderRepo.create({ user: existingUser, provider, provider_uid: payload.provider_uid });
+                await this.authProviderRepo.save(ap);
+            }
+            const tokens = await this.generateTokens(existingUser);
+            const needsOnboarding = existingUser.username.startsWith('Joueur_');
+            return { ...tokens, is_new_user: false, needs_onboarding: needsOnboarding, email: existingUser.email, provider };
+        }
+        const sso_token = this.jwtService.sign({ type: 'sso_pending', email: payload.email, name: payload.name, provider_uid: payload.provider_uid, provider }, { expiresIn: '30m' });
+        return { needs_registration: true, sso_token, email: payload.email, name: payload.name };
     }
-    async guestLogin() {
-        const guestName = `Joueur_${(0, crypto_1.randomUUID)().slice(0, 6)}`;
-        const user = this.userRepo.create({ username: guestName, is_guest: true });
-        await this.userRepo.save(user);
-        const ap = this.authProviderRepo.create({
-            user,
-            provider: 'guest',
-            provider_uid: user.id,
+    async completeSsoRegistration(dto) {
+        let pending;
+        try {
+            pending = this.jwtService.verify(dto.sso_token);
+        }
+        catch {
+            throw new common_1.UnauthorizedException('Token d\'inscription SSO invalide ou expire. Recommencez la connexion Google.');
+        }
+        if (pending.type !== 'sso_pending') {
+            throw new common_1.UnauthorizedException('Type de token SSO invalide');
+        }
+        const existingProvider = await this.authProviderRepo.findOne({
+            where: { provider: pending.provider, provider_uid: pending.provider_uid },
+            relations: ['user'],
         });
+        if (existingProvider?.user) {
+            return this.generateTokens(existingProvider.user);
+        }
+        const existingByEmail = await this.userRepo.findOne({ where: { email: pending.email } });
+        if (existingByEmail) {
+            const ap = this.authProviderRepo.create({ user: existingByEmail, provider: pending.provider, provider_uid: pending.provider_uid });
+            await this.authProviderRepo.save(ap).catch(() => { });
+            return this.generateTokens(existingByEmail);
+        }
+        const username = dto.display_name.trim();
+        const existingUsername = await this.userRepo.findOne({ where: { username } });
+        if (existingUsername) {
+            throw new common_1.ConflictException('Ce pseudo est deja utilise. Choisissez-en un autre.');
+        }
+        const user = this.userRepo.create({
+            username,
+            email: pending.email,
+            level: dto.level ?? 'intermediate',
+            preferred_hand: (dto.preferred_hand ?? 'right'),
+        });
+        await this.userRepo.save(user);
+        const ap = this.authProviderRepo.create({ user, provider: pending.provider, provider_uid: pending.provider_uid });
         await this.authProviderRepo.save(ap);
         return this.generateTokens(user);
+    }
+    async guestLogin() {
+        const payload = {
+            sub: 'guest',
+            email: '',
+            username: 'Invité',
+            is_guest: true,
+        };
+        const access_token = this.jwtService.sign(payload, {
+            expiresIn: '24h',
+        });
+        return { access_token, refresh_token: '' };
     }
     async refreshAccessToken(token) {
         const stored = await this.refreshTokenRepo.findOne({

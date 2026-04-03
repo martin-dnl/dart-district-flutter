@@ -9,33 +9,28 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateClubDto = void 0;
+exports.SsoCompleteDto = void 0;
 const class_validator_1 = require("class-validator");
-class CreateClubDto {
+class SsoCompleteDto {
 }
-exports.CreateClubDto = CreateClubDto;
+exports.SsoCompleteDto = SsoCompleteDto;
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateClubDto.prototype, "name", void 0);
+], SsoCompleteDto.prototype, "sso_token", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MinLength)(2),
     __metadata("design:type", String)
-], CreateClubDto.prototype, "address", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Number)
-], CreateClubDto.prototype, "latitude", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Number)
-], CreateClubDto.prototype, "longitude", void 0);
+], SsoCompleteDto.prototype, "display_name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreateClubDto.prototype, "code_iris", void 0);
-//# sourceMappingURL=create-club.dto.js.map
+], SsoCompleteDto.prototype, "level", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SsoCompleteDto.prototype, "preferred_hand", void 0);
+//# sourceMappingURL=sso-complete.dto.js.map

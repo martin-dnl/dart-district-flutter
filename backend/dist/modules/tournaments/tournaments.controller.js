@@ -24,6 +24,9 @@ let TournamentsController = class TournamentsController {
         this.tournamentsService = tournamentsService;
     }
     create(dto, req) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot create tournaments');
+        }
         return this.tournamentsService.create(dto, req.user.id);
     }
     findAll(status, upcoming) {
@@ -33,6 +36,9 @@ let TournamentsController = class TournamentsController {
         return this.tournamentsService.findById(id);
     }
     register(id, req) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot register to tournaments');
+        }
         return this.tournamentsService.registerPlayer(id, req.user.id);
     }
     unregister(id, req) {

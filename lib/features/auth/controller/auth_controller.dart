@@ -183,6 +183,7 @@ class AuthController extends StateNotifier<AuthState> {
 
     try {
       final user = await _repository.completeSsoOnboarding(
+        ssoToken: state.onboardingPayload?['sso_token'] as String? ?? '',
         username: username,
         level: level,
         preferredHand: preferredHand,
@@ -415,12 +416,6 @@ class AuthController extends StateNotifier<AuthState> {
       ..writeln('platform_web=$kIsWeb')
       ..writeln('default_target_platform=$defaultTargetPlatform')
       ..writeln('platform_summary=${_platformSummary()}')
-          ssoToken: state.onboardingPayload?['sso_token'] as String? ?? '',
-          username: username,
-          level: level,
-          preferredHand: preferredHand,
-        );
-      )
       ..writeln(
         'google_server_client_id_set=${AppConstants.googleServerClientId != null && AppConstants.googleServerClientId!.isNotEmpty}',
       )

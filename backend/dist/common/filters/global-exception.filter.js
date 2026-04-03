@@ -22,6 +22,9 @@ let GlobalExceptionFilter = class GlobalExceptionFilter {
             const res = exception.getResponse();
             message = typeof res === 'string' ? res : res.message;
         }
+        else if (exception instanceof Error) {
+            message = `[${exception.constructor.name}] ${exception.message}`;
+        }
         this.logger.error(`[${status}] ${message}`, exception instanceof Error ? exception.stack : undefined);
         response.status(status).json({
             success: false,

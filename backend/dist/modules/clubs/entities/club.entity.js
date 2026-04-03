@@ -52,6 +52,10 @@ __decorate([
     __metadata("design:type", Object)
 ], Club.prototype, "longitude", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 9, nullable: true }),
+    __metadata("design:type", Object)
+], Club.prototype, "code_iris", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 0 }),
     __metadata("design:type", Number)
 ], Club.prototype, "conquest_points", void 0);

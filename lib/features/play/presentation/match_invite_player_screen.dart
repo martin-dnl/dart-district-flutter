@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../shared/widgets/player_avatar.dart';
 import '../../contacts/controller/contacts_controller.dart';
 import '../../contacts/models/contact_models.dart';
 
@@ -139,53 +140,61 @@ class _MatchInvitePlayerScreenState
                           color: AppColors.primary,
                         ),
                       )
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                        children: [
-                          if (contacts.searchResults.isNotEmpty) ...[
-                            _SectionTitle('Resultats de recherche'),
+                    : RefreshIndicator(
+                        onRefresh: () => ref
+                            .read(contactsControllerProvider.notifier)
+                            .refreshContacts(),
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                          children: [
+                            if (contacts.searchResults.isNotEmpty) ...[
+                              _SectionTitle('Resultats de recherche'),
+                              const SizedBox(height: 8),
+                              ...contacts.searchResults.map(
+                                (player) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _InviteTile(
+                                    player: player,
+                                    onAction: () async {
+                                      await ref
+                                          .read(contactsControllerProvider.notifier)
+                                          .selectFriend(player);
+                                      if (context.mounted) {
+                                        context.pop(player);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            _SectionTitle('Mes amis'),
                             const SizedBox(height: 8),
-                            ...contacts.searchResults.map(
-                              (player) => Padding(
+                            if (contacts.friends.isEmpty)
+                              _EmptyStateCard(
+                                message:
+                                    'Aucun ami disponible. Ajoutez un joueur puis revenez ici.',
+                                actionLabel: 'Fermer',
+                                onAction: () => context.pop(),
+                              ),
+                            ...contacts.friends.map(
+                              (friend) => Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: _InviteTile(
-                                  player: player,
-                                  actionLabel: 'Ajouter en ami',
-                                  onAction: () => ref
-                                      .read(contactsControllerProvider.notifier)
-                                      .addFriend(player),
+                                  player: friend,
+                                  onAction: () async {
+                                    await ref
+                                        .read(contactsControllerProvider.notifier)
+                                        .selectFriend(friend);
+                                    if (context.mounted) {
+                                      context.pop(friend);
+                                    }
+                                  },
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 12),
                           ],
-                          _SectionTitle('Mes amis'),
-                          const SizedBox(height: 8),
-                          if (contacts.friends.isEmpty)
-                            _EmptyStateCard(
-                              message:
-                                  'Aucun ami disponible. Ajoutez un joueur puis revenez ici.',
-                              actionLabel: 'Fermer',
-                              onAction: () => context.pop(),
-                            ),
-                          ...contacts.friends.map(
-                            (friend) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _InviteTile(
-                                player: friend,
-                                actionLabel: 'Ajouter a la partie',
-                                onAction: () async {
-                                  await ref
-                                      .read(contactsControllerProvider.notifier)
-                                      .selectFriend(friend);
-                                  if (context.mounted) {
-                                    context.pop(friend);
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
               ),
             ],
@@ -217,12 +226,10 @@ class _SectionTitle extends StatelessWidget {
 class _InviteTile extends StatelessWidget {
   const _InviteTile({
     required this.player,
-    required this.actionLabel,
     required this.onAction,
   });
 
   final ContactModel player;
-  final String actionLabel;
   final VoidCallback onAction;
 
   @override
@@ -239,16 +246,10 @@ class _InviteTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.surfaceLight,
-            child: Text(
-              player.username.isEmpty ? '?' : player.username[0].toUpperCase(),
-              style: GoogleFonts.manrope(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+          PlayerAvatar(
+            name: player.username,
+            imageUrl: player.avatarUrl,
+            size: 36,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -274,13 +275,14 @@ class _InviteTile extends StatelessWidget {
               ],
             ),
           ),
-          ElevatedButton(
+          IconButton(
             onPressed: onAction,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
+            tooltip: 'Ajouter a la partie',
+            icon: const Icon(
+              Icons.add_box_outlined,
+              color: AppColors.primary,
+              size: 26,
             ),
-            child: Text(actionLabel),
           ),
         ],
       ),

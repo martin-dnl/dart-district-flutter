@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
+import '../data/checkout_chart.dart';
 import '../controller/match_controller.dart';
 import '../controller/ongoing_matches_controller.dart';
 import '../data/match_service.dart';
@@ -24,6 +26,10 @@ class MatchLiveScreen extends ConsumerStatefulWidget {
 
 class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   bool _didShowEndDialog = false;
+  final Set<int> _animatedPlayerIndexes = <int>{};
+  static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
+  static const String _manualScoreMode = 'MANUAL';
+  String _scoreMode = _manualScoreMode;
 
   bool _isRemoteMatch() {
     final match = ref.read(matchControllerProvider);
@@ -33,6 +39,87 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   bool _isDoubleOut(String finishType) {
     final normalized = finishType.toLowerCase();
     return normalized == 'doubleout' || normalized == 'double_out';
+  }
+
+  bool _isX01Mode(String mode) {
+    return mode == '301' || mode == '501' || mode == '701';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScoreMode();
+  }
+
+  Future<void> _loadScoreMode() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get<Map<String, dynamic>>(
+        '/users/me/settings',
+        queryParameters: {'key': _scoreModeSettingKey},
+      );
+      final raw = response.data ?? const <String, dynamic>{};
+      final data = raw['data'] is Map<String, dynamic>
+          ? raw['data'] as Map<String, dynamic>
+          : raw;
+      final value = (data['value'] ?? '').toString().trim();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _scoreMode = value.isEmpty ? _manualScoreMode : value;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _scoreMode = _manualScoreMode;
+      });
+    }
+  }
+
+  Future<void> _updateScoreMode(String mode) async {
+    final normalized = mode.trim().isEmpty ? _manualScoreMode : mode.trim();
+    final previous = _scoreMode;
+    if (mounted) {
+      setState(() {
+        _scoreMode = normalized;
+      });
+    }
+
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.patch<Map<String, dynamic>>(
+        '/users/me/settings',
+        data: {
+          'key': _scoreModeSettingKey,
+          'value': normalized,
+        },
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _scoreMode = previous;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible de sauvegarder le mode de saisie.'),
+          ),
+        );
+      }
+    }
+  }
+
+  void _scheduleScoreAnimationCleanup(int playerIndex) {
+    Future<void>.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _animatedPlayerIndexes.remove(playerIndex);
+      });
+    });
   }
 
   Future<int?> _askDoubleAttempts() {
@@ -140,6 +227,9 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     final match = ref.read(matchControllerProvider);
     final currentPlayerIndex = match.currentPlayerIndex;
     final currentPlayer = match.players[currentPlayerIndex];
+    final remainingAfterThrow = currentPlayer.score - score;
+    final shouldAnimateScore =
+        remainingAfterThrow > 0 && score > 0 && score <= currentPlayer.score;
     int? doublesAttempted;
 
     final isDoubleOutCheckout =
@@ -157,6 +247,12 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     final isRemoteMatch = _isRemoteMatch();
 
     if (!isRemoteMatch) {
+      if (shouldAnimateScore) {
+        setState(() {
+          _animatedPlayerIndexes.add(currentPlayerIndex);
+        });
+        _scheduleScoreAnimationCleanup(currentPlayerIndex);
+      }
       ref
           .read(matchControllerProvider.notifier)
           .submitScore(score, doublesAttempted: doublesAttempted);
@@ -172,6 +268,12 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         score: score,
         doublesAttempted: doublesAttempted,
       );
+      if (shouldAnimateScore) {
+        setState(() {
+          _animatedPlayerIndexes.add(currentPlayerIndex);
+        });
+        _scheduleScoreAnimationCleanup(currentPlayerIndex);
+      }
       ref.read(matchControllerProvider.notifier).loadMatch(updated);
     } catch (e) {
       if (!mounted) return;
@@ -182,6 +284,169 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _showSpectateQr() async {
+    final match = ref.read(matchControllerProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'QR spectateur',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: match.id));
+                      if (!mounted) {
+                        return;
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('ID de la partie copie.'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded),
+                    tooltip: 'Copier ID',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              QrImageView(
+                data: match.id,
+                version: QrVersions.auto,
+                size: 220,
+                eyeStyle: const QrEyeStyle(color: AppColors.textPrimary),
+                dataModuleStyle: const QrDataModuleStyle(
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Faites scanner ce QR code pour spectater la partie.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openMatchSettings() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      builder: (ctx) {
+        var localMode = _scoreMode;
+        return StatefulBuilder(
+          builder: (ctx, setModalState) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Parametres partie',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: localMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Mode de saisie',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: _manualScoreMode, child: Text('MANUAL')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setModalState(() {
+                        localMode = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.qr_code_2, color: AppColors.primary),
+                    title: const Text('QR spectateur'),
+                    onTap: () => Navigator.pop(ctx, 'spectate'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.undo, color: AppColors.textSecondary),
+                    title: const Text('Retour arriere'),
+                    onTap: () => Navigator.pop(ctx, 'undo'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.flag_outlined, color: AppColors.warning),
+                    title: const Text('Abandonner'),
+                    onTap: () => Navigator.pop(ctx, 'abandon'),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, 'save:$localMode'),
+                      child: const Text('Appliquer'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null) {
+      return;
+    }
+
+    if (selected.startsWith('save:')) {
+      final mode = selected.substring(5);
+      await _updateScoreMode(mode);
+      return;
+    }
+    if (selected == 'spectate') {
+      await _showSpectateQr();
+      return;
+    }
+    if (selected == 'undo') {
+      await _confirmUndo();
+      return;
+    }
+    if (selected == 'abandon') {
+      await _confirmAbandon();
     }
   }
 
@@ -409,27 +674,9 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: match.id));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'ID du match copie. Partagez-le pour inviter un spectateur.',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.visibility, color: AppColors.textSecondary),
-            tooltip: 'Inviter un spectateur',
-          ),
-          IconButton(
-            onPressed: _confirmAbandon,
-            icon: const Icon(Icons.flag_outlined, color: AppColors.warning),
-            tooltip: 'Abandonner',
-          ),
-          IconButton(
-            onPressed: _confirmUndo,
-            icon: const Icon(Icons.undo, color: AppColors.textSecondary),
+            onPressed: _openMatchSettings,
+            icon: const Icon(Icons.settings, color: AppColors.textSecondary),
+            tooltip: 'Parametres partie',
           ),
         ],
       ),
@@ -441,6 +688,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
               players: match.players,
               currentPlayerIndex: match.currentPlayerIndex,
               finishType: match.finishType,
+              animatedPlayerIndexes: _animatedPlayerIndexes,
             ),
 
             // Round info
@@ -487,13 +735,139 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
               ),
             ),
 
-            // Score input
-            DartInput(
-              maxScore: match.players[match.currentPlayerIndex].score,
-              onSubmit: _submitScore,
-            ),
+            if (_isX01Mode(match.mode))
+              SizedBox(
+                height: 280,
+                child: DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      const TabBar(
+                        labelColor: AppColors.primary,
+                        unselectedLabelColor: AppColors.textSecondary,
+                        indicatorColor: AppColors.primary,
+                        tabs: [
+                          Tab(text: 'Saisie score'),
+                          Tab(text: 'Guideline'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            if (_scoreMode == _manualScoreMode)
+                              DartInput(
+                                maxScore: match.players[match.currentPlayerIndex].score,
+                                onSubmit: _submitScore,
+                              )
+                            else
+                              const Center(
+                                child: Text(
+                                  'Mode de saisie non supporte pour le moment.',
+                                  style: TextStyle(color: AppColors.textSecondary),
+                                ),
+                              ),
+                            _X01GuidelineTab(
+                              match: match,
+                              currentPlayerIndex: match.currentPlayerIndex,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              DartInput(
+                maxScore: match.players[match.currentPlayerIndex].score,
+                onSubmit: _submitScore,
+              ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _X01GuidelineTab extends StatelessWidget {
+  const _X01GuidelineTab({
+    required this.match,
+    required this.currentPlayerIndex,
+  });
+
+  final MatchModel match;
+  final int currentPlayerIndex;
+
+  bool get _isDoubleOut {
+    final normalized = match.finishType.toLowerCase();
+    return normalized == 'doubleout' || normalized == 'double_out';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = match.players[currentPlayerIndex];
+    final score = player.score;
+    final checkout = (score >= 2 && score <= 170) ? checkoutChart[score] : null;
+
+    String hint;
+    if (score == 0) {
+      hint = 'Leg termine.';
+    } else if (score > 170) {
+      hint = 'Pas de finish direct, posez-vous pour un checkout.';
+    } else if (_isDoubleOut && score == 1) {
+      hint = 'Impossible en double-out a 1 restant.';
+    } else if (checkout != null) {
+      hint = 'Checkout recommande: $checkout';
+    } else {
+      hint = 'Aucune combinaison standard disponible.';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Guideline ${match.mode}',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Joueur: ${player.name}',
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Score restant: $score',
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.stroke),
+            ),
+            child: Text(
+              hint,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

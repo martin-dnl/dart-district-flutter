@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,13 +38,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
-    final showAppleButton = kIsWeb || defaultTargetPlatform != TargetPlatform.android;
+    final showAppleButton =
+        kIsWeb || defaultTargetPlatform != TargetPlatform.android;
 
     ref.listen<AuthState>(authControllerProvider, (prev, next) {
       if (next.status == AuthStatus.needsUsernameSetup) {
         context.go(
           AppRoutes.subscriptionStep1,
-          extra: next.onboardingPayload ?? const <String, dynamic>{'isSso': true},
+          extra:
+              next.onboardingPayload ?? const <String, dynamic>{'isSso': true},
         );
         return;
       }
@@ -149,13 +151,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
-                _AuthField(
-                  label: 'Club Actif',
-                  hint: 'Selectionnez le club pour cette session',
-                  icon: Icons.qr_code_scanner,
-                  optional: true,
-                ),
                 if (authState.error != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -176,7 +171,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(5),
                       ),
-                      child: const Icon(Icons.check, color: AppColors.background, size: 14),
+                      child: const Icon(
+                        Icons.check,
+                        color: AppColors.background,
+                        size: 14,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Text(
@@ -187,27 +186,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 18),
                 Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.ctaGradient,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.24),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
                       ),
+                    ],
+                  ),
+                  child: DartButton(
+                    text: 'SE CONNECTER  ->',
+                    onPressed: () => ref
+                        .read(authControllerProvider.notifier)
+                        .signInWithEmail(
+                          email: _emailController.text.trim(),
+                          password: _passwordController.text,
+                        ),
                     isLoading: authState.status == AuthStatus.loading,
                     width: double.infinity,
                     backgroundColor: Colors.transparent,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.stroke),
-                  ),
-                  child: Text(
-                    'Si votre profil est incomplet, vous serez redirige vers l\'etape de configuration apres connexion.',
-                    style: GoogleFonts.manrope(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -259,16 +260,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: DartButton(
-                        .read(authControllerProvider.notifier)
-                        .continueAsGuest(),
-                    child: Text(
-                      'Continuer en mode invite',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.textHint,
-                        fontWeight: FontWeight.w600,
+                          text: 'Apple',
+                          icon: Icons.apple,
+                          isOutlined: true,
+                          onPressed: () => ref
+                              .read(authControllerProvider.notifier)
+                              .signInWithApple(),
+                        ),
                       ),
-                    ),
-                  ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -368,7 +369,6 @@ class _AuthField extends StatelessWidget {
   final TextEditingController? controller;
   final bool obscureText;
   final Widget trailing;
-  final bool optional;
 
   const _AuthField({
     required this.label,
@@ -377,7 +377,6 @@ class _AuthField extends StatelessWidget {
     this.controller,
     this.obscureText = false,
     this.trailing = const SizedBox.shrink(),
-    this.optional = false,
   });
 
   @override
@@ -396,14 +395,6 @@ class _AuthField extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (optional)
-              Text(
-                'Optionnel',
-                style: GoogleFonts.manrope(
-                  color: AppColors.textHint,
-                  fontSize: 12,
-                ),
-              ),
             trailing,
           ],
         ),
@@ -414,5 +405,29 @@ class _AuthField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: AppColors.textHint, size: 18),
+            hintStyle: GoogleFonts.manrope(color: AppColors.textHint),
+            filled: true,
+            fillColor: AppColors.surface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.stroke),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.stroke),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.primary, width: 1.4),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+          ),
+          style: GoogleFonts.manrope(color: AppColors.textPrimary),
+        ),
+      ],
+    );
   }
 }

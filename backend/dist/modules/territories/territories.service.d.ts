@@ -99,6 +99,10 @@ export declare class TerritoriesService {
         clubs: any;
         warning?: undefined;
     }>;
+    getClubZones(): Promise<{
+        count: any;
+        zones: any;
+    }>;
     private resolveIrisGeoJsonPath;
     private getIrisGeoIndex;
     private loadIrisGeoIndex;

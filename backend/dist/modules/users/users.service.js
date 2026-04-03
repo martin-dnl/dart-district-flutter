@@ -26,13 +26,15 @@ const user_badge_entity_1 = require("../badges/entities/user-badge.entity");
 const friendship_entity_1 = require("../contacts/entities/friendship.entity");
 const friend_request_entity_1 = require("../contacts/entities/friend-request.entity");
 const refresh_token_entity_1 = require("../auth/entities/refresh-token.entity");
+const user_setting_entity_1 = require("./entities/user-setting.entity");
 let UsersService = class UsersService {
-    constructor(repo, userBadgeRepo, friendshipRepo, friendRequestRepo, refreshTokenRepo) {
+    constructor(repo, userBadgeRepo, friendshipRepo, friendRequestRepo, refreshTokenRepo, userSettingsRepo) {
         this.repo = repo;
         this.userBadgeRepo = userBadgeRepo;
         this.friendshipRepo = friendshipRepo;
         this.friendRequestRepo = friendRequestRepo;
         this.refreshTokenRepo = refreshTokenRepo;
+        this.userSettingsRepo = userSettingsRepo;
     }
     async findById(id) {
         const user = await this.repo.findOne({
@@ -53,6 +55,48 @@ let UsersService = class UsersService {
             relations: ['badge'],
             order: { earned_at: 'DESC' },
         });
+    }
+    async getSettings(userId, key) {
+        const normalizedKey = (key ?? '').trim();
+        if (normalizedKey) {
+            const row = await this.userSettingsRepo.findOne({
+                where: { user_id: userId, key: normalizedKey },
+            });
+            return {
+                key: normalizedKey,
+                value: row?.value ?? null,
+            };
+        }
+        const rows = await this.userSettingsRepo.find({
+            where: { user_id: userId },
+            order: { key: 'ASC' },
+        });
+        return rows.map((row) => ({ key: row.key, value: row.value }));
+    }
+    async upsertSetting(userId, key, value) {
+        const normalizedKey = key.trim();
+        const normalizedValue = value.trim();
+        if (!normalizedKey || normalizedKey.length > 120) {
+            throw new common_1.BadRequestException('Invalid key');
+        }
+        if (!normalizedValue) {
+            throw new common_1.BadRequestException('Invalid value');
+        }
+        const existing = await this.userSettingsRepo.findOne({
+            where: { user_id: userId, key: normalizedKey },
+        });
+        if (existing) {
+            existing.value = normalizedValue;
+            const saved = await this.userSettingsRepo.save(existing);
+            return { key: saved.key, value: saved.value };
+        }
+        const created = this.userSettingsRepo.create({
+            user_id: userId,
+            key: normalizedKey,
+            value: normalizedValue,
+        });
+        const saved = await this.userSettingsRepo.save(created);
+        return { key: saved.key, value: saved.value };
     }
     async uploadAvatar(userId, file) {
         const user = await this.repo.findOne({ where: { id: userId } });
@@ -168,7 +212,9 @@ exports.UsersService = UsersService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(friendship_entity_1.Friendship)),
     __param(3, (0, typeorm_1.InjectRepository)(friend_request_entity_1.FriendRequest)),
     __param(4, (0, typeorm_1.InjectRepository)(refresh_token_entity_1.RefreshToken)),
+    __param(5, (0, typeorm_1.InjectRepository)(user_setting_entity_1.UserSetting)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

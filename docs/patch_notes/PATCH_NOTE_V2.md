@@ -34,3 +34,38 @@
 - Le token Guest est éphémère (JWT sans refresh, non persisté en BDD)
 - Nouveau endpoint `GET /clubs/map` pour les marqueurs de carte
 - Nouveau endpoint `GET /territories/clubs/zones` pour le filtrage des tiles
+
+## 🎮 Partie / Match live
+- Ajout d'une animation de décrément du score lors de la validation d'un score non terminal (ralenti en fin d'animation)
+- Ajout d'un bouton paramètres (roue crantée) en haut à droite sur l'écran de partie
+- Nouvelle modale **Parametres partie** contenant :
+  - mode de saisie du score
+  - abandon de partie
+  - retour arrière (undo)
+  - partage spectateur
+- Le partage spectateur affiche désormais un QR code de partie (avec bouton de copie de l'ID)
+- Pour les modes X01 (301/501/701), ajout d'un composant TabBar en bas de l'écran :
+  - onglet **Saisie score** (mode MANUAL)
+  - onglet **Guideline** (recommandations checkout)
+
+## 👥 Contacts
+- Ajout d'une icône QR code dans la barre de recherche des contacts
+- Le scan QR permet de retrouver un joueur et d'ouvrir directement son profil
+- Le bouton **Ajouter** des résultats de recherche devient une icône `add_box_outlined` verte
+- Les noms des joueurs sont cliquables vers le profil (résultats de recherche + demandes)
+
+## ⚙️ Profil / Paramètres
+- Ajout d'une section **Game options** dans les paramètres profil
+- Nouveau paramètre **Score mode** (valeur actuelle : `MANUAL`)
+- Ajout de séparateurs visuels (`Divider`) avant les actions de compte
+
+## 🗄️ Backend
+- Création d'une table `user_settings` pour stocker les préférences utilisateur par clé/valeur
+- Ajout d'une migration SQL `018_user_settings.sql`
+- Ajout des endpoints sécurisés :
+  - `GET /users/me/settings?key=...`
+  - `PATCH /users/me/settings` avec `{ key, value }`
+
+## 🧩 Correctifs complémentaires
+- Correction de l'upload avatar côté client : envoi multipart/form-data correctement géré
+- Ajout d'un badge caméra en bas à droite de l'avatar sur le profil pour indiquer l'action de changement

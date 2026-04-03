@@ -41,10 +41,10 @@ class AuthRepository {
 
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
-      refreshToken: (authData['refresh_token'] ?? '').toString(),
+      refreshToken: authData['refresh_token'] as String,
     );
 
-    return UserModel.guest();
+    return _fetchCurrentUser();
   }
 
   Future<({UserModel user, bool isNewUser, String? ssoToken})> signInWithGoogleIdToken({
@@ -59,9 +59,8 @@ class AuthRepository {
 
     final authData = _unwrap(response.data);
 
-    // New user: backend returns a pending token, no real JWT issued yet.
     if (authData['needs_registration'] == true) {
-      final ssoToken = authData['sso_token'] as String? ?? '';
+      final ssoToken = authData['sso_token'] as String?;
       final email = authData['email'] as String? ?? '';
       final name = authData['name'] as String? ?? '';
       return (
@@ -73,12 +72,16 @@ class AuthRepository {
 
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
-      refreshToken: (authData['refresh_token'] ?? '').toString(),
+      refreshToken: authData['refresh_token'] as String,
     );
     final isNewUser = authData['is_new_user'] as bool? ?? false;
     final needsOnboarding = authData['needs_onboarding'] as bool? ?? false;
     final user = await _fetchCurrentUser();
-    return (user: user, isNewUser: isNewUser || needsOnboarding, ssoToken: null);
+    return (
+      user: user,
+      isNewUser: isNewUser || needsOnboarding,
+      ssoToken: null,
+    );
   }
 
   Future<({UserModel user, bool isNewUser, String? ssoToken})> signInWithGoogleAccessToken({
@@ -94,7 +97,7 @@ class AuthRepository {
     final authData = _unwrap(response.data);
 
     if (authData['needs_registration'] == true) {
-      final ssoToken = authData['sso_token'] as String? ?? '';
+      final ssoToken = authData['sso_token'] as String?;
       final email = authData['email'] as String? ?? '';
       final name = authData['name'] as String? ?? '';
       return (
@@ -106,37 +109,16 @@ class AuthRepository {
 
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
-      refreshToken: (authData['refresh_token'] ?? '').toString(),
+      refreshToken: authData['refresh_token'] as String,
     );
     final isNewUser = authData['is_new_user'] as bool? ?? false;
     final needsOnboarding = authData['needs_onboarding'] as bool? ?? false;
     final user = await _fetchCurrentUser();
-    return (user: user, isNewUser: isNewUser || needsOnboarding, ssoToken: null);
-  }
-
-  Future<UserModel> completeSsoOnboarding({
-    required String ssoToken,
-    required String username,
-    required String level,
-    required String preferredHand,
-  }) async {
-    final response = await _api.post<Map<String, dynamic>>(
-      '/auth/sso/complete',
-      data: {
-        'sso_token': ssoToken,
-        'display_name': username,
-        'level': level,
-        'preferred_hand': preferredHand,
-      },
+    return (
+      user: user,
+      isNewUser: isNewUser || needsOnboarding,
+      ssoToken: null,
     );
-
-    final authData = _unwrap(response.data);
-    await TokenStorage.saveTokens(
-      accessToken: authData['access_token'] as String,
-      refreshToken: (authData['refresh_token'] ?? '').toString(),
-    );
-
-    return _fetchCurrentUser();
   }
 
   Future<UserModel> signUpWithEmail({
@@ -181,6 +163,31 @@ class AuthRepository {
   }
 
   Future<UserModel> fetchCurrentUser() {
+    return _fetchCurrentUser();
+  }
+
+  Future<UserModel> completeSsoOnboarding({
+    required String ssoToken,
+    required String username,
+    required String level,
+    required String preferredHand,
+  }) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      '/auth/sso/complete',
+      data: {
+        'sso_token': ssoToken,
+        'display_name': username,
+        'level': level,
+        'preferred_hand': preferredHand,
+      },
+    );
+
+    final authData = _unwrap(response.data);
+    await TokenStorage.saveTokens(
+      accessToken: authData['access_token'] as String,
+      refreshToken: (authData['refresh_token'] ?? '').toString(),
+    );
+
     return _fetchCurrentUser();
   }
 

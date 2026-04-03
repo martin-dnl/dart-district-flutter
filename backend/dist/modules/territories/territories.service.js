@@ -285,6 +285,32 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
             })),
         };
     }
+    async getClubZones() {
+        await this.ensureIrisSchema('club zones for map');
+        const rows = await this.dataSource.query(`
+        SELECT DISTINCT
+          t.code_iris,
+          t.name,
+          t.status,
+          t.owner_club_id,
+          c.name AS owner_club_name
+        FROM clubs cl
+        INNER JOIN territories t ON t.code_iris = cl.code_iris
+        LEFT JOIN clubs c ON c.id = t.owner_club_id
+        WHERE cl.code_iris IS NOT NULL
+        ORDER BY t.code_iris ASC
+      `);
+        return {
+            count: rows.length,
+            zones: rows.map((row) => ({
+                code_iris: row.code_iris,
+                name: row.name,
+                status: row.status,
+                owner_club_id: row.owner_club_id,
+                owner_club_name: row.owner_club_name,
+            })),
+        };
+    }
     resolveIrisGeoJsonPath() {
         const configured = process.env.IRIS_GEOJSON_PATH?.trim();
         if (configured) {

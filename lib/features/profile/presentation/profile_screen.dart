@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -142,10 +143,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Photo de profil mise a jour')),
       );
-    } catch (_) {
+    } catch (error) {
+      var message = 'Impossible de mettre a jour la photo';
+      if (error is DioException) {
+        final data = error.response?.data;
+        if (data is Map<String, dynamic>) {
+          final backendMessage = data['message'];
+          if (backendMessage is String && backendMessage.trim().isNotEmpty) {
+            message = backendMessage;
+          }
+        }
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible de mettre a jour la photo')),
+        SnackBar(content: Text(message)),
       );
     }
   }
@@ -354,11 +365,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                       GestureDetector(
                         onTap: isOwnProfile ? _changeAvatar : null,
-                        child: PlayerAvatar(
-                          name: user?.username ?? 'Joueur',
-                          imageUrl: user?.avatarUrl,
-                          size: 90,
-                          showBorder: true,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            PlayerAvatar(
+                              name: user?.username ?? 'Joueur',
+                              imageUrl: user?.avatarUrl,
+                              size: 90,
+                              showBorder: true,
+                            ),
+                            if (isOwnProfile)
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.surface,
+                                    border: Border.all(
+                                      color: AppColors.stroke,
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.photo_camera,
+                                    size: 15,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 14),

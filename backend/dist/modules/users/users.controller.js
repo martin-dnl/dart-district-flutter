@@ -25,10 +25,38 @@ let UsersController = class UsersController {
         this.usersService = usersService;
     }
     me(req) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            return {
+                id: 'guest',
+                username: req.user.username ?? 'Invité',
+                email: null,
+                avatar_url: null,
+                elo: 1000,
+                is_admin: false,
+                created_at: new Date().toISOString(),
+                stats: {
+                    matches_played: 0,
+                    matches_won: 0,
+                    avg_score: 0,
+                    checkout_rate: 0,
+                    total_180s: 0,
+                    count_140_plus: 0,
+                    count_100_plus: 0,
+                    best_avg: 0,
+                },
+                club_memberships: [],
+            };
+        }
         return this.usersService.findById(req.user.id);
     }
     myBadges(req) {
         return this.usersService.findMyBadges(req.user.id);
+    }
+    mySettings(req, key) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot access user settings');
+        }
+        return this.usersService.getSettings(req.user.id, key);
     }
     leaderboard(limit) {
         return this.usersService.leaderboard(limit);
@@ -40,15 +68,35 @@ let UsersController = class UsersController {
         return this.usersService.findById(id);
     }
     update(req, dto) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot be updated');
+        }
         return this.usersService.update(req.user.id, dto);
     }
+    updateSetting(req, body) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot be updated');
+        }
+        const key = (body.key ?? '').trim();
+        const value = (body.value ?? '').trim();
+        if (!key || !value) {
+            throw new common_1.BadRequestException('key and value are required');
+        }
+        return this.usersService.upsertSetting(req.user.id, key, value);
+    }
     uploadAvatar(req, file) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account has no avatar upload');
+        }
         if (!file) {
             throw new common_1.BadRequestException('avatar file is required');
         }
         return this.usersService.uploadAvatar(req.user.id, file);
     }
     remove(req) {
+        if (req.user.is_guest || req.user.id === 'guest') {
+            throw new common_1.ForbiddenException('Guest account cannot be deleted');
+        }
         return this.usersService.remove(req.user.id);
     }
 };
@@ -67,6 +115,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "myBadges", null);
+__decorate([
+    (0, common_1.Get)('me/settings'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('key')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "mySettings", null);
 __decorate([
     (0, common_1.Get)('leaderboard'),
     __param(0, (0, common_1.Query)('limit')),
@@ -97,6 +153,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)('me/settings'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updateSetting", null);
 __decorate([
     (0, common_1.Post)('me/avatar'),
     (0, swagger_1.ApiConsumes)('multipart/form-data'),

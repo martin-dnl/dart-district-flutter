@@ -15,27 +15,6 @@ class RoundDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (roundHistory.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.gps_fixed, size: 48, color: AppColors.textHint),
-            SizedBox(height: 12),
-            Text(
-              'Entrez votre score',
-              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Le total de vos 3 fléchettes',
-              style: TextStyle(fontSize: 13, color: AppColors.textHint),
-            ),
-          ],
-        ),
-      );
-    }
-
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: roundHistory.length,

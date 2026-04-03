@@ -14,6 +14,7 @@ const user_badge_entity_1 = require("../badges/entities/user-badge.entity");
 const friendship_entity_1 = require("../contacts/entities/friendship.entity");
 const friend_request_entity_1 = require("../contacts/entities/friend-request.entity");
 const refresh_token_entity_1 = require("../auth/entities/refresh-token.entity");
+const user_setting_entity_1 = require("./entities/user-setting.entity");
 const users_service_1 = require("./users.service");
 const users_controller_1 = require("./users.controller");
 let UsersModule = class UsersModule {
@@ -28,6 +29,7 @@ exports.UsersModule = UsersModule = __decorate([
                 friendship_entity_1.Friendship,
                 friend_request_entity_1.FriendRequest,
                 refresh_token_entity_1.RefreshToken,
+                user_setting_entity_1.UserSetting,
             ]),
         ],
         controllers: [users_controller_1.UsersController],

@@ -9,6 +9,7 @@ export declare class Club {
     region: string | null;
     latitude: number | null;
     longitude: number | null;
+    code_iris: string | null;
     conquest_points: number;
     dart_boards_count: number;
     rank: number | null;

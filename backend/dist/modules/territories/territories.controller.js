@@ -34,6 +34,9 @@ let TerritoriesController = class TerritoriesController {
     getMapData() {
         return this.territoriesService.getMapData();
     }
+    getClubZones() {
+        return this.territoriesService.getClubZones();
+    }
     mapHit(latRaw, lngRaw, zoomRaw, viewportWidthRaw) {
         const lat = Number.parseFloat(latRaw);
         const lng = Number.parseFloat(lngRaw);
@@ -101,6 +104,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], TerritoriesController.prototype, "getMapData", null);
+__decorate([
+    (0, common_1.Get)('clubs/zones'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TerritoriesController.prototype, "getClubZones", null);
 __decorate([
     (0, common_1.Get)('map/hit'),
     __param(0, (0, common_1.Query)('lat')),

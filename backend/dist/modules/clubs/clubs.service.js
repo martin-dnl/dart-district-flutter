@@ -20,12 +20,18 @@ const club_entity_1 = require("./entities/club.entity");
 const club_member_entity_1 = require("./entities/club-member.entity");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
 let ClubsService = class ClubsService {
-    constructor(clubRepo, memberRepo) {
+    constructor(clubRepo, memberRepo, dataSource) {
         this.clubRepo = clubRepo;
         this.memberRepo = memberRepo;
+        this.dataSource = dataSource;
     }
     async create(dto, userId) {
+        let resolvedCodeIris = dto.code_iris ?? null;
+        if (!resolvedCodeIris && dto.latitude != null && dto.longitude != null) {
+            resolvedCodeIris = await this.resolveNearestCodeIris(dto.latitude, dto.longitude);
+        }
         const club = this.clubRepo.create(dto);
+        club.code_iris = resolvedCodeIris;
         await this.clubRepo.save(club);
         const membership = this.memberRepo.create({
             club,
@@ -147,6 +153,36 @@ let ClubsService = class ClubsService {
             select: ['id', 'name', 'conquest_points', 'rank'],
         });
     }
+    async findForMap() {
+        const clubs = await this.clubRepo.find({
+            where: {},
+            select: ['id', 'name', 'latitude', 'longitude', 'code_iris', 'city'],
+            order: { name: 'ASC' },
+        });
+        return clubs
+            .filter((club) => club.latitude != null && club.longitude != null)
+            .map((club) => ({
+            id: club.id,
+            name: club.name,
+            latitude: Number(club.latitude),
+            longitude: Number(club.longitude),
+            code_iris: club.code_iris,
+            city: club.city,
+        }));
+    }
+    async resolveNearestCodeIris(latitude, longitude) {
+        const rows = await this.dataSource.query(`
+        SELECT code_iris
+        FROM territories
+        ORDER BY (
+          POWER((CAST(centroid_lat AS double precision) - $1), 2) +
+          POWER((CAST(centroid_lng AS double precision) - $2), 2)
+        ) ASC
+        LIMIT 1
+      `, [latitude, longitude]);
+        const code = rows?.[0]?.code_iris;
+        return typeof code === 'string' && code.length > 0 ? code : null;
+    }
     async assertRole(clubId, userId, roles) {
         const m = await this.memberRepo.findOne({
             where: { club: { id: clubId }, user: { id: userId } },
@@ -162,6 +198,7 @@ exports.ClubsService = ClubsService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(club_entity_1.Club)),
     __param(1, (0, typeorm_1.InjectRepository)(club_member_entity_1.ClubMember)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        typeorm_2.DataSource])
 ], ClubsService);
 //# sourceMappingURL=clubs.service.js.map

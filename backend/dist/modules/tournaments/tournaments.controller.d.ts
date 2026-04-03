@@ -7,6 +7,7 @@ export declare class TournamentsController {
     create(dto: CreateTournamentDto, req: {
         user: {
             id: string;
+            is_guest?: boolean;
         };
     }): Promise<import("./entities/tournament.entity").Tournament>;
     findAll(status?: string, upcoming?: string): Promise<import("./entities/tournament.entity").Tournament[]>;
@@ -49,6 +50,7 @@ export declare class TournamentsController {
     register(id: string, req: {
         user: {
             id: string;
+            is_guest?: boolean;
         };
     }): Promise<import("./entities/tournament-player.entity").TournamentPlayer>;
     unregister(id: string, req: {

@@ -3,4 +3,5 @@ export declare class UpdateClubDto {
     address?: string;
     latitude?: number;
     longitude?: number;
+    code_iris?: string;
 }

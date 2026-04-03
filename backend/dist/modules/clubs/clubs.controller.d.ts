@@ -8,18 +8,33 @@ export declare class ClubsController {
     create(dto: CreateClubDto, req: {
         user: {
             id: string;
+            is_guest?: boolean;
         };
     }): Promise<import("./entities/club.entity").Club>;
     findAll(limit?: number, q?: string, city?: string): Promise<import("./entities/club.entity").Club[]>;
     search(q?: string, lat?: number, lng?: number, radius?: number, limit?: number): Promise<import("./entities/club.entity").Club[]>;
     ranking(limit?: number): Promise<import("./entities/club.entity").Club[]>;
+    mapClubs(): Promise<{
+        id: string;
+        name: string;
+        latitude: number;
+        longitude: number;
+        code_iris: string | null;
+        city: string | null;
+    }[]>;
     findOne(id: string): Promise<import("./entities/club.entity").Club>;
     update(id: string, dto: UpdateClubDto, req: {
         user: {
             id: string;
+            is_guest?: boolean;
         };
     }): Promise<import("./entities/club.entity").Club>;
-    addMember(id: string, dto: ManageMemberDto): Promise<import("./entities/club-member.entity").ClubMember>;
+    addMember(id: string, dto: ManageMemberDto, req: {
+        user: {
+            id: string;
+            is_guest?: boolean;
+        };
+    }): Promise<import("./entities/club-member.entity").ClubMember>;
     updateRole(id: string, userId: string, dto: ManageMemberDto, req: {
         user: {
             id: string;

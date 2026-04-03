@@ -9,12 +9,14 @@ class Scoreboard extends StatelessWidget {
   final List<PlayerMatch> players;
   final int currentPlayerIndex;
   final String finishType;
+  final Set<int> animatedPlayerIndexes;
 
   const Scoreboard({
     super.key,
     required this.players,
     required this.currentPlayerIndex,
     required this.finishType,
+    this.animatedPlayerIndexes = const <int>{},
   });
 
   bool get _isDoubleOutMode {
@@ -54,6 +56,7 @@ class Scoreboard extends StatelessWidget {
             child: ScoreDisplay(
               playerName: players[0].name,
               score: players[0].score,
+              animateScoreChange: animatedPlayerIndexes.contains(0),
               isActive: currentPlayerIndex == 0,
               legsWon: players[0].legsWon,
               setsWon: players[0].setsWon,
@@ -100,6 +103,7 @@ class Scoreboard extends StatelessWidget {
               child: ScoreDisplay(
                 playerName: players[1].name,
                 score: players[1].score,
+                animateScoreChange: animatedPlayerIndexes.contains(1),
                 isActive: currentPlayerIndex == 1,
                 legsWon: players[1].legsWon,
                 setsWon: players[1].setsWon,

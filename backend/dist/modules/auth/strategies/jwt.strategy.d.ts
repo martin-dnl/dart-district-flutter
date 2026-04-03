@@ -4,6 +4,7 @@ export interface JwtPayload {
     sub: string;
     email: string;
     username: string;
+    is_guest?: boolean;
 }
 declare const JwtStrategy_base: new (...args: any[]) => Strategy;
 export declare class JwtStrategy extends JwtStrategy_base {
@@ -12,6 +13,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         id: string;
         email: string;
         username: string;
+        is_guest: boolean;
     };
 }
 export {};

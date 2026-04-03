@@ -37,6 +37,9 @@ export class Club {
   @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
   longitude: number | null;
 
+  @Column({ type: 'varchar', length: 9, nullable: true })
+  code_iris: string | null;
+
   @Column({ type: 'int', default: 0 })
   conquest_points: number;
 

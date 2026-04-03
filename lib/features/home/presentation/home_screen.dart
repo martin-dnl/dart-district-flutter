@@ -103,6 +103,7 @@ class HomeScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _QuickActions(
+                    isGuest: user?.isGuest ?? false,
                     onOpenMap: () => context.go(AppRoutes.map),
                     onLaunchMatch: () => context.go(AppRoutes.play),
                     onCreateTournament: () =>
@@ -434,11 +435,13 @@ class _RecentFormCard extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
+  final bool isGuest;
   final VoidCallback onOpenMap;
   final VoidCallback onLaunchMatch;
   final VoidCallback onCreateTournament;
 
   const _QuickActions({
+    required this.isGuest,
     required this.onOpenMap,
     required this.onLaunchMatch,
     required this.onCreateTournament,
@@ -453,14 +456,15 @@ class _QuickActions extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(
-              child: _QuickActionTile(
-                icon: Icons.add,
-                label: 'Creer\nTournoi',
-                onTap: onCreateTournament,
+            if (!isGuest)
+              Expanded(
+                child: _QuickActionTile(
+                  icon: Icons.add,
+                  label: 'Creer\nTournoi',
+                  onTap: onCreateTournament,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
+            if (!isGuest) const SizedBox(width: 10),
             Expanded(
               child: _QuickActionTile(
                 icon: Icons.map,

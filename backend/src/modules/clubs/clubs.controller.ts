@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Controller,
   Get,
   Post,
@@ -26,7 +27,14 @@ export class ClubsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateClubDto, @Req() req: { user: { id: string } }) {
+  create(
+    @Body() dto: CreateClubDto,
+    @Req() req: { user: { id: string; is_guest?: boolean } },
+  ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot create a club');
+    }
+
     return this.clubsService.create(dto, req.user.id);
   }
 
@@ -55,6 +63,11 @@ export class ClubsController {
     return this.clubsService.ranking(limit);
   }
 
+  @Get('map')
+  mapClubs() {
+    return this.clubsService.findForMap();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.clubsService.findById(id);
@@ -66,8 +79,12 @@ export class ClubsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateClubDto,
-    @Req() req: { user: { id: string } },
+    @Req() req: { user: { id: string; is_guest?: boolean } },
   ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot update a club');
+    }
+
     return this.clubsService.update(id, dto, req.user.id);
   }
 
@@ -77,7 +94,12 @@ export class ClubsController {
   addMember(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ManageMemberDto,
+    @Req() req: { user: { id: string; is_guest?: boolean } },
   ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot join a club');
+    }
+
     return this.clubsService.addMember(id, dto.user_id, dto.role);
   }
 

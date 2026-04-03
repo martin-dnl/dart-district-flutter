@@ -104,9 +104,13 @@ class _RouterNotifier extends ChangeNotifier {
 
     // SSO new user: must pick a username before accessing the app.
     if (needsUsername) {
-      return state.matchedLocation == AppRoutes.ssoUsernameSetup
+      const onboardingRoutes = {
+        AppRoutes.subscriptionStep1,
+        AppRoutes.subscriptionStep2,
+      };
+      return onboardingRoutes.contains(state.matchedLocation)
           ? null
-          : AppRoutes.ssoUsernameSetup;
+          : AppRoutes.subscriptionStep1;
     }
 
     // Not logged in trying to access a protected route.

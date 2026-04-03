@@ -15,4 +15,8 @@ export class CreateClubDto {
   @IsNumber()
   @IsOptional()
   longitude?: number;
+
+  @IsString()
+  @IsOptional()
+  code_iris?: string;
 }

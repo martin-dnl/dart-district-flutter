@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  ForbiddenException,
   Get,
   Post,
   Patch,
@@ -29,7 +30,30 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
-  me(@Req() req: { user: { id: string } }) {
+  me(@Req() req: { user: { id: string; is_guest?: boolean; username?: string } }) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      return {
+        id: 'guest',
+        username: req.user.username ?? 'Invité',
+        email: null,
+        avatar_url: null,
+        elo: 1000,
+        is_admin: false,
+        created_at: new Date().toISOString(),
+        stats: {
+          matches_played: 0,
+          matches_won: 0,
+          avg_score: 0,
+          checkout_rate: 0,
+          total_180s: 0,
+          count_140_plus: 0,
+          count_100_plus: 0,
+          best_avg: 0,
+        },
+        club_memberships: [],
+      };
+    }
+
     return this.usersService.findById(req.user.id);
   }
 
@@ -54,7 +78,10 @@ export class UsersController {
   }
 
   @Patch('me')
-  update(@Req() req: { user: { id: string } }, @Body() dto: UpdateUserDto) {
+  update(@Req() req: { user: { id: string; is_guest?: boolean } }, @Body() dto: UpdateUserDto) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot be updated');
+    }
     return this.usersService.update(req.user.id, dto);
   }
 
@@ -69,9 +96,13 @@ export class UsersController {
     }),
   )
   uploadAvatar(
-    @Req() req: { user: { id: string } },
+    @Req() req: { user: { id: string; is_guest?: boolean } },
     @UploadedFile() file?: Express.Multer.File,
   ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account has no avatar upload');
+    }
+
     if (!file) {
       throw new BadRequestException('avatar file is required');
     }
@@ -80,7 +111,10 @@ export class UsersController {
   }
 
   @Delete('me')
-  remove(@Req() req: { user: { id: string } }) {
+  remove(@Req() req: { user: { id: string; is_guest?: boolean } }) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot be deleted');
+    }
     return this.usersService.remove(req.user.id);
   }
 }

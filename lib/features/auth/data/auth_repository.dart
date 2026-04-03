@@ -41,10 +41,10 @@ class AuthRepository {
 
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
-      refreshToken: authData['refresh_token'] as String,
+      refreshToken: (authData['refresh_token'] ?? '').toString(),
     );
 
-    return _fetchCurrentUser();
+    return UserModel.guest();
   }
 
   Future<({UserModel user, bool isNewUser})> signInWithGoogleIdToken({
@@ -60,11 +60,12 @@ class AuthRepository {
     final authData = _unwrap(response.data);
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
-      refreshToken: authData['refresh_token'] as String,
+      refreshToken: (authData['refresh_token'] ?? '').toString(),
     );
     final isNewUser = authData['is_new_user'] as bool? ?? false;
+    final needsOnboarding = authData['needs_onboarding'] as bool? ?? false;
     final user = await _fetchCurrentUser();
-    return (user: user, isNewUser: isNewUser);
+    return (user: user, isNewUser: isNewUser || needsOnboarding);
   }
 
   Future<({UserModel user, bool isNewUser})> signInWithGoogleAccessToken({
@@ -80,11 +81,29 @@ class AuthRepository {
     final authData = _unwrap(response.data);
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
-      refreshToken: authData['refresh_token'] as String,
+      refreshToken: (authData['refresh_token'] ?? '').toString(),
     );
     final isNewUser = authData['is_new_user'] as bool? ?? false;
+    final needsOnboarding = authData['needs_onboarding'] as bool? ?? false;
     final user = await _fetchCurrentUser();
-    return (user: user, isNewUser: isNewUser);
+    return (user: user, isNewUser: isNewUser || needsOnboarding);
+  }
+
+  Future<UserModel> completeSsoOnboarding({
+    required String username,
+    required String level,
+    required String preferredHand,
+  }) async {
+    await _api.patch<Map<String, dynamic>>(
+      '/users/me',
+      data: {
+        'username': username,
+        'level': level,
+        'preferred_hand': preferredHand,
+      },
+    );
+
+    return _fetchCurrentUser();
   }
 
   Future<UserModel> signUpWithEmail({

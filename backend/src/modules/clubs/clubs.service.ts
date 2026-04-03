@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Club } from './entities/club.entity';
 import { ClubMember } from './entities/club-member.entity';
 import { CreateClubDto } from './dto/create-club.dto';
@@ -17,10 +17,17 @@ export class ClubsService {
   constructor(
     @InjectRepository(Club) private readonly clubRepo: Repository<Club>,
     @InjectRepository(ClubMember) private readonly memberRepo: Repository<ClubMember>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(dto: CreateClubDto, userId: string) {
+    let resolvedCodeIris = dto.code_iris ?? null;
+    if (!resolvedCodeIris && dto.latitude != null && dto.longitude != null) {
+      resolvedCodeIris = await this.resolveNearestCodeIris(dto.latitude, dto.longitude);
+    }
+
     const club = this.clubRepo.create(dto);
+    club.code_iris = resolvedCodeIris;
     await this.clubRepo.save(club);
 
     // Creator becomes president
@@ -165,6 +172,46 @@ export class ClubsService {
       take,
       select: ['id', 'name', 'conquest_points', 'rank'],
     });
+  }
+
+  async findForMap() {
+    const clubs = await this.clubRepo.find({
+      where: {},
+      select: ['id', 'name', 'latitude', 'longitude', 'code_iris', 'city'],
+      order: { name: 'ASC' },
+    });
+
+    return clubs
+      .filter((club) => club.latitude != null && club.longitude != null)
+      .map((club) => ({
+        id: club.id,
+        name: club.name,
+        latitude: Number(club.latitude),
+        longitude: Number(club.longitude),
+        code_iris: club.code_iris,
+        city: club.city,
+      }));
+  }
+
+  private async resolveNearestCodeIris(
+    latitude: number,
+    longitude: number,
+  ): Promise<string | null> {
+    const rows = await this.dataSource.query(
+      `
+        SELECT code_iris
+        FROM territories
+        ORDER BY (
+          POWER((CAST(centroid_lat AS double precision) - $1), 2) +
+          POWER((CAST(centroid_lng AS double precision) - $2), 2)
+        ) ASC
+        LIMIT 1
+      `,
+      [latitude, longitude],
+    );
+
+    const code = rows?.[0]?.code_iris;
+    return typeof code === 'string' && code.length > 0 ? code : null;
   }
 
   /* ── helpers ── */

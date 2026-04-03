@@ -150,6 +150,8 @@ class _InfoTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isGuest = (ref.watch(currentUserProvider)?.isGuest ?? false);
+
     Future<void> handleRegisterToggle() async {
       if (!tournament.isRegistered) {
         final confirmed = await showDialog<bool>(
@@ -296,15 +298,21 @@ class _InfoTab extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: handleRegisterToggle,
-                  child: Text(
-                    tournament.isRegistered ? 'Se desinscrire' : 'Rejoindre',
+              if (!isGuest)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: handleRegisterToggle,
+                    child: Text(
+                      tournament.isRegistered ? 'Se desinscrire' : 'Rejoindre',
+                    ),
                   ),
+                )
+              else
+                const Text(
+                  'Connectez-vous avec un compte pour vous inscrire.',
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
-              ),
             ],
           ),
         ),

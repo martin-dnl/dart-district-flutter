@@ -38,6 +38,11 @@ export class TerritoriesController {
     return this.territoriesService.getMapData();
   }
 
+  @Get('clubs/zones')
+  getClubZones() {
+    return this.territoriesService.getClubZones();
+  }
+
   @Get('map/hit')
   mapHit(
     @Query('lat') latRaw: string,

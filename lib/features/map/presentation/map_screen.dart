@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_map_tiles_pmtiles/vector_map_tiles_pmtiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../core/network/nominatim_service.dart';
 import '../controller/map_controller.dart';
@@ -295,6 +297,64 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     ref.read(mapControllerProvider.notifier).selectTerritory(codeIris);
     await _openPanelForTerritoryCode(codeIris);
+  }
+
+  Future<void> _openClubModal(Map<String, dynamic> club) async {
+    final clubName = (club['name'] ?? 'Club').toString();
+    final clubId = (club['id'] ?? '').toString();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.of(context).viewPadding.bottom + 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.gps_fixed, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      clubName,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: clubId.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        this.context.push(
+                          AppRoutes.clubDetail.replaceFirst(':id', clubId),
+                        );
+                      },
+                child: const Text('Voir le detail du club'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   List<dynamic> _statusFilter(List<String> codes) {
@@ -790,6 +850,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
+    final territoriesToRender = mapState.clubZoneCodes.isEmpty
+        ? mapState.territories
+        : mapState.territories
+              .where((t) => mapState.clubZoneCodes.contains(t.codeIris))
+              .toList();
     final viewportWidthPx = MediaQuery.sizeOf(context).width;
 
     return Scaffold(
@@ -896,7 +961,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         }
                         _handleMapTap(
                           latLng,
-                          mapState.territories,
+                          territoriesToRender,
                           viewportWidthPx,
                         );
                       },
@@ -912,12 +977,49 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       if (_showZones)
                         VectorTileLayer(
                           theme: _getOrBuildTheme(
-                            mapState.territories,
+                            territoriesToRender,
                             config.layerName,
                           ),
                           tileProviders: TileProviders({'pmtiles': provider}),
                           layerMode: VectorTileLayerMode.vector,
                         ),
+                      fm.MarkerLayer(
+                        markers: mapState.clubMarkers.map((club) {
+                          final lat = _asDouble(club['latitude']);
+                          final lng = _asDouble(club['longitude']);
+                          if (lat == null || lng == null) {
+                            return null;
+                          }
+
+                          return fm.Marker(
+                            point: LatLng(lat, lng),
+                            width: 60,
+                            height: 60,
+                            child: Center(
+                              child: GestureDetector(
+                                onTap: () => _openClubModal(club),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.background,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.gps_fixed,
+                                    size: 20,
+                                    color: AppColors.background,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).whereType<fm.Marker>().toList(),
+                      ),
                     ],
                   ),
                   // City search bar (top)
@@ -1126,7 +1228,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _StatChip(
-                                  count: mapState.territories
+                                  count: territoriesToRender
                                       .where(
                                         (t) =>
                                             t.status ==
@@ -1138,7 +1240,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 ),
                                 const SizedBox(width: 10),
                                 _StatChip(
-                                  count: mapState.territories
+                                  count: territoriesToRender
                                       .where(
                                         (t) =>
                                             t.status ==

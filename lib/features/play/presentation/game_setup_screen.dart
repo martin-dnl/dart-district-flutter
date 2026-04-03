@@ -40,7 +40,19 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   Widget build(BuildContext context) {
     final contacts = ref.watch(contactsControllerProvider);
     final authState = ref.watch(authControllerProvider);
+    final isGuest = authState.user?.isGuest ?? false;
     final currentUserName = authState.user?.username ?? 'Moi';
+
+    if (isGuest && _startOption != GameStartOption.guest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _startOption = GameStartOption.guest;
+          _selectedOpponent = null;
+          _isRanked = false;
+        });
+      });
+    }
     final selectedOpponent =
         _selectedOpponent ??
         (_startOption == GameStartOption.inviteFriend
@@ -109,43 +121,46 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _OptionCard(
-                      icon: Icons.person_add,
-                      label: 'Inviter un ami',
-                      selected: _startOption == GameStartOption.inviteFriend,
-                      onTap: () async {
-                        final result = await context.push(
-                          AppRoutes.gameInvitePlayer,
-                        );
-                        if (!mounted) {
-                          return;
-                        }
-                        final selected = result is ContactModel
-                            ? result
-                            : ref
-                                  .read(contactsControllerProvider)
-                                  .selectedFriend;
-                        if (selected == null) {
-                          return;
-                        }
-                        setState(() {
-                          _startOption = GameStartOption.inviteFriend;
-                          _selectedOpponent = selected;
-                        });
-                      },
-                    ),
-                    _OptionCard(
-                      icon: Icons.qr_code_scanner,
-                      label: 'Scanner QR',
-                      selected: _startOption == GameStartOption.scanQr,
-                      onTap: _handleUserQrScan,
-                    ),
-                    _OptionCard(
-                      icon: Icons.flag_circle,
-                      label: 'Territoire',
-                      selected: _startOption == GameStartOption.territory,
-                      onTap: _handleTerritoryScan,
-                    ),
+                    if (!isGuest)
+                      _OptionCard(
+                        icon: Icons.person_add,
+                        label: 'Inviter un ami',
+                        selected: _startOption == GameStartOption.inviteFriend,
+                        onTap: () async {
+                          final result = await context.push(
+                            AppRoutes.gameInvitePlayer,
+                          );
+                          if (!mounted) {
+                            return;
+                          }
+                          final selected = result is ContactModel
+                              ? result
+                              : ref
+                                    .read(contactsControllerProvider)
+                                    .selectedFriend;
+                          if (selected == null) {
+                            return;
+                          }
+                          setState(() {
+                            _startOption = GameStartOption.inviteFriend;
+                            _selectedOpponent = selected;
+                          });
+                        },
+                      ),
+                    if (!isGuest)
+                      _OptionCard(
+                        icon: Icons.qr_code_scanner,
+                        label: 'Scanner QR',
+                        selected: _startOption == GameStartOption.scanQr,
+                        onTap: _handleUserQrScan,
+                      ),
+                    if (!isGuest)
+                      _OptionCard(
+                        icon: Icons.flag_circle,
+                        label: 'Territoire',
+                        selected: _startOption == GameStartOption.territory,
+                        onTap: _handleTerritoryScan,
+                      ),
                     _OptionCard(
                       icon: Icons.person_outline,
                       label: 'Vs Invite',
@@ -164,63 +179,65 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   const SizedBox(height: 10),
                   _SelectedFriendInfo(friendName: selectedOpponent.username),
                 ],
-                const SizedBox(height: 24),
-                const Text(
-                  'Type de match',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment<bool>(value: true, label: Text('Classe')),
-                      ButtonSegment<bool>(value: false, label: Text('Amical')),
-                    ],
-                    selected: {_isRanked},
-                    onSelectionChanged: _startOption == GameStartOption.guest
-                        ? null
-                        : (values) {
-                            setState(() {
-                              _isRanked = values.first;
-                            });
-                          },
-                    showSelectedIcon: false,
-                    style: ButtonStyle(
-                      minimumSize: const WidgetStatePropertyAll(
-                        Size(double.infinity, 48),
-                      ),
-                      side: const WidgetStatePropertyAll(
-                        BorderSide(color: AppColors.stroke),
-                      ),
-                      shape: WidgetStatePropertyAll(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      foregroundColor: WidgetStateProperty.resolveWith((
-                        states,
-                      ) {
-                        if (states.contains(WidgetState.selected)) {
-                          return AppColors.background;
-                        }
-                        return AppColors.textSecondary;
-                      }),
-                      backgroundColor: WidgetStateProperty.resolveWith((
-                        states,
-                      ) {
-                        if (states.contains(WidgetState.selected)) {
-                          return AppColors.primary;
-                        }
-                        return AppColors.surface;
-                      }),
+                if (!isGuest) ...[
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Type de match',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(value: true, label: Text('Classe')),
+                        ButtonSegment<bool>(value: false, label: Text('Amical')),
+                      ],
+                      selected: {_isRanked},
+                      onSelectionChanged: _startOption == GameStartOption.guest
+                          ? null
+                          : (values) {
+                              setState(() {
+                                _isRanked = values.first;
+                              });
+                            },
+                      showSelectedIcon: false,
+                      style: ButtonStyle(
+                        minimumSize: const WidgetStatePropertyAll(
+                          Size(double.infinity, 48),
+                        ),
+                        side: const WidgetStatePropertyAll(
+                          BorderSide(color: AppColors.stroke),
+                        ),
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        foregroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.selected)) {
+                            return AppColors.background;
+                          }
+                          return AppColors.textSecondary;
+                        }),
+                        backgroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.selected)) {
+                            return AppColors.primary;
+                          }
+                          return AppColors.surface;
+                        }),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 const Text(
                   'Type de finish',

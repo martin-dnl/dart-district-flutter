@@ -90,6 +90,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isGuest = ref.watch(currentUserProvider)?.isGuest ?? false;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -138,24 +140,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: _isDeletingAccount ? null : _confirmAndDeleteAccount,
-                icon: const Icon(Icons.delete_forever),
-                label: Text(
-                  _isDeletingAccount
-                      ? 'Suppression...'
-                      : 'Supprimer mon compte',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              if (!isGuest)
+                ElevatedButton.icon(
+                  onPressed: _isDeletingAccount ? null : _confirmAndDeleteAccount,
+                  icon: const Icon(Icons.delete_forever),
+                  label: Text(
+                    _isDeletingAccount
+                        ? 'Suppression...'
+                        : 'Supprimer mon compte',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

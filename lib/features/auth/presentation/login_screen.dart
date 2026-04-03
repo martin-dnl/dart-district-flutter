@@ -41,6 +41,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final showAppleButton = kIsWeb || defaultTargetPlatform != TargetPlatform.android;
 
     ref.listen<AuthState>(authControllerProvider, (prev, next) {
+      if (next.status == AuthStatus.needsUsernameSetup) {
+        context.go(
+          AppRoutes.subscriptionStep1,
+          extra: next.onboardingPayload ?? const <String, dynamic>{'isSso': true},
+        );
+        return;
+      }
+
       if (next.status == AuthStatus.authenticated) {
         context.go(AppRoutes.home);
         return;

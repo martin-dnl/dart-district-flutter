@@ -94,7 +94,17 @@ export class AuthService {
 
   /* ───── Social Login (Google / Apple) ───── */
   async socialLogin(provider: 'google' | 'apple', payload: { email: string; name: string; provider_uid: string }) {
-    let user = await this.userRepo.findOne({ where: { email: payload.email } });
+    const linkedProvider = await this.authProviderRepo.findOne({
+      where: { provider, provider_uid: payload.provider_uid },
+      relations: ['user'],
+    });
+
+    let user = linkedProvider?.user ?? null;
+
+    if (!user) {
+      user = await this.userRepo.findOne({ where: { email: payload.email } });
+    }
+
     let isNewUser = false;
 
     if (!user) {
@@ -108,37 +118,51 @@ export class AuthService {
       await this.userRepo.save(user);
     }
 
-    const existingAp = await this.authProviderRepo.findOne({
-      where: { user: { id: user.id }, provider },
-    });
+    if (!linkedProvider) {
+      const existingAp = await this.authProviderRepo.findOne({
+        where: { user: { id: user.id }, provider },
+      });
 
-    if (!existingAp) {
+      if (existingAp && existingAp.provider_uid !== payload.provider_uid) {
+        throw new UnauthorizedException('Social account mismatch for this user');
+      }
+
+      if (!existingAp) {
       const ap = this.authProviderRepo.create({
         user,
         provider,
         provider_uid: payload.provider_uid,
       });
       await this.authProviderRepo.save(ap);
+      }
     }
 
     const tokens = await this.generateTokens(user);
-    return { ...tokens, is_new_user: isNewUser };
+    const needsOnboarding = user.username.startsWith('Joueur_');
+
+    return {
+      ...tokens,
+      is_new_user: isNewUser,
+      needs_onboarding: needsOnboarding,
+      email: user.email,
+      provider,
+    };
   }
 
   /* ───── Guest Login ───── */
   async guestLogin() {
-    const guestName = `Joueur_${randomUUID().slice(0, 6)}`;
-    const user = this.userRepo.create({ username: guestName, is_guest: true });
-    await this.userRepo.save(user);
+    const payload: JwtPayload = {
+      sub: 'guest',
+      email: '',
+      username: 'Invité',
+      is_guest: true,
+    };
 
-    const ap = this.authProviderRepo.create({
-      user,
-      provider: 'guest',
-      provider_uid: user.id,
+    const access_token = this.jwtService.sign(payload, {
+      expiresIn: '24h',
     });
-    await this.authProviderRepo.save(ap);
 
-    return this.generateTokens(user);
+    return { access_token, refresh_token: '' };
   }
 
   /* ───── Refresh Token ───── */

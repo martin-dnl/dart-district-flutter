@@ -303,7 +303,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          if (isOwnProfile)
+                          if (isOwnProfile && !(currentUser?.isGuest ?? false))
                             IconButton(
                               onPressed: _showMyQrCode,
                               icon: const Icon(

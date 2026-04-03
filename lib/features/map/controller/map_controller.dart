@@ -8,12 +8,16 @@ import '../models/territory_model.dart';
 class MapState {
   final List<TerritoryModel> territories;
   final List<Map<String, dynamic>> clubRanking;
+  final List<Map<String, dynamic>> clubMarkers;
+  final Set<String> clubZoneCodes;
   final bool isLoading;
   final String? selectedTerritoryId;
 
   const MapState({
     this.territories = const [],
     this.clubRanking = const [],
+    this.clubMarkers = const [],
+    this.clubZoneCodes = const <String>{},
     this.isLoading = false,
     this.selectedTerritoryId,
   });
@@ -21,12 +25,16 @@ class MapState {
   MapState copyWith({
     List<TerritoryModel>? territories,
     List<Map<String, dynamic>>? clubRanking,
+    List<Map<String, dynamic>>? clubMarkers,
+    Set<String>? clubZoneCodes,
     bool? isLoading,
     String? selectedTerritoryId,
   }) {
     return MapState(
       territories: territories ?? this.territories,
       clubRanking: clubRanking ?? this.clubRanking,
+      clubMarkers: clubMarkers ?? this.clubMarkers,
+      clubZoneCodes: clubZoneCodes ?? this.clubZoneCodes,
       isLoading: isLoading ?? this.isLoading,
       selectedTerritoryId: selectedTerritoryId ?? this.selectedTerritoryId,
     );
@@ -52,6 +60,10 @@ class MapController extends StateNotifier<MapState> {
       final response = await api.get<Map<String, dynamic>>(
         '/territories/map/data',
       );
+      final clubZonesResponse = await api.get<Map<String, dynamic>>(
+        '/territories/clubs/zones',
+      );
+      final clubsMapResponse = await api.get<Map<String, dynamic>>('/clubs/map');
 
       final responseData =
           response.data?['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
@@ -84,10 +96,31 @@ class MapController extends StateNotifier<MapState> {
               })
               .toList();
 
+            final clubZonesData =
+              (clubZonesResponse.data?['data']?['zones'] as List<dynamic>? ??
+                  clubZonesResponse.data?['zones'] as List<dynamic>? ??
+                  <dynamic>[])
+                .whereType<Map<String, dynamic>>()
+                .toList();
+
+            final clubZoneCodes = clubZonesData
+              .map((zone) => (zone['code_iris'] ?? '').toString())
+              .where((code) => code.isNotEmpty)
+              .toSet();
+
+            final clubMarkers =
+              (clubsMapResponse.data?['data'] as List<dynamic>? ??
+                  clubsMapResponse.data as List<dynamic>? ??
+                  <dynamic>[])
+                .whereType<Map<String, dynamic>>()
+                .toList();
+
       state = state.copyWith(
         isLoading: false,
         territories: territoriesData,
         clubRanking: rankingData,
+            clubMarkers: clubMarkers,
+            clubZoneCodes: clubZoneCodes,
       );
     } catch (_) {
       state = state.copyWith(isLoading: false, territories: const []);

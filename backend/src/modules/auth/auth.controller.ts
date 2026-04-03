@@ -42,11 +42,24 @@ export class AuthController {
   @Post('google')
   @HttpCode(HttpStatus.OK)
   async googleLogin(@Body() dto: SocialLoginDto) {
-    const payload = dto.id_token
-      ? await this.verifyGoogleIdToken(dto.id_token)
-      : dto.access_token
-        ? await this.verifyGoogleAccessToken(dto.access_token)
-        : null;
+    let payload: { email: string; name?: string; sub: string; picture?: string } | null =
+      null;
+
+    if (dto.id_token) {
+      try {
+        payload = await this.verifyGoogleIdToken(dto.id_token);
+      } catch (error) {
+        // Some Android builds return ID tokens with audiences not listed server-side.
+        // If an access token is present, fallback to userinfo verification instead.
+        if (dto.access_token) {
+          payload = await this.verifyGoogleAccessToken(dto.access_token);
+        } else {
+          throw error;
+        }
+      }
+    } else if (dto.access_token) {
+      payload = await this.verifyGoogleAccessToken(dto.access_token);
+    }
 
     if (!payload) {
       throw new UnauthorizedException('Missing Google token payload');
@@ -121,11 +134,16 @@ export class AuthController {
       throw new UnauthorizedException('Google OAuth is not configured on server');
     }
 
-    const ticket = await this.googleOAuthClient.verifyIdToken({
-      idToken,
-      audience: audiences,
-    });
-    const payload = ticket.getPayload() as TokenPayload | undefined;
+    let payload: TokenPayload | undefined;
+    try {
+      const ticket = await this.googleOAuthClient.verifyIdToken({
+        idToken,
+        audience: audiences,
+      });
+      payload = ticket.getPayload() as TokenPayload | undefined;
+    } catch {
+      throw new UnauthorizedException('Invalid Google id_token');
+    }
 
     if (!payload?.email || !payload?.sub) {
       throw new UnauthorizedException('Invalid Google token payload');

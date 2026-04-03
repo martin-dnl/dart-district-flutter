@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../auth/controller/auth_controller.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../controller/contacts_controller.dart';
 import '../models/contact_models.dart';
@@ -34,6 +35,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   @override
   Widget build(BuildContext context) {
     final contacts = ref.watch(contactsControllerProvider);
+    final isGuest = (ref.watch(currentUserProvider)?.isGuest ?? false);
 
     return Container(
       decoration: const BoxDecoration(gradient: AppColors.pageGradient),
@@ -113,6 +115,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                               padding: const EdgeInsets.only(bottom: 10),
                               child: _SearchResultTile(
                                 contact: c,
+                                canAdd: !isGuest,
                                 onAdd: () => ref
                                     .read(contactsControllerProvider.notifier)
                                     .addFriend(c),
@@ -278,9 +281,14 @@ class _SearchBox extends StatelessWidget {
 }
 
 class _SearchResultTile extends StatelessWidget {
-  const _SearchResultTile({required this.contact, required this.onAdd});
+  const _SearchResultTile({
+    required this.contact,
+    required this.canAdd,
+    required this.onAdd,
+  });
 
   final ContactModel contact;
+  final bool canAdd;
   final VoidCallback onAdd;
 
   @override
@@ -308,14 +316,15 @@ class _SearchResultTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: onAdd,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
+          if (canAdd)
+            ElevatedButton(
+              onPressed: onAdd,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.background,
+              ),
+              child: const Text('Ajouter'),
             ),
-            child: const Text('Ajouter'),
-          ),
         ],
       ),
     );

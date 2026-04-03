@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   Post,
   Delete,
@@ -24,7 +25,14 @@ export class TournamentsController {
   constructor(private readonly tournamentsService: TournamentsService) {}
 
   @Post()
-  create(@Body() dto: CreateTournamentDto, @Req() req: { user: { id: string } }) {
+  create(
+    @Body() dto: CreateTournamentDto,
+    @Req() req: { user: { id: string; is_guest?: boolean } },
+  ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot create tournaments');
+    }
+
     return this.tournamentsService.create(dto, req.user.id);
   }
 
@@ -44,8 +52,12 @@ export class TournamentsController {
   @Post(':id/register')
   register(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: { user: { id: string } },
+    @Req() req: { user: { id: string; is_guest?: boolean } },
   ) {
+    if (req.user.is_guest || req.user.id === 'guest') {
+      throw new ForbiddenException('Guest account cannot register to tournaments');
+    }
+
     return this.tournamentsService.registerPlayer(id, req.user.id);
   }
 

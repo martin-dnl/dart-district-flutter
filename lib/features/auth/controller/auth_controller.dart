@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -18,12 +19,14 @@ class AuthState {
   final UserModel? user;
   final String? error;
   final String? debugDetails;
+  final Map<String, dynamic>? onboardingPayload;
 
   const AuthState({
     this.status = AuthStatus.initial,
     this.user,
     this.error,
     this.debugDetails,
+    this.onboardingPayload,
   });
 
   AuthState copyWith({
@@ -31,12 +34,17 @@ class AuthState {
     UserModel? user,
     String? error,
     String? debugDetails,
+    Map<String, dynamic>? onboardingPayload,
+    bool clearOnboardingPayload = false,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
       error: error,
       debugDetails: debugDetails,
+      onboardingPayload: clearOnboardingPayload
+          ? null
+          : (onboardingPayload ?? this.onboardingPayload),
     );
   }
 }
@@ -70,6 +78,21 @@ class AuthController extends StateNotifier<AuthState> {
       final user = await _repository.restoreSession();
       if (user == null) {
         state = const AuthState(status: AuthStatus.unauthenticated);
+        return;
+      }
+
+      if (user.username.startsWith('Joueur_')) {
+        state = state.copyWith(
+          status: AuthStatus.needsUsernameSetup,
+          user: user,
+          onboardingPayload: {
+            'username': '',
+            'email': user.email ?? '',
+            'isSso': true,
+          },
+          error: null,
+          debugDetails: null,
+        );
         return;
       }
 
@@ -145,6 +168,82 @@ class AuthController extends StateNotifier<AuthState> {
         debugDetails: null,
       );
     }
+  }
+
+  Future<void> completeSsoOnboarding({
+    required String username,
+    required String level,
+    required String preferredHand,
+  }) async {
+    state = state.copyWith(
+      status: AuthStatus.loading,
+      error: null,
+      debugDetails: null,
+    );
+
+    try {
+      final user = await _repository.completeSsoOnboarding(
+        username: username,
+        level: level,
+        preferredHand: preferredHand,
+      );
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: user,
+        error: null,
+        debugDetails: null,
+        clearOnboardingPayload: true,
+      );
+    } catch (error) {
+      final message = _extractApiErrorMessage(error) ??
+          'Finalisation du profil SSO impossible. Verifiez le pseudo et reessayez.';
+      state = state.copyWith(
+        status: AuthStatus.needsUsernameSetup,
+        onboardingPayload: {
+          ...(state.onboardingPayload ?? const <String, dynamic>{}),
+          'username': username,
+          'level': level,
+          'preferredHand': preferredHand,
+          'isSso': true,
+        },
+        error: message,
+        debugDetails: null,
+      );
+    }
+  }
+
+  String? _extractApiErrorMessage(Object error) {
+    if (error is! DioException) {
+      return null;
+    }
+
+    final data = error.response?.data;
+    if (data is Map<String, dynamic>) {
+      final message = data['message'];
+      if (message is String && message.trim().isNotEmpty) {
+        return message;
+      }
+      if (message is List) {
+        final first = message.whereType<String>().cast<String?>().firstWhere(
+              (value) => value != null && value.trim().isNotEmpty,
+              orElse: () => null,
+            );
+        if (first != null) {
+          return first;
+        }
+      }
+
+      final errorText = data['error'];
+      if (errorText is String && errorText.trim().isNotEmpty) {
+        return errorText;
+      }
+    }
+
+    final fallback = error.message;
+    if (fallback != null && fallback.trim().isNotEmpty) {
+      return fallback;
+    }
+    return null;
   }
 
   Future<void> continueAsGuest() async {
@@ -256,6 +355,15 @@ class AuthController extends StateNotifier<AuthState> {
             ? AuthStatus.needsUsernameSetup
             : AuthStatus.authenticated,
         user: result.user,
+        onboardingPayload: result.isNewUser
+            ? {
+                'username': result.user.username.startsWith('Joueur_')
+                    ? ''
+                    : result.user.username,
+                'email': result.user.email ?? '',
+                'isSso': true,
+              }
+            : null,
         error: null,
         debugDetails: null,
       );
@@ -417,12 +525,14 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: user,
+        clearOnboardingPayload: true,
         error: null,
         debugDetails: null,
       );
     } catch (_) {
       state = state.copyWith(
         status: AuthStatus.authenticated,
+        clearOnboardingPayload: true,
         error: null,
         debugDetails: null,
       );

@@ -16,4 +16,8 @@ export class UpdateClubDto {
   @IsNumber()
   @IsOptional()
   longitude?: number;
+
+  @IsString()
+  @IsOptional()
+  code_iris?: string;
 }

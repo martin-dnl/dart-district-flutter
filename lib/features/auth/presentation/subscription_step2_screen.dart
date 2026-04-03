@@ -183,7 +183,11 @@ class _SubscriptionStep2ScreenState extends ConsumerState<SubscriptionStep2Scree
                                 !_acceptedRules || authState.status == AuthStatus.loading
                                 ? null
                                 : () {
-                                    final isSso = widget.payload['isSso'] == true;
+                                    // isSso is authoritative from authState
+                                    // (payload flag may be lost on router redirect).
+                                    final isSso = widget.payload['isSso'] == true ||
+                                        authState.status == AuthStatus.needsUsernameSetup ||
+                                        (authState.onboardingPayload?['isSso'] == true);
                                     if (isSso) {
                                       ref
                                           .read(authControllerProvider.notifier)

@@ -350,23 +350,24 @@ class AuthController extends StateNotifier<AuthState> {
           : await _repository.signInWithGoogleAccessToken(
               accessToken: accessToken!,
             );
-      state = state.copyWith(
-        status: result.isNewUser
-            ? AuthStatus.needsUsernameSetup
-            : AuthStatus.authenticated,
-        user: result.user,
-        onboardingPayload: result.isNewUser
-            ? {
-                'username': result.user.username.startsWith('Joueur_')
-                    ? ''
-                    : result.user.username,
-                'email': result.user.email ?? '',
-                'isSso': true,
-              }
-            : null,
-        error: null,
-        debugDetails: null,
-      );
+        state = state.copyWith(
+          status: result.isNewUser
+              ? AuthStatus.needsUsernameSetup
+              : AuthStatus.authenticated,
+          user: result.user,
+          onboardingPayload: result.isNewUser
+              ? {
+                  'username': result.user.username.startsWith('Joueur_')
+                      ? ''
+                      : result.user.username,
+                  'email': result.user.email ?? '',
+                  'isSso': true,
+                  if (result.ssoToken != null) 'sso_token': result.ssoToken!,
+                }
+              : null,
+          error: null,
+          debugDetails: null,
+        );
     } catch (error, stackTrace) {
       final details = _buildGoogleDiagnostics(
         account: account,
@@ -414,10 +415,11 @@ class AuthController extends StateNotifier<AuthState> {
       ..writeln('platform_web=$kIsWeb')
       ..writeln('default_target_platform=$defaultTargetPlatform')
       ..writeln('platform_summary=${_platformSummary()}')
-      ..writeln('api_base_url=${AppConstants.apiBaseUrl}')
-      ..writeln('ws_base_url=${AppConstants.wsBaseUrl}')
-      ..writeln(
-        'google_web_client_id_set=${AppConstants.googleWebClientId != null && AppConstants.googleWebClientId!.isNotEmpty}',
+          ssoToken: state.onboardingPayload?['sso_token'] as String? ?? '',
+          username: username,
+          level: level,
+          preferredHand: preferredHand,
+        );
       )
       ..writeln(
         'google_server_client_id_set=${AppConstants.googleServerClientId != null && AppConstants.googleServerClientId!.isNotEmpty}',

@@ -187,23 +187,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 18),
                 Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.ctaGradient,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.24),
-                        blurRadius: 28,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: DartButton(
-                    text: 'SE CONNECTER  ->',
-                    onPressed: () => ref.read(authControllerProvider.notifier).signInWithEmail(
-                        email: _emailController.text.trim(),
-                        password: _passwordController.text,
                       ),
                     isLoading: authState.status == AuthStatus.loading,
                     width: double.infinity,
@@ -276,21 +259,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: DartButton(
-                          text: 'Apple',
-                          icon: Icons.apple,
-                          isOutlined: true,
-                          onPressed: () => ref
-                              .read(authControllerProvider.notifier)
-                              .signInWithApple(),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Center(
-                  child: TextButton(
-                    onPressed: () => ref
                         .read(authControllerProvider.notifier)
                         .continueAsGuest(),
                     child: Text(
@@ -446,12 +414,5 @@ class _AuthField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: AppColors.textHint, size: 18),
-            suffixIcon: icon == Icons.lock
-                ? const Icon(Icons.visibility_off, color: AppColors.textHint, size: 18)
-                : null,
-          ),
-        ),
-      ],
-    );
   }
 }

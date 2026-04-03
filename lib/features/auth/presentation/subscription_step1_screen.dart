@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../controller/auth_controller.dart';
 
-class SubscriptionStep1Screen extends StatefulWidget {
+class SubscriptionStep1Screen extends ConsumerStatefulWidget {
   const SubscriptionStep1Screen({
     super.key,
     required this.payload,
@@ -14,10 +16,10 @@ class SubscriptionStep1Screen extends StatefulWidget {
   final Map<String, dynamic> payload;
 
   @override
-  State<SubscriptionStep1Screen> createState() => _SubscriptionStep1ScreenState();
+  ConsumerState<SubscriptionStep1Screen> createState() => _SubscriptionStep1ScreenState();
 }
 
-class _SubscriptionStep1ScreenState extends State<SubscriptionStep1Screen> {
+class _SubscriptionStep1ScreenState extends ConsumerState<SubscriptionStep1Screen> {
   late final TextEditingController _usernameCtrl;
   final _formKey = GlobalKey<FormState>();
   double _levelIndex = 1;
@@ -80,13 +82,7 @@ class _SubscriptionStep1ScreenState extends State<SubscriptionStep1Screen> {
                           }
                           context.go(
                             AppRoutes.subscriptionStep2,
-                            extra: {
-                              ...widget.payload,
-                              'username': _usernameCtrl.text.trim(),
-                              'level': level,
-                              'preferredHand': _handedness,
-                              'availability': _slots.toList(),
-                            },
+                            extra: _buildPayload(level),
                           );
                         },
                         child: const Text('Passer'),
@@ -213,13 +209,7 @@ class _SubscriptionStep1ScreenState extends State<SubscriptionStep1Screen> {
                         }
                         context.go(
                           AppRoutes.subscriptionStep2,
-                          extra: {
-                            ...widget.payload,
-                            'username': _usernameCtrl.text.trim(),
-                            'level': level,
-                            'preferredHand': _handedness,
-                            'availability': _slots.toList(),
-                          },
+                          extra: _buildPayload(level),
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -317,5 +307,24 @@ class _SubscriptionStep1ScreenState extends State<SubscriptionStep1Screen> {
         fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
       ),
     );
+  }
+
+  /// Builds the payload passed to step 2.
+  /// Always re-stamps isSso from the live auth state so the flag survives
+  /// even when the router redirects to this screen without an `extra` payload.
+  Map<String, dynamic> _buildPayload(String level) {
+    final authState = ref.read(authControllerProvider);
+    final isSsoFromState = authState.status == AuthStatus.needsUsernameSetup ||
+        (authState.onboardingPayload?['isSso'] == true);
+    final isSsoFromPayload = widget.payload['isSso'] == true;
+
+    return {
+      ...widget.payload,
+      if (isSsoFromState || isSsoFromPayload) 'isSso': true,
+      'username': _usernameCtrl.text.trim(),
+      'level': level,
+      'preferredHand': _handedness,
+      'availability': _slots.toList(),
+    };
   }
 }

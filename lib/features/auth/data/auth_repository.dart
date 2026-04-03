@@ -47,7 +47,7 @@ class AuthRepository {
     return UserModel.guest();
   }
 
-  Future<({UserModel user, bool isNewUser})> signInWithGoogleIdToken({
+  Future<({UserModel user, bool isNewUser, String? ssoToken})> signInWithGoogleIdToken({
     required String idToken,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
@@ -58,6 +58,19 @@ class AuthRepository {
     );
 
     final authData = _unwrap(response.data);
+
+    // New user: backend returns a pending token, no real JWT issued yet.
+    if (authData['needs_registration'] == true) {
+      final ssoToken = authData['sso_token'] as String? ?? '';
+      final email = authData['email'] as String? ?? '';
+      final name = authData['name'] as String? ?? '';
+      return (
+        user: UserModel.ssoPending(email: email, name: name),
+        isNewUser: true,
+        ssoToken: ssoToken,
+      );
+    }
+
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
       refreshToken: (authData['refresh_token'] ?? '').toString(),
@@ -65,10 +78,10 @@ class AuthRepository {
     final isNewUser = authData['is_new_user'] as bool? ?? false;
     final needsOnboarding = authData['needs_onboarding'] as bool? ?? false;
     final user = await _fetchCurrentUser();
-    return (user: user, isNewUser: isNewUser || needsOnboarding);
+    return (user: user, isNewUser: isNewUser || needsOnboarding, ssoToken: null);
   }
 
-  Future<({UserModel user, bool isNewUser})> signInWithGoogleAccessToken({
+  Future<({UserModel user, bool isNewUser, String? ssoToken})> signInWithGoogleAccessToken({
     required String accessToken,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
@@ -79,6 +92,18 @@ class AuthRepository {
     );
 
     final authData = _unwrap(response.data);
+
+    if (authData['needs_registration'] == true) {
+      final ssoToken = authData['sso_token'] as String? ?? '';
+      final email = authData['email'] as String? ?? '';
+      final name = authData['name'] as String? ?? '';
+      return (
+        user: UserModel.ssoPending(email: email, name: name),
+        isNewUser: true,
+        ssoToken: ssoToken,
+      );
+    }
+
     await TokenStorage.saveTokens(
       accessToken: authData['access_token'] as String,
       refreshToken: (authData['refresh_token'] ?? '').toString(),
@@ -86,21 +111,29 @@ class AuthRepository {
     final isNewUser = authData['is_new_user'] as bool? ?? false;
     final needsOnboarding = authData['needs_onboarding'] as bool? ?? false;
     final user = await _fetchCurrentUser();
-    return (user: user, isNewUser: isNewUser || needsOnboarding);
+    return (user: user, isNewUser: isNewUser || needsOnboarding, ssoToken: null);
   }
 
   Future<UserModel> completeSsoOnboarding({
+    required String ssoToken,
     required String username,
     required String level,
     required String preferredHand,
   }) async {
-    await _api.patch<Map<String, dynamic>>(
-      '/users/me',
+    final response = await _api.post<Map<String, dynamic>>(
+      '/auth/sso/complete',
       data: {
-        'username': username,
+        'sso_token': ssoToken,
+        'display_name': username,
         'level': level,
         'preferred_hand': preferredHand,
       },
+    );
+
+    final authData = _unwrap(response.data);
+    await TokenStorage.saveTokens(
+      accessToken: authData['access_token'] as String,
+      refreshToken: (authData['refresh_token'] ?? '').toString(),
     );
 
     return _fetchCurrentUser();

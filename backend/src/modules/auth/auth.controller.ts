@@ -19,6 +19,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SocialLoginDto } from './dto/social-login.dto';
+import { SsoCompleteDto } from './dto/sso-complete.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -114,6 +115,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   guestLogin() {
     return this.authService.guestLogin();
+  }
+
+  @Post('sso/complete')
+  @HttpCode(HttpStatus.OK)
+  ssoComplete(@Body() dto: SsoCompleteDto) {
+    return this.authService.completeSsoRegistration(dto);
   }
 
   @Post('refresh')

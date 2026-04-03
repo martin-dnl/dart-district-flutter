@@ -4,6 +4,7 @@ import {
   ConflictException,
   Logger,
   BadRequestException,
+  BadGatewayException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,6 +16,7 @@ import { AuthProvider } from './entities/auth-provider.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { RegisterDto, RegisterProvider } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { SsoCompleteDto } from './dto/sso-complete.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
@@ -94,84 +96,89 @@ export class AuthService {
 
   /* ───── Social Login (Google / Apple) ───── */
   async socialLogin(provider: 'google' | 'apple', payload: { email: string; name: string; provider_uid: string }) {
+    // 1. Existing link by provider_uid
     const linkedProvider = await this.authProviderRepo.findOne({
       where: { provider, provider_uid: payload.provider_uid },
       relations: ['user'],
     });
 
-    let user = linkedProvider?.user ?? null;
-
-    if (!user) {
-      user = await this.userRepo.findOne({ where: { email: payload.email } });
+    if (linkedProvider?.user) {
+      const tokens = await this.generateTokens(linkedProvider.user);
+      const needsOnboarding = linkedProvider.user.username.startsWith('Joueur_');
+      return { ...tokens, is_new_user: false, needs_onboarding: needsOnboarding, email: linkedProvider.user.email, provider };
     }
 
-    let isNewUser = false;
-
-    if (!user) {
-      isNewUser = true;
-      // Use a random temporary username; user will pick their real one after SSO.
-      // Include more entropy to avoid UNIQUE constraint collisions.
-      const tempUsername = `Joueur_${randomUUID().slice(0, 8)}`;
-      user = this.userRepo.create({
-        username: tempUsername,
-        email: payload.email,
-      });
-      try {
-        await this.userRepo.save(user);
-      } catch (saveError: unknown) {
-        // Handle race condition: user may have been created concurrently.
-        const msg = saveError instanceof Error ? saveError.message : '';
-        if (msg.includes('duplicate') || msg.includes('unique') || msg.includes('23505')) {
-          const retryUser = await this.userRepo.findOne({ where: { email: payload.email } });
-          if (retryUser) {
-            user = retryUser;
-            isNewUser = false;
-          } else {
-            throw saveError;
-          }
-        } else {
-          throw saveError;
-        }
-      }
-    }
-
-    if (!linkedProvider) {
+    // 2. Existing user by email (link the provider)
+    const existingUser = await this.userRepo.findOne({ where: { email: payload.email } });
+    if (existingUser) {
       const existingAp = await this.authProviderRepo.findOne({
-        where: { user: { id: user.id }, provider },
+        where: { user: { id: existingUser.id }, provider },
       });
-
-      if (existingAp && existingAp.provider_uid !== payload.provider_uid) {
-        throw new UnauthorizedException('Social account mismatch for this user');
-      }
-
       if (!existingAp) {
-        try {
-          const ap = this.authProviderRepo.create({
-            user,
-            provider,
-            provider_uid: payload.provider_uid,
-          });
-          await this.authProviderRepo.save(ap);
-        } catch (apError: unknown) {
-          // Ignore duplicate auth_provider (race condition or retry).
-          const msg = apError instanceof Error ? apError.message : '';
-          if (!(msg.includes('duplicate') || msg.includes('unique') || msg.includes('23505'))) {
-            throw apError;
-          }
-        }
+        const ap = this.authProviderRepo.create({ user: existingUser, provider, provider_uid: payload.provider_uid });
+        await this.authProviderRepo.save(ap);
       }
+      const tokens = await this.generateTokens(existingUser);
+      const needsOnboarding = existingUser.username.startsWith('Joueur_');
+      return { ...tokens, is_new_user: false, needs_onboarding: needsOnboarding, email: existingUser.email, provider };
     }
 
-    const tokens = await this.generateTokens(user);
-    const needsOnboarding = user.username.startsWith('Joueur_');
+    // 3. Brand-new user: issue a short-lived pending token – NO DB write.
+    const sso_token = this.jwtService.sign(
+      { type: 'sso_pending', email: payload.email, name: payload.name, provider_uid: payload.provider_uid, provider },
+      { expiresIn: '30m' },
+    );
 
-    return {
-      ...tokens,
-      is_new_user: isNewUser,
-      needs_onboarding: needsOnboarding,
-      email: user.email,
-      provider,
-    };
+    return { needs_registration: true, sso_token, email: payload.email, name: payload.name };
+  }
+
+  /* ───── Complete SSO Registration ───── */
+  async completeSsoRegistration(dto: SsoCompleteDto) {
+    let pending: { type?: string; email: string; name: string; provider_uid: string; provider: string };
+    try {
+      pending = this.jwtService.verify(dto.sso_token) as typeof pending;
+    } catch {
+      throw new UnauthorizedException('Token d\'inscription SSO invalide ou expire. Recommencez la connexion Google.');
+    }
+
+    if (pending.type !== 'sso_pending') {
+      throw new UnauthorizedException('Type de token SSO invalide');
+    }
+
+    // Guard: if account already exists from a concurrent attempt, just return tokens.
+    const existingProvider = await this.authProviderRepo.findOne({
+      where: { provider: pending.provider as 'google' | 'apple', provider_uid: pending.provider_uid },
+      relations: ['user'],
+    });
+    if (existingProvider?.user) {
+      return this.generateTokens(existingProvider.user);
+    }
+
+    const existingByEmail = await this.userRepo.findOne({ where: { email: pending.email } });
+    if (existingByEmail) {
+      const ap = this.authProviderRepo.create({ user: existingByEmail, provider: pending.provider as 'google' | 'apple', provider_uid: pending.provider_uid });
+      await this.authProviderRepo.save(ap).catch(() => { /* ignore duplicate */ });
+      return this.generateTokens(existingByEmail);
+    }
+
+    const username = dto.display_name.trim();
+    const existingUsername = await this.userRepo.findOne({ where: { username } });
+    if (existingUsername) {
+      throw new ConflictException('Ce pseudo est deja utilise. Choisissez-en un autre.');
+    }
+
+    const user = this.userRepo.create({
+      username,
+      email: pending.email,
+      level: dto.level ?? 'intermediate',
+      preferred_hand: (dto.preferred_hand ?? 'right') as 'right' | 'left',
+    });
+    await this.userRepo.save(user);
+
+    const ap = this.authProviderRepo.create({ user, provider: pending.provider as 'google' | 'apple', provider_uid: pending.provider_uid });
+    await this.authProviderRepo.save(ap);
+
+    return this.generateTokens(user);
   }
 
   /* ───── Guest Login ───── */

@@ -31,6 +31,16 @@ class UserModel {
     );
   }
 
+  /// Temporary placeholder for a new SSO user not yet registered in DB.
+  factory UserModel.ssoPending({required String email, required String name}) {
+    return UserModel(
+      id: 'sso_pending',
+      username: name.isNotEmpty ? name : email.split('@').first,
+      email: email,
+      createdAt: DateTime.now(),
+    );
+  }
+
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as String,
@@ -86,6 +96,7 @@ class UserModel {
   };
 
   bool get isGuest => id == 'guest';
+  bool get isSsoPending => id == 'sso_pending';
 }
 
 class PlayerStats {

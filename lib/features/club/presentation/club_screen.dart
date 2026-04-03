@@ -367,26 +367,7 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
                     ref.read(clubSearchControllerProvider.notifier).clear();
                   },
                 ),
-              ),
-              if (canCreateClub) ...[
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 82),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => context.push(AppRoutes.clubCreate),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.background,
-                        minimumSize: const Size.fromHeight(50),
-                      ),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Créer un club'),
-                    ),
-                  ),
-                ),
-              ],
+              )
             ],
           ),
         ),

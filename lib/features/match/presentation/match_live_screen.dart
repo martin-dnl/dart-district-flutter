@@ -18,6 +18,7 @@ import '../data/match_service.dart';
 import '../models/match_model.dart';
 import '../widgets/scoreboard.dart';
 import '../widgets/dart_input.dart';
+import '../widgets/dartboard_input.dart';
 import '../widgets/round_details.dart';
 
 class MatchLiveScreen extends ConsumerStatefulWidget {
@@ -32,6 +33,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   final Set<int> _animatedPlayerIndexes = <int>{};
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _manualScoreMode = 'MANUAL';
+  static const String _dartboardScoreMode = 'DARTBOARD';
   String _scoreMode = _manualScoreMode;
 
   bool _isRemoteMatch() {
@@ -223,18 +225,18 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     return message ?? fallback;
   }
 
-  Future<void> _submitScore(int score) async {
+  Future<void> _submitScore(int score, {int? forcedDoublesAttempted}) async {
     final match = ref.read(matchControllerProvider);
     final currentPlayerIndex = match.currentPlayerIndex;
     final currentPlayer = match.players[currentPlayerIndex];
     final remainingAfterThrow = currentPlayer.score - score;
     final shouldAnimateScore =
         remainingAfterThrow >= 0 && score > 0 && score <= currentPlayer.score;
-    int? doublesAttempted;
+    int? doublesAttempted = forcedDoublesAttempted;
 
     final isDoubleOutCheckout =
         _isDoubleOut(match.finishType) && score == currentPlayer.score;
-    if (isDoubleOutCheckout) {
+    if (isDoubleOutCheckout && doublesAttempted == null) {
       doublesAttempted = await _askDoubleAttempts();
       if (doublesAttempted == null) {
         return;
@@ -383,6 +385,10 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                       DropdownMenuItem(
                         value: _manualScoreMode,
                         child: Text('MANUAL'),
+                      ),
+                      DropdownMenuItem(
+                        value: _dartboardScoreMode,
+                        child: Text('DARTBOARD'),
                       ),
                     ],
                     onChanged: (value) {
@@ -745,6 +751,22 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                                       .score,
                                   onSubmit: _submitScore,
                                   fillAvailableHeight: true,
+                                ),
+                              )
+                            else if (_scoreMode == _dartboardScoreMode)
+                              SizedBox.expand(
+                                child: DartboardInput(
+                                  maxScore: match
+                                      .players[match.currentPlayerIndex]
+                                      .score,
+                                  fillAvailableHeight: true,
+                                  onSubmitVisit: (visit) {
+                                    _submitScore(
+                                      visit.total,
+                                      forcedDoublesAttempted:
+                                          visit.doubleAttempts,
+                                    );
+                                  },
                                 ),
                               )
                             else

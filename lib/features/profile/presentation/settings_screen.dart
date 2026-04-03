@@ -22,6 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isSavingGameOptions = false;
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _manualScoreMode = 'MANUAL';
+  static const String _dartboardScoreMode = 'DARTBOARD';
   String _scoreMode = _manualScoreMode;
 
   @override
@@ -73,10 +74,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final api = ref.read(apiClientProvider);
       await api.patch<Map<String, dynamic>>(
         '/users/me/settings',
-        data: {
-          'key': _scoreModeSettingKey,
-          'value': nextMode,
-        },
+        data: {'key': _scoreModeSettingKey, 'value': nextMode},
       );
     } catch (_) {
       if (mounted) {
@@ -171,9 +169,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -204,7 +200,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: _manualScoreMode, child: Text('MANUAL')),
+                    DropdownMenuItem(
+                      value: _manualScoreMode,
+                      child: Text('MANUAL'),
+                    ),
+                    DropdownMenuItem(
+                      value: _dartboardScoreMode,
+                      child: Text('DARTBOARD'),
+                    ),
                   ],
                   onChanged: _isSavingGameOptions
                       ? null
@@ -246,8 +249,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -256,7 +261,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 10),
               if (!isGuest)
                 ElevatedButton.icon(
-                  onPressed: _isDeletingAccount ? null : _confirmAndDeleteAccount,
+                  onPressed: _isDeletingAccount
+                      ? null
+                      : _confirmAndDeleteAccount,
                   icon: const Icon(Icons.delete_forever),
                   label: Text(
                     _isDeletingAccount

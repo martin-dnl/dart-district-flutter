@@ -308,6 +308,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: AppRoutes.clubCreate,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ClubCreateScreen(),
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.clubDetail,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, state) {
@@ -317,14 +325,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: ClubDetailScreen(id: id),
           );
         },
-      ),
-      GoRoute(
-        path: AppRoutes.clubCreate,
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (_, state) => NoTransitionPage(
-          key: state.pageKey,
-          child: const ClubCreateScreen(),
-        ),
       ),
       GoRoute(
         path: AppRoutes.tournamentCreate,

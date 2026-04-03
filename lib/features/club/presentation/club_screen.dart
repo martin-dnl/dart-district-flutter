@@ -360,6 +360,8 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
               Expanded(
                 child: _ClubSearchResults(
                   state: searchState,
+                  canCreateClub: canCreateClub,
+                  onCreateClub: () => context.push(AppRoutes.clubCreate),
                   onReset: () {
                     _searchController.clear();
                     ref.read(clubSearchControllerProvider.notifier).clear();
@@ -394,10 +396,17 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
 }
 
 class _ClubSearchResults extends StatelessWidget {
-  const _ClubSearchResults({required this.state, required this.onReset});
+  const _ClubSearchResults({
+    required this.state,
+    required this.onReset,
+    required this.canCreateClub,
+    required this.onCreateClub,
+  });
 
   final ClubSearchState state;
   final VoidCallback onReset;
+  final bool canCreateClub;
+  final VoidCallback onCreateClub;
 
   @override
   Widget build(BuildContext context) {
@@ -418,10 +427,23 @@ class _ClubSearchResults extends StatelessWidget {
     }
 
     if (state.results.isEmpty && (state.query ?? '').trim().isNotEmpty) {
-      return const Center(
-        child: Text(
-          'Aucun club trouvé',
-          style: TextStyle(color: AppColors.textSecondary),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Aucun club trouvé',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            if (canCreateClub) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: onCreateClub,
+                icon: const Icon(Icons.add),
+                label: const Text('Créer un club'),
+              ),
+            ],
+          ],
         ),
       );
     }
@@ -443,6 +465,14 @@ class _ClubSearchResults extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             TextButton(onPressed: onReset, child: const Text('Réinitialiser')),
+            if (canCreateClub) ...[
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: onCreateClub,
+                icon: const Icon(Icons.add),
+                label: const Text('Créer un club'),
+              ),
+            ],
           ],
         ),
       );

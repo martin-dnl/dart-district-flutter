@@ -5,8 +5,14 @@ import '../../../core/config/app_colors.dart';
 class DartInput extends StatefulWidget {
   final int maxScore;
   final ValueChanged<int> onSubmit;
+  final bool fillAvailableHeight;
 
-  const DartInput({super.key, required this.maxScore, required this.onSubmit});
+  const DartInput({
+    super.key,
+    required this.maxScore,
+    required this.onSubmit,
+    this.fillAvailableHeight = false,
+  });
 
   @override
   State<DartInput> createState() => _DartInputState();
@@ -48,7 +54,12 @@ class _DartInputState extends State<DartInput> {
         ),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: widget.fillAvailableHeight
+            ? MainAxisSize.max
+            : MainAxisSize.min,
+        mainAxisAlignment: widget.fillAvailableHeight
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           // Score display
           Container(

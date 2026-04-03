@@ -8,6 +8,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
+import '../../auth/controller/auth_controller.dart';
+import '../../home/controller/recent_ranked_matches_provider.dart';
+import '../../profile/controller/profile_controller.dart';
 import '../data/checkout_chart.dart';
 import '../controller/match_controller.dart';
 import '../controller/ongoing_matches_controller.dart';
@@ -26,7 +29,6 @@ class MatchLiveScreen extends ConsumerStatefulWidget {
 
 class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   bool _didShowEndDialog = false;
-  bool _showRoundHistory = false;
   final Set<int> _animatedPlayerIndexes = <int>{};
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _manualScoreMode = 'MANUAL';
@@ -568,6 +570,8 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     }
     _didShowEndDialog = true;
 
+    await _refreshPostMatchState();
+
     final shouldOpenReport = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -606,6 +610,22 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
       final reportPath = AppRoutes.matchReport.replaceFirst(':id', match.id);
       context.pushReplacement(reportPath, extra: match);
     }
+  }
+
+  Future<void> _refreshPostMatchState() async {
+    try {
+      await ref.read(ongoingMatchesControllerProvider.notifier).refresh();
+    } catch (_) {}
+
+    try {
+      await ref.read(profileControllerProvider.notifier).refresh();
+    } catch (_) {}
+
+    try {
+      await ref.read(authControllerProvider.notifier).refreshCurrentUser();
+    } catch (_) {}
+
+    ref.invalidate(recentRankedMatchesProvider);
   }
 
   @override
@@ -697,66 +717,6 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
               animatedPlayerIndexes: _animatedPlayerIndexes,
             ),
 
-            if (match.roundHistory.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 2, 12, 6),
-                child: Column(
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () {
-                        setState(() {
-                          _showRoundHistory = !_showRoundHistory;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 4,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _showRoundHistory
-                                  ? 'Masquer historique'
-                                  : 'Afficher historique',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Icon(
-                              _showRoundHistory
-                                  ? Icons.expand_less
-                                  : Icons.expand_more,
-                              color: AppColors.textSecondary,
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      height: _showRoundHistory ? 90 : 0,
-                      child: ClipRect(
-                        child: IgnorePointer(
-                          ignoring: !_showRoundHistory,
-                          child: RoundDetails(
-                            roundHistory: match.roundHistory,
-                            players: match.players,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
             if (_isX01Mode(match.mode))
               Expanded(
                 child: DefaultTabController(
@@ -776,13 +736,13 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                         child: TabBarView(
                           children: [
                             if (_scoreMode == _manualScoreMode)
-                              Align(
-                                alignment: Alignment.bottomCenter,
+                              SizedBox.expand(
                                 child: DartInput(
                                   maxScore: match
                                       .players[match.currentPlayerIndex]
                                       .score,
                                   onSubmit: _submitScore,
+                                  fillAvailableHeight: true,
                                 ),
                               )
                             else
@@ -817,7 +777,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   }
 }
 
-class _X01GuidelineTab extends StatelessWidget {
+class _X01GuidelineTab extends StatefulWidget {
   const _X01GuidelineTab({
     required this.match,
     required this.currentPlayerIndex,
@@ -826,14 +786,21 @@ class _X01GuidelineTab extends StatelessWidget {
   final MatchModel match;
   final int currentPlayerIndex;
 
+  @override
+  State<_X01GuidelineTab> createState() => _X01GuidelineTabState();
+}
+
+class _X01GuidelineTabState extends State<_X01GuidelineTab> {
+  bool _showRoundHistory = true;
+
   bool get _isDoubleOut {
-    final normalized = match.finishType.toLowerCase();
+    final normalized = widget.match.finishType.toLowerCase();
     return normalized == 'doubleout' || normalized == 'double_out';
   }
 
   @override
   Widget build(BuildContext context) {
-    final player = match.players[currentPlayerIndex];
+    final player = widget.match.players[widget.currentPlayerIndex];
     final score = player.score;
     final checkout = (score >= 2 && score <= 170) ? checkoutChart[score] : null;
 
@@ -853,49 +820,105 @@ class _X01GuidelineTab extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Guideline ${match.mode}',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Joueur: ${player.name}',
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Score restant: $score',
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.stroke),
-            ),
-            child: Text(
-              hint,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Guideline ${widget.match.mode}',
               style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Joueur: ${player.name}',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Score restant: $score',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.stroke),
+              ),
+              child: Text(
+                hint,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (widget.match.roundHistory.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () {
+                  setState(() {
+                    _showRoundHistory = !_showRoundHistory;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _showRoundHistory
+                            ? 'Masquer historique'
+                            : 'Afficher historique',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        _showRoundHistory
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        color: AppColors.textSecondary,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                height: _showRoundHistory ? 96 : 0,
+                child: ClipRect(
+                  child: IgnorePointer(
+                    ignoring: !_showRoundHistory,
+                    child: RoundDetails(
+                      roundHistory: widget.match.roundHistory,
+                      players: widget.match.players,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

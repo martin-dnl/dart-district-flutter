@@ -26,8 +26,14 @@ class ScoreDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasCheckout = checkoutText != null;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        hasCheckout ? 12 : 16,
+        16,
+        hasCheckout ? 12 : 16,
+      ),
       decoration: BoxDecoration(
         color: isActive
             ? AppColors.primary.withValues(alpha: 0.15)
@@ -48,13 +54,13 @@ class ScoreDisplay extends StatelessWidget {
               color: isActive ? AppColors.primary : AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: hasCheckout ? 5 : 8),
           _AnimatedScoreNumber(
             score: score,
             animate: animateScoreChange,
             isActive: isActive,
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             averageText ?? 'Moy. 0.0',
             style: const TextStyle(
@@ -63,18 +69,26 @@ class ScoreDisplay extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (checkoutText != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              checkoutText!,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.accent,
-                fontWeight: FontWeight.w500,
-              ),
+          const SizedBox(height: 2),
+          SizedBox(
+            height: 14,
+            child: Align(
+              alignment: Alignment.center,
+              child: checkoutText == null
+                  ? null
+                  : Text(
+                      checkoutText!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
             ),
-          ],
-          const SizedBox(height: 8),
+          ),
+          SizedBox(height: hasCheckout ? 5 : 8),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [

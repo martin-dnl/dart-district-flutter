@@ -46,6 +46,10 @@ class ProfileController extends StateNotifier<ProfileState> {
 
   final Ref _ref;
 
+  Future<void> refresh() async {
+    await _loadProfile();
+  }
+
   Future<void> _loadProfile() async {
     state = const ProfileState(isLoading: true);
 
@@ -59,7 +63,8 @@ class ProfileController extends StateNotifier<ProfileState> {
         '/stats/me/elo-history?limit=20',
       );
       final matchesResponse = await api.get<Map<String, dynamic>>(
-        '/matches/me?limit=20',
+        '/matches/me',
+        queryParameters: const {'limit': '20', 'status': 'completed'},
       );
 
       final statsData =

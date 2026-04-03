@@ -636,7 +636,7 @@ export class MatchesService {
       : Math.ceil(match.legs_per_set / 2);
 
     // Count legs won by this player in current set
-    const legsWon = set.legs.filter((l) => l.winner?.id === winnerId).length;
+    const legsWon = set.legs.filter((l) => l.winner_id === winnerId).length;
 
     if (legsWon >= legsToWin) {
       // Set won
@@ -658,7 +658,7 @@ export class MatchesService {
     const setsToWin = this.isInvitationFlow(match)
       ? match.total_sets
       : Math.ceil(match.total_sets / 2);
-    const setsWon = match.sets.filter((s) => s.winner?.id === lastSetWinnerId).length;
+    const setsWon = match.sets.filter((s) => s.winner_id === lastSetWinnerId).length;
 
     if (setsWon >= setsToWin) {
       // Match won

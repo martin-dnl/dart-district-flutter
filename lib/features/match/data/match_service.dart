@@ -201,6 +201,8 @@ class MatchService {
       case 'inProgress':
       case 'in_progress':
         return MatchStatus.inProgress;
+      case 'completed':
+      case 'cancelled':
       case 'finished':
         return MatchStatus.finished;
       default:

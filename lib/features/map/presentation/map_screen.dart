@@ -939,7 +939,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         userAgentPackageName: 'fr.dartdistrict.app',
                         tileDisplay: const fm.TileDisplay.fadeIn(),
                       ),
-                      if (_showZones)
+                      if (_showZones && mapState.activeIrisCodes.isNotEmpty)
                         VectorTileLayer(
                           theme: _getOrBuildTheme(
                             territoriesToRender,

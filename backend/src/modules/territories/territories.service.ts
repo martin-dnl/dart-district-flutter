@@ -336,15 +336,16 @@ export class TerritoriesService {
     });
 
     // Get club rankings by number of conquered territories
+    // Cast status to text to avoid enum mismatch if DB enum was created before 'locked' was added
     const clubRankings = await this.dataSource.query(`
       SELECT 
         c.id,
         c.name,
         COUNT(t.code_iris) as territories_count,
-        COUNT(CASE WHEN t.status = 'conquered' THEN 1 END) as conquered_count,
-        COUNT(CASE WHEN t.status = 'locked' THEN 1 END) as locked_count,
-        COUNT(CASE WHEN t.status = 'alert' THEN 1 END) as alert_count,
-        COUNT(CASE WHEN t.status = 'conflict' THEN 1 END) as conflict_count
+        COUNT(CASE WHEN t.status::text = 'conquered' THEN 1 END) as conquered_count,
+        COUNT(CASE WHEN t.status::text = 'locked' THEN 1 END) as locked_count,
+        COUNT(CASE WHEN t.status::text = 'alert' THEN 1 END) as alert_count,
+        COUNT(CASE WHEN t.status::text = 'conflict' THEN 1 END) as conflict_count
       FROM clubs c
       LEFT JOIN territories t ON c.id = t.owner_club_id
       GROUP BY c.id, c.name

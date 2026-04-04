@@ -88,6 +88,8 @@ class MapController extends StateNotifier<MapState> {
         '/territories/clubs/zones',
       );
       final clubsMapResponse = await api.get<dynamic>('/clubs/map');
+      // ignore: avoid_print
+      print('[MapController] /clubs/map raw response type: ${clubsMapResponse.data.runtimeType}');
       final activeZonesResponse = await api.get<Map<String, dynamic>>(
         '/territories/tileset/active-zones',
       );
@@ -137,6 +139,14 @@ class MapController extends StateNotifier<MapState> {
 
       final clubMarkers = _extractMapList(clubsMapResponse.data);
 
+      // Debug: log club markers and active codes
+      // ignore: avoid_print
+      print('[MapController] clubMarkers count: ${clubMarkers.length}');
+      for (final c in clubMarkers) {
+        // ignore: avoid_print
+        print('[MapController] club: id=${c['id']}, name=${c['name']}, lat=${c['latitude']}, lng=${c['longitude']}, code_iris=${c['code_iris']}');
+      }
+
       final activeCodesData =
           (activeZonesResponse.data?['data']?['codes'] as List<dynamic>? ??
                   activeZonesResponse.data?['codes'] as List<dynamic>? ??
@@ -144,6 +154,9 @@ class MapController extends StateNotifier<MapState> {
               .map((item) => item.toString().trim().toUpperCase())
               .where((code) => code.isNotEmpty)
               .toSet();
+
+      // ignore: avoid_print
+      print('[MapController] activeIrisCodes count: ${activeCodesData.length}, codes: $activeCodesData');
 
       state = state.copyWith(
         isLoading: false,
@@ -153,7 +166,9 @@ class MapController extends StateNotifier<MapState> {
             clubZoneCodes: clubZoneCodes,
             activeIrisCodes: activeCodesData,
       );
-    } catch (_) {
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[MapController] _loadTerritories ERROR: $e\n$st');
       state = state.copyWith(isLoading: false, territories: const []);
     }
   }

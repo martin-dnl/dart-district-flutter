@@ -175,7 +175,7 @@ export class ClubsService {
   async findForMap() {
     const clubs = await this.clubRepo.find({
       where: {},
-      select: ['id', 'name', 'latitude', 'longitude', 'code_iris', 'city'],
+      select: ['id', 'name', 'latitude', 'longitude', 'code_iris', 'city', 'address'],
       order: { name: 'ASC' },
     });
 

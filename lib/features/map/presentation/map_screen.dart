@@ -58,6 +58,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   vtr.Theme? _cachedTheme;
   List<TerritoryModel>? _cachedThemeTerritories;
   String? _cachedThemeLayerName;
+  Set<String>? _cachedActiveIrisCodes;
 
   // Debounced camera tracking – avoids setState storm while panning
   Timer? _cameraDebounce;
@@ -309,18 +310,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ];
   }
 
-  List<dynamic> _activeFilter(Set<String> activeCodes) {
+  /// Only matches features whose code_iris is in the given set of club codes.
+  List<dynamic> _clubZonesFilter(Set<String> clubCodes) {
+    final codes = clubCodes.toList(growable: false);
     return [
       'any',
-      ['in', 'code_iris', ...activeCodes],
-      ['in', 'CODE_IRIS', ...activeCodes],
-      ['in', 'Code_iris', ...activeCodes],
-      ['in', 'code', ...activeCodes],
+      ['in', 'code_iris', ...codes],
+      ['in', 'CODE_IRIS', ...codes],
+      ['in', 'Code_iris', ...codes],
+      ['in', 'code', ...codes],
     ];
-  }
-
-  List<dynamic> _andFilter(List<dynamic> first, List<dynamic> second) {
-    return ['all', first, second];
   }
 
   List<String> _sourceLayerCandidates(String preferredLayerName) {
@@ -346,12 +345,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Return cached theme if inputs haven't changed
     if (_cachedTheme != null &&
         _cachedThemeLayerName == layerName &&
-        identical(_cachedThemeTerritories, territories)) {
+        identical(_cachedThemeTerritories, territories) &&
+        identical(_cachedActiveIrisCodes, activeCodes)) {
       return _cachedTheme!;
     }
     _cachedTheme = _buildIrisStatusTheme(territories, layerName, activeCodes);
     _cachedThemeTerritories = territories;
     _cachedThemeLayerName = layerName;
+    _cachedActiveIrisCodes = activeCodes;
     return _cachedTheme!;
   }
 
@@ -381,7 +382,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final sourceLayers = _sourceLayerCandidates(layerName);
 
     for (final sourceLayer in sourceLayers) {
-      final activeFilter = _activeFilter(activeCodes);
+      // Only render zones that have at least one club associated
+      if (activeCodes.isEmpty) continue;
+      final baseFilter = _clubZonesFilter(activeCodes);
 
       // Base: available zones — green, low opacity (maps.jsx "free")
       layers.addAll([
@@ -390,7 +393,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'type': 'fill',
           'source': 'pmtiles',
           'source-layer': sourceLayer,
-          'filter': activeFilter,
+          'filter': baseFilter,
           'paint': {'fill-color': '#22c55e', 'fill-opacity': 0.28},
         },
         {
@@ -398,7 +401,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'type': 'line',
           'source': 'pmtiles',
           'source-layer': sourceLayer,
-          'filter': activeFilter,
+          'filter': baseFilter,
           'paint': {
             'line-color': '#22c55e',
             'line-width': 2.0,
@@ -415,7 +418,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(conquered)),
+            'filter': _statusFilter(conquered),
             'paint': {'fill-color': '#c8ff00', 'fill-opacity': 0.34},
           },
           {
@@ -423,7 +426,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(conquered)),
+            'filter': _statusFilter(conquered),
             'paint': {
               'line-color': '#c8ff00',
               'line-width': 2.4,
@@ -441,7 +444,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(locked)),
+            'filter': _statusFilter(locked),
             'paint': {'fill-color': '#3b82f6', 'fill-opacity': 0.36},
           },
           {
@@ -449,7 +452,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(locked)),
+            'filter': _statusFilter(locked),
             'paint': {
               'line-color': '#3b82f6',
               'line-width': 2.4,
@@ -467,7 +470,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(conflict)),
+            'filter': _statusFilter(conflict),
             'paint': {'fill-color': '#ef4444', 'fill-opacity': 0.42},
           },
           {
@@ -475,7 +478,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(conflict)),
+            'filter': _statusFilter(conflict),
             'paint': {
               'line-color': '#ef4444',
               'line-width': 2.8,
@@ -493,7 +496,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(alert)),
+            'filter': _statusFilter(alert),
             'paint': {'fill-color': '#ff6b6b', 'fill-opacity': 0.46},
           },
           {
@@ -501,7 +504,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _andFilter(activeFilter, _statusFilter(alert)),
+            'filter': _statusFilter(alert),
             'paint': {
               'line-color': '#ff6b6b',
               'line-width': 2.8,
@@ -591,37 +594,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     if (!mounted) return;
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewPadding.bottom + 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 16),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.stroke,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                     // Header row: icon + name/status + points
                     Row(
                       children: [
@@ -817,10 +804,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                       ),
                     const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

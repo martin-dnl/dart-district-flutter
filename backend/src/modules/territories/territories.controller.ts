@@ -31,13 +31,7 @@ export class TerritoriesController {
   @Get('tileset/active-zones')
   async activeZones() {
     const codes = await this.territoriesService.getActiveIrisCodes();
-    return {
-      success: true,
-      data: {
-        codes,
-      },
-      error: null,
-    };
+    return { codes };
   }
 
   @Get('map/statuses')

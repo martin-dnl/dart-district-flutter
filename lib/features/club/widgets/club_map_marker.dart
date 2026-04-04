@@ -12,9 +12,10 @@ class ClubMapMarker extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        boxShadow: [
+        border: Border.all(color: AppColors.primary, width: 2),
+        boxShadow: const [
           BoxShadow(
             color: Colors.black54,
             blurRadius: 8,
@@ -22,8 +23,11 @@ class ClubMapMarker extends StatelessWidget {
           ),
         ],
       ),
-      child: CustomPaint(
-        painter: _DartboardPainter(),
+      child: ClipOval(
+        child: CustomPaint(
+          size: Size(size - 4, size - 4),
+          painter: _DartboardPainter(),
+        ),
       ),
     );
   }

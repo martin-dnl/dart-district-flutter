@@ -35,6 +35,7 @@ type IndexedIrisFeature = {
 @Injectable()
 export class TerritoriesService {
   private static readonly HIT_TEST_MAX_VISIBLE_WIDTH_KM = 5;
+  private static readonly GEOJSON_NEAREST_FALLBACK_KM = 12;
   private schemaInfoPromise?: Promise<{
     hasIrisTerritories: boolean;
     hasLegacyTerritories: boolean;
@@ -623,6 +624,96 @@ export class TerritoriesService {
     return false;
   }
 
+  private isValidCoordinates(lat: number, lng: number): boolean {
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  private haversineDistanceKm(
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ): number {
+    const toRadians = (value: number) => (value * Math.PI) / 180;
+
+    const dLat = toRadians(toLat - fromLat);
+    const dLng = toRadians(toLng - fromLng);
+    const lat1 = toRadians(fromLat);
+    const lat2 = toRadians(toLat);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+
+    return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }
+
+  private findNearestFeatureByBboxDistance(
+    index: IndexedIrisFeature[],
+    lat: number,
+    lng: number,
+    maxDistanceKm: number,
+  ): IndexedIrisFeature | null {
+    let nearest: IndexedIrisFeature | null = null;
+    let nearestDistanceKm = Number.POSITIVE_INFINITY;
+
+    for (const feature of index) {
+      const clampedLng = Math.min(feature.maxLng, Math.max(feature.minLng, lng));
+      const clampedLat = Math.min(feature.maxLat, Math.max(feature.minLat, lat));
+
+      const distanceKm = this.haversineDistanceKm(lat, lng, clampedLat, clampedLng);
+      if (distanceKm < nearestDistanceKm) {
+        nearestDistanceKm = distanceKm;
+        nearest = feature;
+      }
+    }
+
+    if (!nearest || nearestDistanceKm > maxDistanceKm) {
+      return null;
+    }
+
+    return nearest;
+  }
+
+  async resolveCodeIrisByPolygon(
+    lat: number,
+    lng: number,
+    maxDistanceKm = TerritoriesService.GEOJSON_NEAREST_FALLBACK_KM,
+  ): Promise<string | null> {
+    if (!this.isValidCoordinates(lat, lng)) {
+      return null;
+    }
+
+    const index = await this.getIrisGeoIndex();
+
+    const directHit = index.find((feature) => this.isPointInFeature(lng, lat, feature));
+    if (directHit) {
+      return directHit.codeIris;
+    }
+
+    // Guard against client payloads that accidentally invert latitude/longitude.
+    if (this.isValidCoordinates(lng, lat)) {
+      const swappedHit = index.find((feature) => this.isPointInFeature(lat, lng, feature));
+      if (swappedHit) {
+        return swappedHit.codeIris;
+      }
+    }
+
+    const nearestDirect = this.findNearestFeatureByBboxDistance(index, lat, lng, maxDistanceKm);
+    if (nearestDirect) {
+      return nearestDirect.codeIris;
+    }
+
+    if (this.isValidCoordinates(lng, lat)) {
+      const nearestSwapped = this.findNearestFeatureByBboxDistance(index, lng, lat, maxDistanceKm);
+      if (nearestSwapped) {
+        return nearestSwapped.codeIris;
+      }
+    }
+
+    return null;
+  }
+
   private computeVisibleWidthKm(
     latitude: number,
     zoom: number,
@@ -643,7 +734,7 @@ export class TerritoriesService {
   ) {
     await this.ensureIrisSchema('territory map hit-test');
 
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    if (!this.isValidCoordinates(lat, lng)) {
       throw new BadRequestException('Invalid coordinates for territory hit-test');
     }
 

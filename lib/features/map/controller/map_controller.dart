@@ -5,6 +5,19 @@ import '../../../core/config/app_constants.dart';
 import '../../../core/network/api_providers.dart';
 import '../models/territory_model.dart';
 
+int _asInt(dynamic value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value) ?? 0;
+  }
+  return 0;
+}
+
 class MapState {
   final List<TerritoryModel> territories;
   final List<Map<String, dynamic>> clubRanking;
@@ -138,9 +151,9 @@ class MapController extends StateNotifier<MapState> {
               .entries
               .map((entry) {
                 final club = entry.value;
-                final conquered = (club['conquered_count'] as num?)?.toInt() ?? 0;
-                final locked = (club['locked_count'] as num?)?.toInt() ?? 0;
-                final conflict = (club['conflict_count'] as num?)?.toInt() ?? 0;
+                final conquered = _asInt(club['conquered_count']);
+                final locked = _asInt(club['locked_count']);
+                final conflict = _asInt(club['conflict_count']);
 
                 return <String, dynamic>{
                   ...club,

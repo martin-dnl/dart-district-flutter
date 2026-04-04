@@ -1,5 +1,15 @@
 enum TerritoryStatus { available, locked, alert, conquered, conflict }
 
+double _asDouble(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value) ?? 0;
+  }
+  return 0;
+}
+
 class TerritoryModel {
   final String id;
   final String codeIris;
@@ -39,13 +49,13 @@ class TerritoryModel {
       ownerClubId: json['ownerClubId'] as String?,
       ownerClubName: json['ownerClubName'] as String?,
       latitude:
-          (json['latitude'] as num?)?.toDouble() ??
-          (json['centroid_lat'] as num?)?.toDouble() ??
-          0,
+          _asDouble(json['latitude']) != 0
+            ? _asDouble(json['latitude'])
+            : _asDouble(json['centroid_lat']),
       longitude:
-          (json['longitude'] as num?)?.toDouble() ??
-          (json['centroid_lng'] as num?)?.toDouble() ??
-          0,
+          _asDouble(json['longitude']) != 0
+            ? _asDouble(json['longitude'])
+            : _asDouble(json['centroid_lng']),
     );
   }
 
@@ -71,15 +81,17 @@ class TerritoryModel {
       ownerClubId: ownerClubId,
       ownerClubName: ownerClub?['name'] as String?,
       latitude:
-          (json['centroid_lat'] as num?)?.toDouble() ??
-          (json['lat'] as num?)?.toDouble() ??
-          (json['latitude'] as num?)?.toDouble() ??
-          0,
+          _asDouble(json['centroid_lat']) != 0
+            ? _asDouble(json['centroid_lat'])
+            : (_asDouble(json['lat']) != 0
+              ? _asDouble(json['lat'])
+              : _asDouble(json['latitude'])),
       longitude:
-          (json['centroid_lng'] as num?)?.toDouble() ??
-          (json['lng'] as num?)?.toDouble() ??
-          (json['longitude'] as num?)?.toDouble() ??
-          0,
+          _asDouble(json['centroid_lng']) != 0
+            ? _asDouble(json['centroid_lng'])
+            : (_asDouble(json['lng']) != 0
+              ? _asDouble(json['lng'])
+              : _asDouble(json['longitude'])),
     );
   }
 }

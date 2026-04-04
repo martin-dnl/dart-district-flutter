@@ -257,7 +257,7 @@ export class TerritoriesService {
       .map((row: Record<string, unknown>) =>
         typeof row.code_iris === 'string' ? row.code_iris.trim().toUpperCase() : '',
       )
-      .filter((code) => /^[0-9A-Z]{9}$/.test(code));
+      .filter((code: string) => /^[0-9A-Z]{9}$/.test(code));
   }
 
   /* ── Territories ── */

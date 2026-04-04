@@ -33,10 +33,23 @@ export class ClubsController {
   @UseGuards(JwtAuthGuard)
   @Post('resolve-territory')
   async resolveTerritory(@Body() dto: ResolveTerritoryDto) {
-    const codeIris = await this.clubsService.resolveNearestCodeIris(
+    // First try exact polygon hit-test to avoid false negatives on large IRIS zones.
+    const hit = await this.territoriesService.hitTestByCoordinates(
       dto.latitude,
       dto.longitude,
     );
+
+    let codeIris = (hit?.code_iris ?? '').toString().trim().toUpperCase();
+    if (!codeIris) {
+      // Fallback to nearest centroid with a broader threshold.
+      codeIris =
+        (await this.clubsService.resolveNearestCodeIris(
+          dto.latitude,
+          dto.longitude,
+          30,
+        )) ??
+        '';
+    }
 
     if (!codeIris) {
       return {

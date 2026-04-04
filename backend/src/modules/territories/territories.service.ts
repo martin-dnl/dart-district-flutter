@@ -445,7 +445,16 @@ export class TerritoriesService {
 
     const indexed: IndexedIrisFeature[] = [];
     for (const feature of parsed.features) {
-      const codeIris = (feature.properties?.code_iris ?? '').toString().trim().toUpperCase();
+      const properties = feature.properties ?? {};
+      const codeIris = (
+        properties['code_iris'] ??
+        properties['CODE_IRIS'] ??
+        properties['Code_iris'] ??
+        ''
+      )
+        .toString()
+        .trim()
+        .toUpperCase();
       if (!/^[0-9A-Z]{9}$/.test(codeIris)) {
         continue;
       }

@@ -203,9 +203,15 @@ export class ClubsService {
                CAST(centroid_lat AS double precision) AS centroid_lat,
                CAST(centroid_lng AS double precision) AS centroid_lng
         FROM territories
+        WHERE centroid_lat IS NOT NULL
+          AND centroid_lng IS NOT NULL
         ORDER BY (
-          POWER((CAST(centroid_lat AS double precision) - $1), 2) +
-          POWER((CAST(centroid_lng AS double precision) - $2), 2)
+          6371 * acos(
+            cos(radians($1)) *
+            cos(radians(CAST(centroid_lat AS double precision))) *
+            cos(radians(CAST(centroid_lng AS double precision)) - radians($2)) +
+            sin(radians($1)) * sin(radians(CAST(centroid_lat AS double precision)))
+          )
         ) ASC
         LIMIT 1
       `,

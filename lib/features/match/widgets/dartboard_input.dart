@@ -242,6 +242,10 @@ class _DartboardInputState extends State<DartboardInput> {
       return;
     }
 
+    if (!_isWithinPlayableCircle(details.localPosition)) {
+      return;
+    }
+
     final hit = _computeHit(details.localPosition);
     if (hit != null) {
       _addDart(hit);
@@ -254,6 +258,10 @@ class _DartboardInputState extends State<DartboardInput> {
     }
 
     final pos = details.localPosition;
+    if (!_isWithinPlayableCircle(pos)) {
+      return;
+    }
+
     final zoom = _computeTargetZoom(pos);
     final boardPoint = _screenToBoard(pos, zoom, pos);
 
@@ -272,6 +280,11 @@ class _DartboardInputState extends State<DartboardInput> {
     }
 
     final pos = details.localPosition;
+    if (!_isWithinPlayableCircle(pos)) {
+      _cancelAiming();
+      return;
+    }
+
     final zoom = _computeTargetZoom(pos);
     final boardPoint = _screenToBoard(pos, zoom, pos);
     final local = boardPoint - _boardRect.topLeft;
@@ -315,6 +328,27 @@ class _DartboardInputState extends State<DartboardInput> {
       _previewHit = null;
       _currentZoom = 1.0;
     });
+  }
+
+  bool _isWithinPlayableCircle(Offset localPosition) {
+    if (_boardRect.isEmpty) {
+      return false;
+    }
+
+    final boardLocal = localPosition - _boardRect.topLeft;
+    if (boardLocal.dx < 0 ||
+        boardLocal.dy < 0 ||
+        boardLocal.dx > _boardRect.width ||
+        boardLocal.dy > _boardRect.height) {
+      return false;
+    }
+
+    final center = Offset(_boardRect.width / 2, _boardRect.height / 2);
+    final playableRadius = (_boardRect.width / 2) * _playableRatio;
+    final dx = boardLocal.dx - center.dx;
+    final dy = boardLocal.dy - center.dy;
+    final distance = math.sqrt(dx * dx + dy * dy);
+    return distance <= playableRadius;
   }
 
   void _addDart(DartHit hit) {
@@ -478,32 +512,33 @@ class _DartboardInputState extends State<DartboardInput> {
 
         _boardRect = boardRect;
 
-        return RawGestureDetector(
-          gestures: <Type, GestureRecognizerFactory>{
-            LongPressGestureRecognizer:
-                GestureRecognizerFactoryWithHandlers<
-                  LongPressGestureRecognizer
-                >(
-                  () =>
-                      LongPressGestureRecognizer(duration: _longPressDuration),
-                  (LongPressGestureRecognizer instance) {
-                    instance
-                      ..onLongPressStart = _onLongPressStart
-                      ..onLongPressMoveUpdate = _onLongPressMove
-                      ..onLongPressEnd = _onLongPressEnd;
-                  },
-                ),
-            TapGestureRecognizer:
-                GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-                  TapGestureRecognizer.new,
-                  (TapGestureRecognizer instance) {
-                    instance.onTapUp = _onTapUp;
-                  },
-                ),
-          },
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            RawGestureDetector(
+              gestures: <Type, GestureRecognizerFactory>{
+                LongPressGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<
+                      LongPressGestureRecognizer
+                    >(
+                      () => LongPressGestureRecognizer(duration: _longPressDuration),
+                      (LongPressGestureRecognizer instance) {
+                        instance
+                          ..onLongPressStart = _onLongPressStart
+                          ..onLongPressMoveUpdate = _onLongPressMove
+                          ..onLongPressEnd = _onLongPressEnd;
+                      },
+                    ),
+                TapGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                      TapGestureRecognizer.new,
+                      (TapGestureRecognizer instance) {
+                        instance.onTapUp = _onTapUp;
+                      },
+                    ),
+              },
+              child: SizedBox.expand(
+                child:
               Transform(
                 transform: _buildZoomMatrix(),
                 child: CustomPaint(
@@ -528,8 +563,10 @@ class _DartboardInputState extends State<DartboardInput> {
                   ),
                 ),
               ),
+              ),
+            ),
 
-              if (!_isAiming) ...<Widget>[
+            if (!_isAiming) ...<Widget>[
                 Positioned(
                   left: squareRect.left + buttonMargin,
                   top: squareRect.top + buttonMargin,
@@ -565,21 +602,20 @@ class _DartboardInputState extends State<DartboardInput> {
                     iconColor: Colors.white,
                   ),
                 ),
-              ],
+            ],
 
-              if (_isAiming)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: _AimAxesPainter(
-                        point: _touchPoint,
-                        label: _previewHit?.label,
-                      ),
+            if (_isAiming)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _AimAxesPainter(
+                      point: _touchPoint,
+                      label: _previewHit?.label,
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         );
       },
     );

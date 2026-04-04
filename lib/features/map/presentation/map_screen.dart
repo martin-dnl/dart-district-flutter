@@ -30,7 +30,7 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen> {
   static const double _targetVisibleWidthKm = 20;
-  static const double _markerMinZoom = 8;
+  static const double _markerMinZoom = 4;
   static const double _cityDefaultZoom = 12;
   static const double _searchResultZoom = 13.5;
 
@@ -319,19 +319,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       return;
     }
 
-    final centerLat = points.map((p) => p.latitude).reduce((a, b) => a + b) /
-        points.length;
-    final centerLng = points.map((p) => p.longitude).reduce((a, b) => a + b) /
-        points.length;
+    final minLat = points.map((p) => p.latitude).reduce(math.min);
+    final maxLat = points.map((p) => p.latitude).reduce(math.max);
+    final minLng = points.map((p) => p.longitude).reduce(math.min);
+    final maxLng = points.map((p) => p.longitude).reduce(math.max);
+
+    final centerLat = (minLat + maxLat) / 2;
+    final centerLng = (minLng + maxLng) / 2;
+    final latSpan = (maxLat - minLat).abs();
+    final lngSpan = (maxLng - minLng).abs();
+    final span = math.max(latSpan, lngSpan);
+
+    // Pick a zoom level based on spread so distant bars are still visible.
+    final initialBarsZoom = switch (span) {
+      > 6 => 4.2,
+      > 4 => 4.8,
+      > 2 => 5.6,
+      > 1 => 6.6,
+      > 0.5 => 7.8,
+      _ => 10.5,
+    };
 
     // Start by showing bars first: center camera on clubs once map data is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _fmController.move(LatLng(centerLat, centerLng), 10.5);
+      _fmController.move(LatLng(centerLat, centerLng), initialBarsZoom);
       setState(() {
         _hasCenteredOnClubs = true;
         _currentCenter = LatLng(centerLat, centerLng);
-        _currentZoom = 10.5;
+        _currentZoom = initialBarsZoom;
       });
     });
   }

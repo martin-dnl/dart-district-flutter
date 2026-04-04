@@ -39,6 +39,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   LatLng? _currentCenter;
   double? _currentZoom;
   bool _hasInitializedCamera = false;
+  bool _hasCenteredOnClubs = false;
 
   // Map controller for programmatic camera movement
   final fm.MapController _fmController = fm.MapController();
@@ -299,6 +300,40 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     ref.read(mapControllerProvider.notifier).selectTerritory(codeIris);
     await _openPanelForTerritoryCode(codeIris);
+  }
+
+  void _maybeCenterOnClubs(List<Map<String, dynamic>> clubMarkers) {
+    if (_hasCenteredOnClubs || clubMarkers.isEmpty || !mounted) {
+      return;
+    }
+
+    final points = clubMarkers
+        .map((club) => LatLng(
+              _asDouble(club['latitude']) ?? double.nan,
+              _asDouble(club['longitude']) ?? double.nan,
+            ))
+        .where((p) => p.latitude.isFinite && p.longitude.isFinite)
+        .toList(growable: false);
+
+    if (points.isEmpty) {
+      return;
+    }
+
+    final centerLat = points.map((p) => p.latitude).reduce((a, b) => a + b) /
+        points.length;
+    final centerLng = points.map((p) => p.longitude).reduce((a, b) => a + b) /
+        points.length;
+
+    // Start by showing bars first: center camera on clubs once map data is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _fmController.move(LatLng(centerLat, centerLng), 10.5);
+      setState(() {
+        _hasCenteredOnClubs = true;
+        _currentCenter = LatLng(centerLat, centerLng);
+        _currentZoom = 10.5;
+      });
+    });
   }
 
   List<dynamic> _statusFilter(List<String> codes) {
@@ -816,6 +851,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
+    _maybeCenterOnClubs(mapState.clubMarkers);
     final territoriesToRender = mapState.activeIrisCodes.isEmpty
         ? mapState.territories
         : mapState.territories

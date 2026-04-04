@@ -406,8 +406,6 @@ class _DartboardInputState extends State<DartboardInput> {
             Expanded(child: _buildBoardArea())
           else
             SizedBox(height: 360, child: _buildBoardArea()),
-          const SizedBox(height: 8),
-          _buildActions(),
         ],
       ),
     );
@@ -461,13 +459,19 @@ class _DartboardInputState extends State<DartboardInput> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+        const buttonSize = 46.0;
+        const buttonMargin = 2.0;
+        final squareSide = math.min(viewportSize.width, viewportSize.height);
+        final squareRect = Rect.fromCenter(
+          center: viewportSize.center(Offset.zero),
+          width: squareSide,
+          height: squareSide,
+        );
 
-        final drawSize = _isAiming
-            ? math.max(viewportSize.width, viewportSize.height) * 1.50
-            : math.min(viewportSize.width, viewportSize.height) * 1.10;
+        final drawSize = _isAiming ? squareSide * 1.24 : squareSide * 1.02;
 
         final boardRect = Rect.fromCenter(
-          center: viewportSize.center(Offset.zero),
+          center: squareRect.center,
           width: drawSize,
           height: drawSize,
         );
@@ -525,32 +529,43 @@ class _DartboardInputState extends State<DartboardInput> {
                 ),
               ),
 
-              Positioned(
-                left: 8,
-                top: 8,
-                child: GestureDetector(
-                  onTap: _darts.isEmpty ? null : _undoLastDart,
-                  child: Opacity(
-                    opacity: _darts.isEmpty ? 0.35 : 1.0,
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.30),
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.60),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.undo_rounded,
-                        color: Colors.white,
-                        size: 21,
-                      ),
-                    ),
+              if (!_isAiming) ...<Widget>[
+                Positioned(
+                  left: squareRect.left + buttonMargin,
+                  top: squareRect.top + buttonMargin,
+                  child: _roundActionButton(
+                    icon: Icons.undo_rounded,
+                    onTap: _darts.isEmpty ? null : _undoLastDart,
+                    size: buttonSize,
+                    backgroundColor: const Color(0xAA232428),
+                    iconColor: Colors.white,
                   ),
                 ),
-              ),
+                Positioned(
+                  left: squareRect.left + buttonMargin,
+                  bottom:
+                      viewportSize.height - squareRect.bottom + buttonMargin,
+                  child: _roundActionButton(
+                    icon: Icons.close_rounded,
+                    onTap: _darts.length >= 3 ? null : _addMiss,
+                    size: buttonSize,
+                    backgroundColor: const Color(0xCC3D3E42),
+                    iconColor: Colors.white,
+                  ),
+                ),
+                Positioned(
+                  right: viewportSize.width - squareRect.right + buttonMargin,
+                  bottom:
+                      viewportSize.height - squareRect.bottom + buttonMargin,
+                  child: _roundActionButton(
+                    icon: Icons.check_rounded,
+                    onTap: _canSubmit ? _submitVisit : null,
+                    size: buttonSize,
+                    backgroundColor: AppColors.primary,
+                    iconColor: Colors.white,
+                  ),
+                ),
+              ],
 
               if (_isAiming)
                 Positioned.fill(
@@ -584,39 +599,33 @@ class _DartboardInputState extends State<DartboardInput> {
       ..scale(scale, scale, 1.0);
   }
 
-  Widget _buildActions() {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: FilledButton(
-            onPressed: _darts.length >= 3 ? null : _addMiss,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF3D3E42),
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(44),
+  Widget _roundActionButton({
+    required IconData icon,
+    required VoidCallback? onTap,
+    required double size,
+    required Color backgroundColor,
+    required Color iconColor,
+  }) {
+    final enabled = onTap != null;
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.35,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(size / 2),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: backgroundColor,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
             ),
-            child: const Text(
-              'NO SCORE',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
+            child: Icon(icon, color: iconColor, size: 24),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: FilledButton(
-            onPressed: _canSubmit ? _submitVisit : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
-              minimumSize: const Size.fromHeight(44),
-            ),
-            child: const Text(
-              'VALIDER',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

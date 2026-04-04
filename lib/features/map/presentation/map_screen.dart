@@ -304,6 +304,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       'any',
       ['in', 'code_iris', ...codes],
       ['in', 'CODE_IRIS', ...codes],
+      ['in', 'Code_iris', ...codes],
+      ['in', 'code', ...codes],
     ];
   }
 
@@ -312,6 +314,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       'any',
       ['in', 'code_iris', ...activeCodes],
       ['in', 'CODE_IRIS', ...activeCodes],
+      ['in', 'Code_iris', ...activeCodes],
+      ['in', 'code', ...activeCodes],
     ];
   }
 
@@ -387,7 +391,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'source': 'pmtiles',
           'source-layer': sourceLayer,
           'filter': activeFilter,
-          'paint': {'fill-color': '#22c55e', 'fill-opacity': 0.12},
+          'paint': {'fill-color': '#22c55e', 'fill-opacity': 0.28},
         },
         {
           'id': 'iris-border-$sourceLayer',
@@ -397,8 +401,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'filter': activeFilter,
           'paint': {
             'line-color': '#22c55e',
-            'line-width': 1.5,
-            'line-opacity': 0.6,
+            'line-width': 2.0,
+            'line-opacity': 0.9,
           },
         },
       ]);
@@ -412,7 +416,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _andFilter(activeFilter, _statusFilter(conquered)),
-            'paint': {'fill-color': '#c8ff00', 'fill-opacity': 0.18},
+            'paint': {'fill-color': '#c8ff00', 'fill-opacity': 0.34},
           },
           {
             'id': 'iris-conquered-border-$sourceLayer',
@@ -422,8 +426,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'filter': _andFilter(activeFilter, _statusFilter(conquered)),
             'paint': {
               'line-color': '#c8ff00',
-              'line-width': 2.0,
-              'line-opacity': 0.8,
+              'line-width': 2.4,
+              'line-opacity': 0.95,
             },
           },
         ]);
@@ -438,7 +442,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _andFilter(activeFilter, _statusFilter(locked)),
-            'paint': {'fill-color': '#3b82f6', 'fill-opacity': 0.22},
+            'paint': {'fill-color': '#3b82f6', 'fill-opacity': 0.36},
           },
           {
             'id': 'iris-locked-border-$sourceLayer',
@@ -448,8 +452,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'filter': _andFilter(activeFilter, _statusFilter(locked)),
             'paint': {
               'line-color': '#3b82f6',
-              'line-width': 2.0,
-              'line-opacity': 0.8,
+              'line-width': 2.4,
+              'line-opacity': 0.95,
             },
           },
         ]);
@@ -464,7 +468,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _andFilter(activeFilter, _statusFilter(conflict)),
-            'paint': {'fill-color': '#ef4444', 'fill-opacity': 0.25},
+            'paint': {'fill-color': '#ef4444', 'fill-opacity': 0.42},
           },
           {
             'id': 'iris-conflict-border-$sourceLayer',
@@ -474,8 +478,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'filter': _andFilter(activeFilter, _statusFilter(conflict)),
             'paint': {
               'line-color': '#ef4444',
-              'line-width': 2.5,
-              'line-opacity': 0.9,
+              'line-width': 2.8,
+              'line-opacity': 1.0,
             },
           },
         ]);
@@ -490,7 +494,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'source': 'pmtiles',
             'source-layer': sourceLayer,
             'filter': _andFilter(activeFilter, _statusFilter(alert)),
-            'paint': {'fill-color': '#ff6b6b', 'fill-opacity': 0.30},
+            'paint': {'fill-color': '#ff6b6b', 'fill-opacity': 0.46},
           },
           {
             'id': 'iris-alert-border-$sourceLayer',
@@ -500,8 +504,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'filter': _andFilter(activeFilter, _statusFilter(alert)),
             'paint': {
               'line-color': '#ff6b6b',
-              'line-width': 2.5,
-              'line-opacity': 0.9,
+              'line-width': 2.8,
+              'line-opacity': 1.0,
             },
           },
         ]);
@@ -548,25 +552,41 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Future<void> _openPanelForTerritoryCode(String codeIris) async {
-    final api = ref.read(apiClientProvider);
-    final response = await api.get<Map<String, dynamic>>(
-      '/territories/$codeIris/panel',
-    );
-    final panelData = response.data?['data'] as Map<String, dynamic>?;
-    if (!mounted || panelData == null) {
+    Map<String, dynamic>? territory;
+    Map<String, dynamic>? activeDuel;
+    List<Map<String, dynamic>> latestEvents = const [];
+
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get<Map<String, dynamic>>(
+        '/territories/$codeIris/panel',
+      );
+      final panelData = response.data?['data'] as Map<String, dynamic>?;
+      if (panelData != null) {
+        territory = panelData['territory'] as Map<String, dynamic>?;
+        activeDuel = panelData['active_duel'] as Map<String, dynamic>?;
+        latestEvents =
+            (panelData['latest_events'] as List<dynamic>? ?? const <dynamic>[])
+                .whereType<Map<String, dynamic>>()
+                .toList();
+      }
+    } catch (_) {
+      territory = null;
+    }
+
+    if (!mounted) {
       return;
     }
 
-    final territory =
-        panelData['territory'] as Map<String, dynamic>? ?? const {};
-    final activeDuel = panelData['active_duel'] as Map<String, dynamic>?;
-    final latestEvents =
-        (panelData['latest_events'] as List<dynamic>? ?? const <dynamic>[])
-            .whereType<Map<String, dynamic>>()
-            .toList();
+    final territoryData = territory ?? <String, dynamic>{
+      'code_iris': codeIris,
+      'name': 'Territoire $codeIris',
+      'status': 'available',
+      'points_value': '–',
+    };
 
-    final status = (territory['status'] ?? 'available').toString();
-    final ownerClub = territory['owner_club'] as Map<String, dynamic>?;
+    final status = (territoryData['status'] ?? 'available').toString();
+    final ownerClub = territoryData['owner_club'] as Map<String, dynamic>?;
     final statusClr = _statusColor(status);
 
     if (!mounted) return;
@@ -624,8 +644,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (territory['name'] ??
-                                        territory['code_iris'] ??
+                                (territoryData['name'] ??
+                                  territoryData['code_iris'] ??
                                         codeIris)
                                     .toString(),
                                 style: const TextStyle(
@@ -678,7 +698,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         Column(
                           children: [
                             Text(
-                              (territory['points_value'] ?? '–').toString(),
+                              (territoryData['points_value'] ?? '–').toString(),
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 22,

@@ -117,8 +117,6 @@ class MapController extends StateNotifier<MapState> {
       try {
         final response = await api.get<dynamic>('/clubs/map');
         clubsMapPayload = response.data;
-        // ignore: avoid_print
-        print('[MapController] /clubs/map raw response type: ${response.data.runtimeType}');
       } catch (e) {
         // ignore: avoid_print
         print('[MapController] /clubs/map failed: $e');
@@ -177,14 +175,6 @@ class MapController extends StateNotifier<MapState> {
 
       final clubMarkers = _extractMapList(clubsMapPayload);
 
-      // Debug: log club markers and active codes
-      // ignore: avoid_print
-      print('[MapController] clubMarkers count: ${clubMarkers.length}');
-      for (final c in clubMarkers) {
-        // ignore: avoid_print
-        print('[MapController] club: id=${c['id']}, name=${c['name']}, lat=${c['latitude']}, lng=${c['longitude']}, code_iris=${c['code_iris']}');
-      }
-
       final activeCodesData =
           (activeZonesPayload?['data']?['codes'] as List<dynamic>? ??
               activeZonesPayload?['codes'] as List<dynamic>? ??
@@ -192,9 +182,6 @@ class MapController extends StateNotifier<MapState> {
               .map((item) => item.toString().trim().toUpperCase())
               .where((code) => code.isNotEmpty)
               .toSet();
-
-      // ignore: avoid_print
-      print('[MapController] activeIrisCodes count: ${activeCodesData.length}, codes: $activeCodesData');
 
       state = state.copyWith(
         isLoading: false,

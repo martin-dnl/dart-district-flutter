@@ -265,10 +265,12 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
   }
 
   Future<void> _loadInitialNearbyClubs() async {
+    final clubSearchNotifier = ref.read(clubSearchControllerProvider.notifier);
+
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        await ref.read(clubSearchControllerProvider.notifier).loadInitial();
+        await clubSearchNotifier.loadInitial();
         return;
       }
 
@@ -279,7 +281,7 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        await ref.read(clubSearchControllerProvider.notifier).loadInitial();
+        await clubSearchNotifier.loadInitial();
         return;
       }
 
@@ -290,13 +292,13 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
         ),
       );
 
-      await ref.read(clubSearchControllerProvider.notifier).searchNearby(
+      await clubSearchNotifier.searchNearby(
             position.latitude,
             position.longitude,
             limit: 10,
           );
     } catch (_) {
-      await ref.read(clubSearchControllerProvider.notifier).loadInitial();
+      await clubSearchNotifier.loadInitial();
     }
   }
 

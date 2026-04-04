@@ -209,6 +209,15 @@ let MatchesService = class MatchesService {
             }
             segment = `CD${doublesAttempted}`;
         }
+        const dartPositions = (body.dart_positions ?? [])
+            .slice(0, 3)
+            .map((p) => ({
+            x: Math.min(1, Math.max(0, Number(p.x))),
+            y: Math.min(1, Math.max(0, Number(p.y))),
+            ...(typeof p.score === 'number' ? { score: Math.floor(p.score) } : {}),
+            ...(typeof p.label === 'string' ? { label: p.label.slice(0, 16) } : {}),
+        }))
+            .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
         const savedThrow = this.throwRepo.create({
             leg: activeLeg,
             user: { id: targetPlayer.user_id },
@@ -219,6 +228,7 @@ let MatchesService = class MatchesService {
             segment: `VISIT_${score}`,
             score: recordedScore,
             remaining: recordedRemaining,
+            dart_positions: dartPositions.length > 0 ? dartPositions : undefined,
             is_checkout: isCheckout,
         });
         savedThrow.segment = segment;
@@ -356,6 +366,9 @@ let MatchesService = class MatchesService {
         const qb = this.matchRepo
             .createQueryBuilder('m')
             .innerJoin('m.players', 'mp', 'mp.user_id = :userId', { userId })
+            .leftJoinAndSelect('m.players', 'allPlayers')
+            .leftJoinAndSelect('allPlayers.user', 'u')
+            .leftJoinAndSelect('m.sets', 's')
             .orderBy('m.created_at', 'DESC')
             .skip(skip)
             .take(take);
@@ -365,7 +378,29 @@ let MatchesService = class MatchesService {
         if ((ranked ?? '').toLowerCase() === 'true') {
             qb.andWhere('m.is_ranked = :isRanked', { isRanked: true });
         }
-        return qb.getMany();
+        const matches = await qb.getMany();
+        return matches.map((m) => {
+            const orderedPlayers = this.getOrderedPlayers(m);
+            const winnerId = orderedPlayers.find((p) => p.is_winner)?.user_id ?? null;
+            return {
+                id: m.id,
+                mode: m.mode,
+                status: this.toClientStatus(m.status),
+                is_ranked: m.is_ranked,
+                created_at: m.created_at,
+                started_at: m.started_at,
+                completed_at: m.ended_at,
+                surrendered_by: m.surrendered_by,
+                winner_id: winnerId,
+                players: orderedPlayers.map((p) => ({
+                    user_id: p.user_id,
+                    username: p.user?.username ?? 'Joueur',
+                    avatar_url: p.user?.avatar_url ?? null,
+                    is_winner: p.is_winner,
+                    sets_won: (m.sets ?? []).filter((s) => s.winner_id === p.user_id).length,
+                })),
+            };
+        });
     }
     async getMatchReport(matchId) {
         const match = await this.matchRepo.findOne({
@@ -402,6 +437,7 @@ let MatchesService = class MatchesService {
             return {
                 user_id: p.user_id,
                 username: p.user?.username ?? 'Unknown',
+                avatar_url: p.user?.avatar_url ?? null,
                 avg_score: throwsForPlayer.length > 0
                     ? Number((totalScore / throwsForPlayer.length).toFixed(2))
                     : 0,
@@ -412,7 +448,20 @@ let MatchesService = class MatchesService {
                 checkout_rate: checkoutAttempts > 0
                     ? Number(((checkoutHits / checkoutAttempts) * 100).toFixed(2))
                     : 0,
+                checkout_attempts: checkoutAttempts,
+                checkout_hits: checkoutHits,
                 highest_checkout: highestCheckout,
+                total_darts: throwsForPlayer.length * 3,
+                dart_positions: throwsForPlayer.flatMap((t) => (t.dart_positions ?? [])
+                    .filter((position) => position &&
+                    typeof position.x === 'number' &&
+                    typeof position.y === 'number')
+                    .map((position) => ({
+                    x: position.x,
+                    y: position.y,
+                    score: typeof position.score === 'number' ? position.score : undefined,
+                    label: typeof position.label === 'string' ? position.label : undefined,
+                }))),
             };
         });
         const usernameById = new Map(orderedPlayers.map((p) => [p.user_id, p.user?.username ?? 'Unknown']));
@@ -484,11 +533,11 @@ let MatchesService = class MatchesService {
         const legsToWin = this.isInvitationFlow(match)
             ? match.legs_per_set
             : Math.ceil(match.legs_per_set / 2);
-        const legsWon = set.legs.filter((l) => l.winner?.id === winnerId).length;
+        const legsWon = set.legs.filter((l) => l.winner_id === winnerId).length;
         if (legsWon >= legsToWin) {
-            set.winner = { id: winnerId };
-            await this.setRepo.save(set);
-            await this.checkMatchCompletion(match, winnerId);
+            await this.setRepo.update({ id: set.id }, { winner_id: winnerId });
+            const freshMatch = await this.findById(match.id);
+            await this.checkMatchCompletion(freshMatch, winnerId);
         }
         else {
             const newLeg = this.legRepo.create({
@@ -503,7 +552,7 @@ let MatchesService = class MatchesService {
         const setsToWin = this.isInvitationFlow(match)
             ? match.total_sets
             : Math.ceil(match.total_sets / 2);
-        const setsWon = match.sets.filter((s) => s.winner?.id === lastSetWinnerId).length;
+        const setsWon = match.sets.filter((s) => s.winner_id === lastSetWinnerId).length;
         if (setsWon >= setsToWin) {
             match.status = 'completed';
             match.ended_at = new Date();
@@ -623,6 +672,7 @@ let MatchesService = class MatchesService {
                 'total': t.score,
                 'is_bust': t.segment == 'BUST',
                 'doubles_attempted': this.extractDoubleAttemptsFromSegment(t.segment),
+                'dart_positions': t.dart_positions ?? [],
             };
         });
         return {

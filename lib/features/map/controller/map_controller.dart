@@ -10,6 +10,7 @@ class MapState {
   final List<Map<String, dynamic>> clubRanking;
   final List<Map<String, dynamic>> clubMarkers;
   final Set<String> clubZoneCodes;
+  final Set<String> activeIrisCodes;
   final bool isLoading;
   final String? selectedTerritoryId;
 
@@ -18,6 +19,7 @@ class MapState {
     this.clubRanking = const [],
     this.clubMarkers = const [],
     this.clubZoneCodes = const <String>{},
+    this.activeIrisCodes = const <String>{},
     this.isLoading = false,
     this.selectedTerritoryId,
   });
@@ -27,6 +29,7 @@ class MapState {
     List<Map<String, dynamic>>? clubRanking,
     List<Map<String, dynamic>>? clubMarkers,
     Set<String>? clubZoneCodes,
+    Set<String>? activeIrisCodes,
     bool? isLoading,
     String? selectedTerritoryId,
   }) {
@@ -35,6 +38,7 @@ class MapState {
       clubRanking: clubRanking ?? this.clubRanking,
       clubMarkers: clubMarkers ?? this.clubMarkers,
       clubZoneCodes: clubZoneCodes ?? this.clubZoneCodes,
+      activeIrisCodes: activeIrisCodes ?? this.activeIrisCodes,
       isLoading: isLoading ?? this.isLoading,
       selectedTerritoryId: selectedTerritoryId ?? this.selectedTerritoryId,
     );
@@ -64,6 +68,9 @@ class MapController extends StateNotifier<MapState> {
         '/territories/clubs/zones',
       );
       final clubsMapResponse = await api.get<Map<String, dynamic>>('/clubs/map');
+      final activeZonesResponse = await api.get<Map<String, dynamic>>(
+        '/territories/tileset/active-zones',
+      );
 
       final responseData =
           response.data?['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
@@ -115,12 +122,21 @@ class MapController extends StateNotifier<MapState> {
                 .whereType<Map<String, dynamic>>()
                 .toList();
 
+      final activeCodesData =
+          (activeZonesResponse.data?['data']?['codes'] as List<dynamic>? ??
+                  activeZonesResponse.data?['codes'] as List<dynamic>? ??
+                  <dynamic>[])
+              .map((item) => item.toString().trim().toUpperCase())
+              .where((code) => code.isNotEmpty)
+              .toSet();
+
       state = state.copyWith(
         isLoading: false,
         territories: territoriesData,
         clubRanking: rankingData,
             clubMarkers: clubMarkers,
             clubZoneCodes: clubZoneCodes,
+            activeIrisCodes: activeCodesData,
       );
     } catch (_) {
       state = state.copyWith(isLoading: false, territories: const []);
@@ -207,10 +223,7 @@ class MapController extends StateNotifier<MapState> {
   }
 
   void clearSelection() {
-    state = MapState(
-      territories: state.territories,
-      isLoading: state.isLoading,
-    );
+    state = state.copyWith(selectedTerritoryId: null);
   }
 
   @override

@@ -31,6 +31,15 @@ export class Club {
   @Column({ type: 'varchar', length: 100, nullable: true })
   region: string | null;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  postal_code: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true, default: 'France' })
+  country: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  opening_hours: Record<string, { open: string; close: string }> | null;
+
   @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
   latitude: number | null;
 

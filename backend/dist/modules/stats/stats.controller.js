@@ -27,11 +27,31 @@ let StatsController = class StatsController {
     myEloHistory(req, limit) {
         return this.statsService.eloHistory(req.user.id, limit);
     }
+    myDartboardPeriods(req) {
+        return this.statsService.getDartboardPeriods(req.user.id);
+    }
+    myDartboardHeatmap(req, period, year, month) {
+        return this.statsService.getDartboardHeatmap(req.user.id, {
+            period,
+            year,
+            month,
+        });
+    }
     userStats(userId) {
         return this.statsService.getByUser(userId);
     }
     userEloHistory(userId, limit) {
         return this.statsService.eloHistory(userId, limit);
+    }
+    userDartboardPeriods(userId) {
+        return this.statsService.getDartboardPeriods(userId);
+    }
+    userDartboardHeatmap(userId, period, year, month) {
+        return this.statsService.getDartboardHeatmap(userId, {
+            period,
+            year,
+            month,
+        });
     }
 };
 exports.StatsController = StatsController;
@@ -51,6 +71,23 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], StatsController.prototype, "myEloHistory", null);
 __decorate([
+    (0, common_1.Get)('me/dartboard-periods'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], StatsController.prototype, "myDartboardPeriods", null);
+__decorate([
+    (0, common_1.Get)('me/dartboard-heatmap'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('period')),
+    __param(2, (0, common_1.Query)('year')),
+    __param(3, (0, common_1.Query)('month')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Number, Number]),
+    __metadata("design:returntype", void 0)
+], StatsController.prototype, "myDartboardHeatmap", null);
+__decorate([
     (0, common_1.Get)(':userId'),
     __param(0, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
     __metadata("design:type", Function),
@@ -65,6 +102,23 @@ __decorate([
     __metadata("design:paramtypes", [String, Number]),
     __metadata("design:returntype", void 0)
 ], StatsController.prototype, "userEloHistory", null);
+__decorate([
+    (0, common_1.Get)(':userId/dartboard-periods'),
+    __param(0, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], StatsController.prototype, "userDartboardPeriods", null);
+__decorate([
+    (0, common_1.Get)(':userId/dartboard-heatmap'),
+    __param(0, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Query)('period')),
+    __param(2, (0, common_1.Query)('year')),
+    __param(3, (0, common_1.Query)('month')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Number, Number]),
+    __metadata("design:returntype", void 0)
+], StatsController.prototype, "userDartboardHeatmap", null);
 exports.StatsController = StatsController = __decorate([
     (0, swagger_1.ApiTags)('stats'),
     (0, swagger_1.ApiBearerAuth)(),

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../shared/models/dartboard_heatmap_models.dart';
 import '../../auth/models/user_model.dart';
 import '../controller/profile_controller.dart';
 
@@ -71,8 +72,11 @@ class ProfileService {
   }
 
   Future<Map<String, bool>> getFriendshipStatus(String userId) async {
-    final response = await _api.get<Map<String, dynamic>>('/contacts/status/$userId');
-    final data = response.data?['data'] as Map<String, dynamic>? ?? response.data ?? {};
+    final response = await _api.get<Map<String, dynamic>>(
+      '/contacts/status/$userId',
+    );
+    final data =
+        response.data?['data'] as Map<String, dynamic>? ?? response.data ?? {};
     return {
       'is_friend': data['is_friend'] as bool? ?? false,
       'is_blocked': data['is_blocked'] as bool? ?? false,
@@ -93,5 +97,43 @@ class ProfileService {
 
   Future<void> blockUser(String userId) async {
     await _api.post<Map<String, dynamic>>('/contacts/block/$userId');
+  }
+
+  Future<DartboardHeatmapPeriods> fetchDartboardPeriods({
+    String? userId,
+  }) async {
+    final path = userId == null
+        ? '/stats/me/dartboard-periods'
+        : '/stats/$userId/dartboard-periods';
+    final response = await _api.get<Map<String, dynamic>>(path);
+    final raw =
+        (response.data?['data'] as Map<String, dynamic>?) ??
+        response.data ??
+        const <String, dynamic>{};
+    return DartboardHeatmapPeriods.fromJson(raw);
+  }
+
+  Future<DartboardHeatmapData> fetchDartboardHeatmap({
+    String? userId,
+    required String period,
+    int? year,
+    int? month,
+  }) async {
+    final path = userId == null
+        ? '/stats/me/dartboard-heatmap'
+        : '/stats/$userId/dartboard-heatmap';
+    final response = await _api.get<Map<String, dynamic>>(
+      path,
+      queryParameters: {
+        'period': period,
+        if (year != null) 'year': year,
+        if (month != null) 'month': month,
+      },
+    );
+    final raw =
+        (response.data?['data'] as Map<String, dynamic>?) ??
+        response.data ??
+        const <String, dynamic>{};
+    return DartboardHeatmapData.fromJson(raw);
   }
 }

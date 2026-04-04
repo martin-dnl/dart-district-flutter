@@ -238,6 +238,28 @@ export class TerritoriesService {
     return this.fallbackTilesetMetadata();
   }
 
+  async getActiveIrisCodes() {
+    const schema = await this.getSchemaInfo();
+    if (!schema.hasIrisTerritories) {
+      return [] as string[];
+    }
+
+    const rows = await this.dataSource.query(
+      `
+        SELECT DISTINCT code_iris
+        FROM clubs
+        WHERE code_iris IS NOT NULL
+        ORDER BY code_iris ASC
+      `,
+    );
+
+    return rows
+      .map((row: Record<string, unknown>) =>
+        typeof row.code_iris === 'string' ? row.code_iris.trim().toUpperCase() : '',
+      )
+      .filter((code) => /^[0-9A-Z]{9}$/.test(code));
+  }
+
   /* ── Territories ── */
 
   async findAll() {

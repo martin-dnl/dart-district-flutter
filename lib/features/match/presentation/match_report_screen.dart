@@ -8,6 +8,7 @@ import '../../../shared/widgets/section_header.dart';
 import '../controller/match_report_provider.dart';
 import '../models/match_model.dart';
 import '../models/match_report_data.dart';
+import '../widgets/dartboard_input_stats.dart';
 
 class MatchReportScreen extends ConsumerWidget {
   const MatchReportScreen({super.key, required this.matchId, this.extra});
@@ -215,6 +216,9 @@ class _MatchReportView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
+            const SectionHeader(title: 'Precision'),
+            _MatchPrecisionSection(data: data),
+            const SizedBox(height: 10),
             const SectionHeader(title: 'Timeline'),
             GlassCard(
               child: Column(
@@ -264,6 +268,64 @@ class _MatchReportView extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MatchPrecisionSection extends StatelessWidget {
+  const _MatchPrecisionSection({required this.data});
+
+  final MatchReportData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final vertical = constraints.maxWidth < 760;
+          return Column(
+            children: [
+              if (vertical)
+                Column(
+                  children: [
+                    _playerHeatmap(data.player1),
+                    const SizedBox(height: 12),
+                    _playerHeatmap(data.player2),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _playerHeatmap(data.player1)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _playerHeatmap(data.player2)),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              const Text(
+                'Seules les flechettes jouees avec une position sur la cible sont affichees.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _playerHeatmap(PlayerReportStats player) {
+    return DartboardInputStats(
+      hits: player.dartPositions,
+      title: player.name,
+      subtitle: '${player.dartPositions.length} flechettes positionnees',
+      showLegend: false,
+      emptyMessage: 'Aucune flechette positionnee pour ${player.name}.',
     );
   }
 }

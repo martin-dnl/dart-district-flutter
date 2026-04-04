@@ -148,6 +148,13 @@ class MatchRealtimeService {
               total: (r['total'] as num?)?.toInt() ?? 0,
               isBust: (r['is_bust'] as bool?) ?? false,
               doublesAttempted: (r['doubles_attempted'] as num?)?.toInt() ?? 0,
+              dartPositions:
+                  (r['dart_positions'] as List?)?.map((p) {
+                    return DartPosition.fromJson(
+                      (p as Map).cast<String, dynamic>(),
+                    );
+                  }).toList() ??
+                  const [],
             );
           }).toList() ??
           const [],

@@ -49,6 +49,10 @@ __decorate([
     __metadata("design:type", Number)
 ], Throw.prototype, "remaining", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', nullable: true }),
+    __metadata("design:type", Array)
+], Throw.prototype, "dart_positions", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], Throw.prototype, "is_checkout", void 0);

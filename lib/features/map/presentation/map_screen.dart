@@ -16,6 +16,8 @@ import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../core/network/nominatim_service.dart';
+import '../../club/widgets/club_map_marker.dart';
+import '../../club/widgets/club_map_modal.dart';
 import '../controller/map_controller.dart';
 import '../models/territory_model.dart';
 
@@ -299,70 +301,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     await _openPanelForTerritoryCode(codeIris);
   }
 
-  Future<void> _openClubModal(Map<String, dynamic> club) async {
-    final clubName = (club['name'] ?? 'Club').toString();
-    final clubId = (club['id'] ?? '').toString();
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: MediaQuery.of(context).viewPadding.bottom + 18,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.gps_fixed, color: AppColors.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      clubName,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: clubId.isEmpty
-                    ? null
-                    : () {
-                        Navigator.of(context).pop();
-                        this.context.push(
-                          AppRoutes.clubDetail.replaceFirst(':id', clubId),
-                        );
-                      },
-                child: const Text('Voir le detail du club'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   List<dynamic> _statusFilter(List<String> codes) {
     return [
       'any',
       ['in', 'code_iris', ...codes],
       ['in', 'CODE_IRIS', ...codes],
     ];
+  }
+
+  List<dynamic> _activeFilter(Set<String> activeCodes) {
+    return [
+      'any',
+      ['in', 'code_iris', ...activeCodes],
+      ['in', 'CODE_IRIS', ...activeCodes],
+    ];
+  }
+
+  List<dynamic> _andFilter(List<dynamic> first, List<dynamic> second) {
+    return ['all', first, second];
   }
 
   List<String> _sourceLayerCandidates(String preferredLayerName) {
@@ -383,6 +339,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   vtr.Theme _getOrBuildTheme(
     List<TerritoryModel> territories,
     String layerName,
+    Set<String> activeCodes,
   ) {
     // Return cached theme if inputs haven't changed
     if (_cachedTheme != null &&
@@ -390,7 +347,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         identical(_cachedThemeTerritories, territories)) {
       return _cachedTheme!;
     }
-    _cachedTheme = _buildIrisStatusTheme(territories, layerName);
+    _cachedTheme = _buildIrisStatusTheme(territories, layerName, activeCodes);
     _cachedThemeTerritories = territories;
     _cachedThemeLayerName = layerName;
     return _cachedTheme!;
@@ -399,6 +356,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   vtr.Theme _buildIrisStatusTheme(
     List<TerritoryModel> territories,
     String layerName,
+    Set<String> activeCodes,
   ) {
     final conquered = territories
         .where((t) => t.status == TerritoryStatus.conquered)
@@ -421,6 +379,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final sourceLayers = _sourceLayerCandidates(layerName);
 
     for (final sourceLayer in sourceLayers) {
+      final activeFilter = _activeFilter(activeCodes);
+
       // Base: available zones — green, low opacity (maps.jsx "free")
       layers.addAll([
         {
@@ -428,6 +388,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'type': 'fill',
           'source': 'pmtiles',
           'source-layer': sourceLayer,
+          'filter': activeFilter,
           'paint': {'fill-color': '#22c55e', 'fill-opacity': 0.12},
         },
         {
@@ -435,6 +396,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'type': 'line',
           'source': 'pmtiles',
           'source-layer': sourceLayer,
+          'filter': activeFilter,
           'paint': {
             'line-color': '#22c55e',
             'line-width': 1.5,
@@ -451,7 +413,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(conquered),
+            'filter': _andFilter(activeFilter, _statusFilter(conquered)),
             'paint': {'fill-color': '#c8ff00', 'fill-opacity': 0.18},
           },
           {
@@ -459,7 +421,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(conquered),
+            'filter': _andFilter(activeFilter, _statusFilter(conquered)),
             'paint': {
               'line-color': '#c8ff00',
               'line-width': 2.0,
@@ -477,7 +439,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(locked),
+            'filter': _andFilter(activeFilter, _statusFilter(locked)),
             'paint': {'fill-color': '#3b82f6', 'fill-opacity': 0.22},
           },
           {
@@ -485,7 +447,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(locked),
+            'filter': _andFilter(activeFilter, _statusFilter(locked)),
             'paint': {
               'line-color': '#3b82f6',
               'line-width': 2.0,
@@ -503,7 +465,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(conflict),
+            'filter': _andFilter(activeFilter, _statusFilter(conflict)),
             'paint': {'fill-color': '#ef4444', 'fill-opacity': 0.25},
           },
           {
@@ -511,7 +473,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(conflict),
+            'filter': _andFilter(activeFilter, _statusFilter(conflict)),
             'paint': {
               'line-color': '#ef4444',
               'line-width': 2.5,
@@ -529,7 +491,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(alert),
+            'filter': _andFilter(activeFilter, _statusFilter(alert)),
             'paint': {'fill-color': '#ff6b6b', 'fill-opacity': 0.30},
           },
           {
@@ -537,7 +499,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(alert),
+            'filter': _andFilter(activeFilter, _statusFilter(alert)),
             'paint': {
               'line-color': '#ff6b6b',
               'line-width': 2.5,
@@ -850,10 +812,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
-    final territoriesToRender = mapState.clubZoneCodes.isEmpty
+    final territoriesToRender = mapState.activeIrisCodes.isEmpty
         ? mapState.territories
         : mapState.territories
-              .where((t) => mapState.clubZoneCodes.contains(t.codeIris))
+              .where((t) => mapState.activeIrisCodes.contains(t.codeIris))
               .toList();
     final viewportWidthPx = MediaQuery.sizeOf(context).width;
 
@@ -979,12 +941,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           theme: _getOrBuildTheme(
                             territoriesToRender,
                             config.layerName,
+                            mapState.activeIrisCodes,
                           ),
                           tileProviders: TileProviders({'pmtiles': provider}),
                           layerMode: VectorTileLayerMode.vector,
                         ),
-                      fm.MarkerLayer(
-                        markers: mapState.clubMarkers.map((club) {
+                      if ((_currentZoom ?? initialZoom) >= 10)
+                        fm.MarkerLayer(
+                          markers: mapState.clubMarkers.map((club) {
                           final lat = _asDouble(club['latitude']);
                           final lng = _asDouble(club['longitude']);
                           if (lat == null || lng == null) {
@@ -993,33 +957,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
                           return fm.Marker(
                             point: LatLng(lat, lng),
-                            width: 60,
-                            height: 60,
+                            width: 36,
+                            height: 36,
                             child: Center(
                               child: GestureDetector(
-                                onTap: () => _openClubModal(club),
-                                child: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.9),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppColors.background,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.gps_fixed,
-                                    size: 20,
-                                    color: AppColors.background,
-                                  ),
+                                onTap: () => ClubMapModal.show(
+                                  context,
+                                  clubId: (club['id'] ?? '').toString(),
+                                  name: (club['name'] ?? 'Club').toString(),
+                                  address: (club['address'] ??
+                                          [
+                                            club['city']?.toString(),
+                                            club['code_iris']?.toString(),
+                                          ].whereType<String>().where((e) => e.isNotEmpty).join(' - '))
+                                      .toString(),
+                                  city: club['city']?.toString(),
                                 ),
+                                child: const ClubMapMarker(),
                               ),
                             ),
                           );
                         }).whereType<fm.Marker>().toList(),
-                      ),
+                        ),
                     ],
                   ),
                   // City search bar (top)

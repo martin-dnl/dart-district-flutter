@@ -22,6 +22,7 @@ import '../controller/profile_controller.dart';
 import '../data/profile_service.dart';
 import '../widgets/elo_chart.dart';
 import '../widgets/badge_grid.dart';
+import '../widgets/precision_section.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key, this.userId});
@@ -48,7 +49,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVisitorProfileIfNeeded());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _loadVisitorProfileIfNeeded(),
+    );
   }
 
   @override
@@ -155,9 +158,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         }
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -336,7 +339,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           else ...[
                             if (!_isFriend)
                               IconButton(
-                                onPressed: _isBlocked || _isMutatingVisitorAction
+                                onPressed:
+                                    _isBlocked || _isMutatingVisitorAction
                                     ? null
                                     : () => _handleVisitorBlock(user!),
                                 icon: const Icon(
@@ -350,8 +354,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ? null
                                   : () => _handleVisitorFriendAction(user!),
                               icon: Icon(
-                                _isFriend ? Icons.person_remove : Icons.person_add,
-                                color: _isFriend ? AppColors.error : AppColors.primary,
+                                _isFriend
+                                    ? Icons.person_remove
+                                    : Icons.person_add,
+                                color: _isFriend
+                                    ? AppColors.error
+                                    : AppColors.primary,
                               ),
                               tooltip: _isFriend
                                   ? 'Retirer ami'
@@ -546,6 +554,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              SliverToBoxAdapter(
+                child: PrecisionSection(userId: isOwnProfile ? null : user?.id),
+              ),
 
               if (isOwnProfile)
                 const SliverToBoxAdapter(
@@ -571,7 +583,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: BadgeGrid(badges: profileState.badges, maxDisplay: 4),
+                    child: BadgeGrid(
+                      badges: profileState.badges,
+                      maxDisplay: 4,
+                    ),
                   ),
                 ),
 

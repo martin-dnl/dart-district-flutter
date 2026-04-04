@@ -65,7 +65,7 @@ class _DartboardInputState extends State<DartboardInput> {
   Rect _boardRect = Rect.zero;
 
   static const double _maxZoom = 3.0;
-  static const Duration _longPressDuration = Duration(milliseconds: 230);
+  static const Duration _longPressDuration = Duration(milliseconds: 0);
 
   static const List<int> _sectorOrder = <int>[
     20,

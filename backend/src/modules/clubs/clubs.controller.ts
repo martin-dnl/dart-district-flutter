@@ -17,12 +17,50 @@ import { ClubsService } from './clubs.service';
 import { CreateClubDto } from './dto/create-club.dto';
 import { UpdateClubDto } from './dto/update-club.dto';
 import { ManageMemberDto } from './dto/manage-member.dto';
+import { ResolveTerritoryDto } from './dto/resolve-territory.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TerritoriesService } from '../territories/territories.service';
 
 @ApiTags('clubs')
 @Controller('clubs')
 export class ClubsController {
-  constructor(private readonly clubsService: ClubsService) {}
+  constructor(
+    private readonly clubsService: ClubsService,
+    private readonly territoriesService: TerritoriesService,
+  ) {}
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('resolve-territory')
+  async resolveTerritory(@Body() dto: ResolveTerritoryDto) {
+    const codeIris = await this.clubsService.resolveNearestCodeIris(
+      dto.latitude,
+      dto.longitude,
+    );
+
+    if (!codeIris) {
+      return {
+        success: false,
+        data: null,
+        error: 'no_territory_found',
+      };
+    }
+
+    const territory = await this.territoriesService.findByCodeIris(codeIris);
+    return {
+      success: true,
+      data: {
+        code_iris: territory.code_iris,
+        name: territory.name,
+        city: territory.nom_com,
+        department: territory.dep_name,
+        region: territory.region_name,
+        latitude: territory.centroid_lat,
+        longitude: territory.centroid_lng,
+      },
+      error: null,
+    };
+  }
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

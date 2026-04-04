@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlayerStat } from './entities/player-stat.entity';
 import { EloHistory } from './entities/elo-history.entity';
 import { User } from '../users/entities/user.entity';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
+import { Throw } from '../matches/entities/throw.entity';
 
 const K_FACTOR = 32;
 
@@ -14,6 +15,7 @@ export class StatsService {
     @InjectRepository(PlayerStat) private readonly statRepo: Repository<PlayerStat>,
     @InjectRepository(EloHistory) private readonly eloRepo: Repository<EloHistory>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Throw) private readonly throwRepo: Repository<Throw>,
   ) {}
 
   /* ── Player Stats ── */
@@ -164,7 +166,112 @@ export class StatsService {
     });
   }
 
+  async getDartboardPeriods(userId: string) {
+    const rows = await this.throwRepo
+      .createQueryBuilder('throw')
+      .select("EXTRACT(YEAR FROM throw.created_at)", 'year')
+      .addSelect("EXTRACT(MONTH FROM throw.created_at)", 'month')
+      .where('throw.user_id = :userId', { userId })
+      .andWhere('throw.dart_positions IS NOT NULL')
+      .andWhere('jsonb_array_length(throw.dart_positions) > 0')
+      .groupBy("EXTRACT(YEAR FROM throw.created_at)")
+      .addGroupBy("EXTRACT(MONTH FROM throw.created_at)")
+      .orderBy('year', 'DESC')
+      .addOrderBy('month', 'ASC')
+      .getRawMany<{ year: string; month: string }>();
+
+    const grouped = new Map<number, number[]>();
+    for (const row of rows) {
+      const year = Number(row.year);
+      const month = Number(row.month);
+      if (!Number.isFinite(year) || !Number.isFinite(month)) {
+        continue;
+      }
+      const months = grouped.get(year) ?? [];
+      if (!months.includes(month)) {
+        months.push(month);
+      }
+      grouped.set(year, months);
+    }
+
+    return {
+      years: Array.from(grouped.entries()).map(([year, months]) => ({
+        year,
+        months: [...months].sort((a, b) => a - b),
+      })),
+    };
+  }
+
+  async getDartboardHeatmap(
+    userId: string,
+    filter: { period?: string; year?: number; month?: number },
+  ) {
+    const period = this.normalizePeriod(filter.period);
+    const query = this.throwRepo
+      .createQueryBuilder('throw')
+      .select(['throw.id', 'throw.score', 'throw.created_at', 'throw.dart_positions'])
+      .where('throw.user_id = :userId', { userId })
+      .andWhere('throw.dart_positions IS NOT NULL')
+      .andWhere('jsonb_array_length(throw.dart_positions) > 0')
+      .orderBy('throw.created_at', 'DESC');
+
+    if (period == 'month') {
+      const year = Number(filter.year);
+      const month = Number(filter.month);
+      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+        throw new BadRequestException('Month period requires valid year and month');
+      }
+      query.andWhere("EXTRACT(YEAR FROM throw.created_at) = :year", { year });
+      query.andWhere("EXTRACT(MONTH FROM throw.created_at) = :month", { month });
+    } else if (period == 'year') {
+      const year = Number(filter.year);
+      if (!Number.isInteger(year)) {
+        throw new BadRequestException('Year period requires a valid year');
+      }
+      query.andWhere("EXTRACT(YEAR FROM throw.created_at) = :year", { year });
+    }
+
+    const throws = await query.getMany();
+    const hits = throws.flatMap((entry) =>
+      (entry.dart_positions ?? [])
+        .filter(
+          (position) =>
+            position &&
+            typeof position.x === 'number' &&
+            typeof position.y === 'number',
+        )
+        .map((position) => ({
+          x: position.x,
+          y: position.y,
+          score: typeof position.score === 'number' ? position.score : entry.score,
+          label: typeof position.label === 'string' ? position.label : undefined,
+          played_at: entry.created_at,
+        })),
+    );
+
+    return {
+      period,
+      year: period == 'all' ? null : Number(filter.year ?? 0) || null,
+      month: period == 'month' ? Number(filter.month ?? 0) || null : null,
+      total_throws: throws.length,
+      total_hits: hits.length,
+      hits,
+    };
+  }
+
   /* ── Helpers ── */
+  private normalizePeriod(period?: string) {
+    switch ((period ?? 'all').toLowerCase()) {
+      case 'month':
+        return 'month';
+      case 'year':
+        return 'year';
+      case 'all':
+      default:
+        return 'all';
+    }
+  }
+
   private weightedRate(currentRate: number, totalGames: number, newRate: number): number {
     return ((currentRate * totalGames) + newRate) / (totalGames + 1);
   }

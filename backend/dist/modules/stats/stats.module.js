@@ -14,12 +14,13 @@ const elo_history_entity_1 = require("./entities/elo-history.entity");
 const user_entity_1 = require("../users/entities/user.entity");
 const stats_service_1 = require("./stats.service");
 const stats_controller_1 = require("./stats.controller");
+const throw_entity_1 = require("../matches/entities/throw.entity");
 let StatsModule = class StatsModule {
 };
 exports.StatsModule = StatsModule;
 exports.StatsModule = StatsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([player_stat_entity_1.PlayerStat, elo_history_entity_1.EloHistory, user_entity_1.User])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([player_stat_entity_1.PlayerStat, elo_history_entity_1.EloHistory, user_entity_1.User, throw_entity_1.Throw])],
         controllers: [stats_controller_1.StatsController],
         providers: [stats_service_1.StatsService],
         exports: [stats_service_1.StatsService],

@@ -52,7 +52,11 @@ class MatchController extends StateNotifier<MatchModel> {
     );
   }
 
-  void submitScore(int score, {int? doublesAttempted}) {
+  void submitScore(
+    int score, {
+    int? doublesAttempted,
+    List<DartPosition>? dartPositions,
+  }) {
     if (state.status != MatchStatus.inProgress) return;
 
     final players = List<PlayerMatch>.from(state.players);
@@ -68,6 +72,7 @@ class MatchController extends StateNotifier<MatchModel> {
           darts: const [0],
           total: 0,
           isBust: true,
+          dartPositions: dartPositions ?? const [],
         ),
       ];
       _applyTurnAdvance(players: players, roundHistory: roundHistory);
@@ -98,6 +103,7 @@ class MatchController extends StateNotifier<MatchModel> {
         doublesAttempted: (newScore == 0 && _isDoubleOutMode())
             ? (doublesAttempted ?? 0)
             : 0,
+        dartPositions: dartPositions ?? const [],
       ),
     ];
 

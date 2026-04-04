@@ -20,12 +20,14 @@ const player_stat_entity_1 = require("./entities/player-stat.entity");
 const elo_history_entity_1 = require("./entities/elo-history.entity");
 const user_entity_1 = require("../users/entities/user.entity");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
+const throw_entity_1 = require("../matches/entities/throw.entity");
 const K_FACTOR = 32;
 let StatsService = class StatsService {
-    constructor(statRepo, eloRepo, userRepo) {
+    constructor(statRepo, eloRepo, userRepo, throwRepo) {
         this.statRepo = statRepo;
         this.eloRepo = eloRepo;
         this.userRepo = userRepo;
+        this.throwRepo = throwRepo;
     }
     async getByUser(userId) {
         const stat = await this.statRepo.findOne({
@@ -111,6 +113,96 @@ let StatsService = class StatsService {
             take,
         });
     }
+    async getDartboardPeriods(userId) {
+        const rows = await this.throwRepo
+            .createQueryBuilder('throw')
+            .select("EXTRACT(YEAR FROM throw.created_at)", 'year')
+            .addSelect("EXTRACT(MONTH FROM throw.created_at)", 'month')
+            .where('throw.user_id = :userId', { userId })
+            .andWhere('throw.dart_positions IS NOT NULL')
+            .andWhere('jsonb_array_length(throw.dart_positions) > 0')
+            .groupBy("EXTRACT(YEAR FROM throw.created_at)")
+            .addGroupBy("EXTRACT(MONTH FROM throw.created_at)")
+            .orderBy('year', 'DESC')
+            .addOrderBy('month', 'ASC')
+            .getRawMany();
+        const grouped = new Map();
+        for (const row of rows) {
+            const year = Number(row.year);
+            const month = Number(row.month);
+            if (!Number.isFinite(year) || !Number.isFinite(month)) {
+                continue;
+            }
+            const months = grouped.get(year) ?? [];
+            if (!months.includes(month)) {
+                months.push(month);
+            }
+            grouped.set(year, months);
+        }
+        return {
+            years: Array.from(grouped.entries()).map(([year, months]) => ({
+                year,
+                months: [...months].sort((a, b) => a - b),
+            })),
+        };
+    }
+    async getDartboardHeatmap(userId, filter) {
+        const period = this.normalizePeriod(filter.period);
+        const query = this.throwRepo
+            .createQueryBuilder('throw')
+            .select(['throw.id', 'throw.score', 'throw.created_at', 'throw.dart_positions'])
+            .where('throw.user_id = :userId', { userId })
+            .andWhere('throw.dart_positions IS NOT NULL')
+            .andWhere('jsonb_array_length(throw.dart_positions) > 0')
+            .orderBy('throw.created_at', 'DESC');
+        if (period == 'month') {
+            const year = Number(filter.year);
+            const month = Number(filter.month);
+            if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+                throw new common_1.BadRequestException('Month period requires valid year and month');
+            }
+            query.andWhere("EXTRACT(YEAR FROM throw.created_at) = :year", { year });
+            query.andWhere("EXTRACT(MONTH FROM throw.created_at) = :month", { month });
+        }
+        else if (period == 'year') {
+            const year = Number(filter.year);
+            if (!Number.isInteger(year)) {
+                throw new common_1.BadRequestException('Year period requires a valid year');
+            }
+            query.andWhere("EXTRACT(YEAR FROM throw.created_at) = :year", { year });
+        }
+        const throws = await query.getMany();
+        const hits = throws.flatMap((entry) => (entry.dart_positions ?? [])
+            .filter((position) => position &&
+            typeof position.x === 'number' &&
+            typeof position.y === 'number')
+            .map((position) => ({
+            x: position.x,
+            y: position.y,
+            score: typeof position.score === 'number' ? position.score : entry.score,
+            label: typeof position.label === 'string' ? position.label : undefined,
+            played_at: entry.created_at,
+        })));
+        return {
+            period,
+            year: period == 'all' ? null : Number(filter.year ?? 0) || null,
+            month: period == 'month' ? Number(filter.month ?? 0) || null : null,
+            total_throws: throws.length,
+            total_hits: hits.length,
+            hits,
+        };
+    }
+    normalizePeriod(period) {
+        switch ((period ?? 'all').toLowerCase()) {
+            case 'month':
+                return 'month';
+            case 'year':
+                return 'year';
+            case 'all':
+            default:
+                return 'all';
+        }
+    }
     weightedRate(currentRate, totalGames, newRate) {
         return ((currentRate * totalGames) + newRate) / (totalGames + 1);
     }
@@ -121,7 +213,9 @@ exports.StatsService = StatsService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(player_stat_entity_1.PlayerStat)),
     __param(1, (0, typeorm_1.InjectRepository)(elo_history_entity_1.EloHistory)),
     __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(3, (0, typeorm_1.InjectRepository)(throw_entity_1.Throw)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])
 ], StatsService);

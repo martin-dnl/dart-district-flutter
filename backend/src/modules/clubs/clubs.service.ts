@@ -20,25 +20,23 @@ export class ClubsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(dto: CreateClubDto, userId: string) {
+  async create(dto: CreateClubDto, _userId: string) {
     let resolvedCodeIris = dto.code_iris ?? null;
     if (!resolvedCodeIris && dto.latitude != null && dto.longitude != null) {
       resolvedCodeIris = await this.resolveNearestCodeIris(dto.latitude, dto.longitude);
     }
 
-    const club = this.clubRepo.create(dto);
+    const club = this.clubRepo.create({
+      ...dto,
+      country: dto.country ?? 'France',
+    });
     club.code_iris = resolvedCodeIris;
     await this.clubRepo.save(club);
 
-    // Creator becomes president
-    const membership = this.memberRepo.create({
-      club,
-      user: { id: userId } as any,
-      role: 'president',
+    return this.clubRepo.findOne({
+      where: { id: club.id },
+      relations: ['members', 'members.user'],
     });
-    await this.memberRepo.save(membership);
-
-    return this.findById(club.id);
   }
 
   async findAll(limit = 50, q?: string, city?: string) {
@@ -189,17 +187,21 @@ export class ClubsService {
         latitude: Number(club.latitude),
         longitude: Number(club.longitude),
         code_iris: club.code_iris,
+        address: club.address,
         city: club.city,
       }));
   }
 
-  private async resolveNearestCodeIris(
+  async resolveNearestCodeIris(
     latitude: number,
     longitude: number,
+    maxDistanceKm = 5,
   ): Promise<string | null> {
     const rows = await this.dataSource.query(
       `
-        SELECT code_iris
+        SELECT code_iris,
+               CAST(centroid_lat AS double precision) AS centroid_lat,
+               CAST(centroid_lng AS double precision) AS centroid_lng
         FROM territories
         ORDER BY (
           POWER((CAST(centroid_lat AS double precision) - $1), 2) +
@@ -210,8 +212,50 @@ export class ClubsService {
       [latitude, longitude],
     );
 
-    const code = rows?.[0]?.code_iris;
-    return typeof code === 'string' && code.length > 0 ? code : null;
+    const nearest = rows?.[0];
+    const code = nearest?.code_iris;
+    const centroidLat = Number(nearest?.centroid_lat);
+    const centroidLng = Number(nearest?.centroid_lng);
+    if (
+      typeof code !== 'string' ||
+      code.length === 0 ||
+      !Number.isFinite(centroidLat) ||
+      !Number.isFinite(centroidLng)
+    ) {
+      return null;
+    }
+
+    const distanceKm = this.haversineDistanceKm(
+      latitude,
+      longitude,
+      centroidLat,
+      centroidLng,
+    );
+    if (distanceKm > maxDistanceKm) {
+      return null;
+    }
+
+    return code;
+  }
+
+  private haversineDistanceKm(
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ): number {
+    const toRadians = (value: number) => (value * Math.PI) / 180;
+
+    const dLat = toRadians(toLat - fromLat);
+    const dLng = toRadians(toLng - fromLng);
+    const lat1 = toRadians(fromLat);
+    const lat2 = toRadians(toLat);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+
+    return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
   }
 
   /* ── helpers ── */

@@ -1,4 +1,5 @@
 import 'match_model.dart';
+import '../../../shared/models/dartboard_heatmap_models.dart';
 
 class MatchReportData {
   const MatchReportData({
@@ -97,12 +98,42 @@ class MatchReportData {
     final winnerIndex = p1.setsWon == p2.setsWon
         ? (p1.score <= p2.score ? 0 : 1)
         : (p1.setsWon > p2.setsWon ? 0 : 1);
+    final p1Positions = match.roundHistory
+        .where((round) => round.playerIndex == 0)
+        .expand((round) => round.dartPositions)
+        .map(
+          (position) => DartboardHeatHit(
+            x: position.x,
+            y: position.y,
+            score: position.score,
+            label: position.label,
+          ),
+        )
+        .toList(growable: false);
+    final p2Positions = match.roundHistory
+        .where((round) => round.playerIndex == 1)
+        .expand((round) => round.dartPositions)
+        .map(
+          (position) => DartboardHeatHit(
+            x: position.x,
+            y: position.y,
+            score: position.score,
+            label: position.label,
+          ),
+        )
+        .toList(growable: false);
 
     return MatchReportData(
       matchId: match.id,
       mode: match.mode,
-      player1: PlayerReportStats.fromLocalPlayer(p1),
-      player2: PlayerReportStats.fromLocalPlayer(p2),
+      player1: PlayerReportStats.fromLocalPlayer(
+        p1,
+        dartPositions: p1Positions,
+      ),
+      player2: PlayerReportStats.fromLocalPlayer(
+        p2,
+        dartPositions: p2Positions,
+      ),
       setsScore: '${p1.setsWon} - ${p2.setsWon}',
       winnerIndex: winnerIndex,
       wasAbandoned: match.abandonedByIndex != null,
@@ -173,6 +204,7 @@ class MatchReportData {
 
 class PlayerReportStats {
   const PlayerReportStats({
+    required this.userId,
     required this.name,
     this.avatarUrl,
     required this.average,
@@ -184,8 +216,10 @@ class PlayerReportStats {
     required this.doublesAttempted,
     required this.doublesHit,
     required this.totalDarts,
+    this.dartPositions = const [],
   });
 
+  final String userId;
   final String name;
   final String? avatarUrl;
   final double average;
@@ -197,9 +231,11 @@ class PlayerReportStats {
   final int doublesAttempted;
   final int doublesHit;
   final int totalDarts;
+  final List<DartboardHeatHit> dartPositions;
 
   factory PlayerReportStats.fromApi(Map<String, dynamic> raw) {
     return PlayerReportStats(
+      userId: (raw['user_id'] ?? '').toString(),
       name: (raw['username'] ?? raw['name'] ?? 'Joueur').toString(),
       avatarUrl: raw['avatar_url']?.toString(),
       average: _toDouble(raw['avg_score']),
@@ -211,13 +247,23 @@ class PlayerReportStats {
       doublesAttempted: _toInt(raw['checkout_attempts']),
       doublesHit: _toInt(raw['checkout_hits']),
       totalDarts: _toInt(raw['total_darts']),
+      dartPositions:
+          (raw['dart_positions'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .map(DartboardHeatHit.fromJson)
+              .where((hit) => hit.hasValidPosition)
+              .toList(growable: false),
     );
   }
 
-  factory PlayerReportStats.fromLocalPlayer(PlayerMatch player) {
+  factory PlayerReportStats.fromLocalPlayer(
+    PlayerMatch player, {
+    List<DartboardHeatHit> dartPositions = const [],
+  }) {
     final attempts = player.doublesAttempted;
     final hits = player.doublesHit;
     return PlayerReportStats(
+      userId: '',
       name: player.name,
       avatarUrl: null,
       average: player.average,
@@ -229,6 +275,7 @@ class PlayerReportStats {
       doublesAttempted: attempts,
       doublesHit: hits,
       totalDarts: player.totalDartsThrown,
+      dartPositions: dartPositions,
     );
   }
 

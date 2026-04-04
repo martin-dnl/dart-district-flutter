@@ -28,6 +28,25 @@ export class StatsController {
     return this.statsService.eloHistory(req.user.id, limit);
   }
 
+  @Get('me/dartboard-periods')
+  myDartboardPeriods(@Req() req: { user: { id: string } }) {
+    return this.statsService.getDartboardPeriods(req.user.id);
+  }
+
+  @Get('me/dartboard-heatmap')
+  myDartboardHeatmap(
+    @Req() req: { user: { id: string } },
+    @Query('period') period?: string,
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+  ) {
+    return this.statsService.getDartboardHeatmap(req.user.id, {
+      period,
+      year,
+      month,
+    });
+  }
+
   @Get(':userId')
   userStats(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.statsService.getByUser(userId);
@@ -36,5 +55,24 @@ export class StatsController {
   @Get(':userId/elo-history')
   userEloHistory(@Param('userId', ParseUUIDPipe) userId: string, @Query('limit') limit?: number) {
     return this.statsService.eloHistory(userId, limit);
+  }
+
+  @Get(':userId/dartboard-periods')
+  userDartboardPeriods(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.statsService.getDartboardPeriods(userId);
+  }
+
+  @Get(':userId/dartboard-heatmap')
+  userDartboardHeatmap(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query('period') period?: string,
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+  ) {
+    return this.statsService.getDartboardHeatmap(userId, {
+      period,
+      year,
+      month,
+    });
   }
 }

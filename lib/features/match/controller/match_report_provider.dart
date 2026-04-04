@@ -13,6 +13,7 @@ final matchReportProvider = FutureProvider.family<MatchReportData, String>((
   );
   final data =
       (response.data?['data'] as Map<String, dynamic>?) ??
+      response.data ??
       const <String, dynamic>{};
   return MatchReportData.fromApi(data);
 });

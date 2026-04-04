@@ -91,6 +91,38 @@ class MatchModel {
   }
 }
 
+class DartPosition {
+  final double x;
+  final double y;
+  final int? score;
+  final String? label;
+
+  const DartPosition({
+    required this.x,
+    required this.y,
+    this.score,
+    this.label,
+  });
+
+  factory DartPosition.fromJson(Map<String, dynamic> json) {
+    return DartPosition(
+      x: (json['x'] as num?)?.toDouble() ?? 0,
+      y: (json['y'] as num?)?.toDouble() ?? 0,
+      score: (json['score'] as num?)?.toInt(),
+      label: json['label']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'x': x,
+      'y': y,
+      if (score != null) 'score': score,
+      if (label != null) 'label': label,
+    };
+  }
+}
+
 class PlayerMatch {
   final String name;
   final int score;
@@ -143,6 +175,7 @@ class RoundScore {
   final int total;
   final bool isBust;
   final int doublesAttempted;
+  final List<DartPosition> dartPositions;
 
   const RoundScore({
     required this.playerIndex,
@@ -151,6 +184,7 @@ class RoundScore {
     required this.total,
     this.isBust = false,
     this.doublesAttempted = 0,
+    this.dartPositions = const [],
   });
 }
 

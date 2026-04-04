@@ -4,9 +4,10 @@ import { Club } from './entities/club.entity';
 import { ClubMember } from './entities/club-member.entity';
 import { ClubsService } from './clubs.service';
 import { ClubsController } from './clubs.controller';
+import { TerritoriesModule } from '../territories/territories.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Club, ClubMember])],
+  imports: [TypeOrmModule.forFeature([Club, ClubMember]), TerritoriesModule],
   controllers: [ClubsController],
   providers: [ClubsService],
   exports: [ClubsService],

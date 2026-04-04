@@ -261,7 +261,13 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
       }
       ref
           .read(matchControllerProvider.notifier)
-          .submitScore(score, doublesAttempted: doublesAttempted);
+          .submitScore(
+            score,
+            doublesAttempted: doublesAttempted,
+            dartPositions: (dartPositions ?? const <Map<String, dynamic>>[])
+                .map(DartPosition.fromJson)
+                .toList(growable: false),
+          );
       return;
     }
 

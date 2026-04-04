@@ -9,6 +9,12 @@ export declare class Throw {
     segment: string;
     score: number;
     remaining: number;
+    dart_positions?: Array<{
+        x: number;
+        y: number;
+        score?: number;
+        label?: string;
+    }>;
     is_checkout: boolean;
     created_at: Date;
     leg: Leg;

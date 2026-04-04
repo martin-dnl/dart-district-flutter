@@ -577,6 +577,7 @@ export class MatchesService {
       return {
         user_id: p.user_id,
         username: p.user?.username ?? 'Unknown',
+        avatar_url: p.user?.avatar_url ?? null,
         avg_score:
           throwsForPlayer.length > 0
             ? Number((totalScore / throwsForPlayer.length).toFixed(2))
@@ -589,7 +590,27 @@ export class MatchesService {
           checkoutAttempts > 0
             ? Number(((checkoutHits / checkoutAttempts) * 100).toFixed(2))
             : 0,
+        checkout_attempts: checkoutAttempts,
+        checkout_hits: checkoutHits,
         highest_checkout: highestCheckout,
+        total_darts: throwsForPlayer.length * 3,
+        dart_positions: throwsForPlayer.flatMap((t) =>
+          (t.dart_positions ?? [])
+            .filter(
+              (position) =>
+                position &&
+                typeof position.x === 'number' &&
+                typeof position.y === 'number',
+            )
+            .map((position) => ({
+              x: position.x,
+              y: position.y,
+              score:
+                typeof position.score === 'number' ? position.score : undefined,
+              label:
+                typeof position.label === 'string' ? position.label : undefined,
+            })),
+        ),
       };
     });
 
@@ -850,6 +871,7 @@ export class MatchesService {
         'total': t.score,
         'is_bust': t.segment == 'BUST',
         'doubles_attempted': this.extractDoubleAttemptsFromSegment(t.segment),
+        'dart_positions': t.dart_positions ?? [],
       };
     });
 

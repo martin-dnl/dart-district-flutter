@@ -28,6 +28,18 @@ export class TerritoriesController {
     return this.territoriesService.getTilesetMetadata();
   }
 
+  @Get('tileset/active-zones')
+  async activeZones() {
+    const codes = await this.territoriesService.getActiveIrisCodes();
+    return {
+      success: true,
+      data: {
+        codes,
+      },
+      error: null,
+    };
+  }
+
   @Get('map/statuses')
   mapStatuses(@Query() query: QueryTerritoryStatusesDto) {
     return this.territoriesService.getMapStatuses(query);

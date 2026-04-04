@@ -55,6 +55,12 @@ export declare class MatchesService {
             total: number;
             is_bust: boolean;
             doubles_attempted: number;
+            dart_positions: {
+                x: number;
+                y: number;
+                score?: number;
+                label?: string;
+            }[];
         }[];
         inviter_id: string | null;
         invitee_id: string | null;
@@ -95,6 +101,12 @@ export declare class MatchesService {
             total: number;
             is_bust: boolean;
             doubles_attempted: number;
+            dart_positions: {
+                x: number;
+                y: number;
+                score?: number;
+                label?: string;
+            }[];
         }[];
         inviter_id: string | null;
         invitee_id: string | null;
@@ -135,6 +147,12 @@ export declare class MatchesService {
             total: number;
             is_bust: boolean;
             doubles_attempted: number;
+            dart_positions: {
+                x: number;
+                y: number;
+                score?: number;
+                label?: string;
+            }[];
         }[];
         inviter_id: string | null;
         invitee_id: string | null;
@@ -157,6 +175,12 @@ export declare class MatchesService {
         player_index: number;
         score: number;
         doubles_attempted?: number;
+        dart_positions?: Array<{
+            x: number;
+            y: number;
+            score?: number;
+            label?: string;
+        }>;
     }): Promise<{
         id: string;
         mode: string;
@@ -185,6 +209,12 @@ export declare class MatchesService {
             total: number;
             is_bust: boolean;
             doubles_attempted: number;
+            dart_positions: {
+                x: number;
+                y: number;
+                score?: number;
+                label?: string;
+            }[];
         }[];
         inviter_id: string | null;
         invitee_id: string | null;
@@ -225,6 +255,12 @@ export declare class MatchesService {
             total: number;
             is_bust: boolean;
             doubles_attempted: number;
+            dart_positions: {
+                x: number;
+                y: number;
+                score?: number;
+                label?: string;
+            }[];
         }[];
         inviter_id: string | null;
         invitee_id: string | null;
@@ -267,6 +303,12 @@ export declare class MatchesService {
             total: number;
             is_bust: boolean;
             doubles_attempted: number;
+            dart_positions: {
+                x: number;
+                y: number;
+                score?: number;
+                label?: string;
+            }[];
         }[];
         inviter_id: string | null;
         invitee_id: string | null;
@@ -281,7 +323,24 @@ export declare class MatchesService {
     }>;
     create(dto: CreateMatchDto): Promise<Match>;
     findById(id: string): Promise<Match>;
-    findByUser(userId: string, limit?: number, offset?: number, status?: string, ranked?: string): Promise<Match[]>;
+    findByUser(userId: string, limit?: number, offset?: number, status?: string, ranked?: string): Promise<{
+        id: string;
+        mode: string;
+        status: string;
+        is_ranked: boolean;
+        created_at: Date;
+        started_at: Date | null;
+        completed_at: Date | null;
+        surrendered_by: string | null;
+        winner_id: string | null;
+        players: {
+            user_id: string;
+            username: string;
+            avatar_url: string | null;
+            is_winner: boolean | null;
+            sets_won: number;
+        }[];
+    }[]>;
     getMatchReport(matchId: string): Promise<{
         match_id: string;
         mode: string;
@@ -289,13 +348,23 @@ export declare class MatchesService {
         players: {
             user_id: string;
             username: string;
+            avatar_url: string | null;
             avg_score: number;
             legs_won: number;
             count_180: number;
             count_140_plus: number;
             count_100_plus: number;
             checkout_rate: number;
+            checkout_attempts: number;
+            checkout_hits: number;
             highest_checkout: number;
+            total_darts: number;
+            dart_positions: {
+                x: number;
+                y: number;
+                score: number | undefined;
+                label: string | undefined;
+            }[];
         }[];
         timeline: {
             set: number;

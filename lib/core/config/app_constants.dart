@@ -12,6 +12,8 @@ class AppConstants {
       String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID', defaultValue: '');
   static const String _googleWebClientIdOverride =
       String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+    static const String _googlePlacesApiKeyOverride =
+      String.fromEnvironment('GOOGLE_PLACES_API_KEY', defaultValue: '');
 
   static String get apiBaseUrl {
     if (_apiBaseUrlOverride.isNotEmpty) {
@@ -71,6 +73,13 @@ class AppConstants {
       return _googleServerClientIdOverride;
     }
     return null;
+  }
+
+  static String? get googlePlacesApiKey {
+    if (_googlePlacesApiKeyOverride.isEmpty) {
+      return null;
+    }
+    return _googlePlacesApiKeyOverride;
   }
 
   // WebSocket

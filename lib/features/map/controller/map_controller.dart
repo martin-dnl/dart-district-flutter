@@ -54,6 +54,26 @@ class MapController extends StateNotifier<MapState> {
   final Ref _ref;
   io.Socket? _socket;
 
+  List<Map<String, dynamic>> _extractMapList(dynamic payload) {
+    if (payload is List) {
+      return payload.whereType<Map>().map((row) {
+        return row.map((key, value) => MapEntry(key.toString(), value));
+      }).toList(growable: false);
+    }
+
+    if (payload is Map) {
+      final mapped = payload.map((key, value) => MapEntry(key.toString(), value));
+      final data = mapped['data'];
+      if (data is List) {
+        return data.whereType<Map>().map((row) {
+          return row.map((key, value) => MapEntry(key.toString(), value));
+        }).toList(growable: false);
+      }
+    }
+
+    return const <Map<String, dynamic>>[];
+  }
+
   Future<void> _loadTerritories() async {
     state = state.copyWith(isLoading: true);
 
@@ -67,7 +87,7 @@ class MapController extends StateNotifier<MapState> {
       final clubZonesResponse = await api.get<Map<String, dynamic>>(
         '/territories/clubs/zones',
       );
-      final clubsMapResponse = await api.get<Map<String, dynamic>>('/clubs/map');
+      final clubsMapResponse = await api.get<dynamic>('/clubs/map');
       final activeZonesResponse = await api.get<Map<String, dynamic>>(
         '/territories/tileset/active-zones',
       );
@@ -115,12 +135,7 @@ class MapController extends StateNotifier<MapState> {
               .where((code) => code.isNotEmpty)
               .toSet();
 
-            final clubMarkers =
-              (clubsMapResponse.data?['data'] as List<dynamic>? ??
-                  clubsMapResponse.data as List<dynamic>? ??
-                  <dynamic>[])
-                .whereType<Map<String, dynamic>>()
-                .toList();
+      final clubMarkers = _extractMapList(clubsMapResponse.data);
 
       final activeCodesData =
           (activeZonesResponse.data?['data']?['codes'] as List<dynamic>? ??

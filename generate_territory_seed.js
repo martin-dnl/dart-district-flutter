@@ -74,6 +74,7 @@ let rows = [];
 function flushBatch() {
   if (rows.length === 0) return;
   const cols = `INSERT INTO territories (
+  code, city, district, latitude, longitude,
   code_iris, name, insee_com, nom_com, nom_iris, iris_type,
   dep_code, dep_name,
   centroid_lat, centroid_lng,
@@ -83,6 +84,11 @@ function flushBatch() {
     cols +
     rows.join(',\n') +
     '\nON CONFLICT (code_iris) DO UPDATE SET\n' +
+    '  code         = EXCLUDED.code,\n' +
+    '  city         = EXCLUDED.city,\n' +
+    '  district     = EXCLUDED.district,\n' +
+    '  latitude     = EXCLUDED.latitude,\n' +
+    '  longitude    = EXCLUDED.longitude,\n' +
     '  nom_com      = EXCLUDED.nom_com,\n' +
     '  nom_iris     = EXCLUDED.nom_iris,\n' +
     '  iris_type    = EXCLUDED.iris_type,\n' +
@@ -105,7 +111,8 @@ for (const feature of features) {
   const nm = p.nom_iris || p.nom_commune || ci;
 
   rows.push(
-    `  (${esc(ci)}, ${esc(nm)}, ${esc(p.code_insee)}, ${esc(p.nom_commune)}, ` +
+    `  (${esc(ci)}, ${esc(p.nom_commune)}, ${esc(p.nom_iris)}, ${lat}, ${lng}, ` +
+    `${esc(ci)}, ${esc(nm)}, ${esc(p.code_insee)}, ${esc(p.nom_commune)}, ` +
     `${esc(p.nom_iris)}, ${esc(p.type_iris)}, ${esc(dc)}, ${esc(dn)}, ` +
     `${lat}, ${lng}, 'available', NOW(), NOW())`
   );

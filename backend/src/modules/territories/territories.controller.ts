@@ -61,6 +61,7 @@ export class TerritoriesController {
     @Query('lng') lngRaw: string,
     @Query('zoom') zoomRaw?: string,
     @Query('viewport_width_px') viewportWidthRaw?: string,
+    @Query('active_only') activeOnlyRaw?: string,
   ) {
     const lat = Number.parseFloat(latRaw);
     const lng = Number.parseFloat(lngRaw);
@@ -82,12 +83,35 @@ export class TerritoriesController {
       );
     }
 
-    return this.territoriesService.hitTestByCoordinates(
+    const activeOnly =
+      activeOnlyRaw == null
+        ? true
+        : !['0', 'false', 'no', 'off'].includes(activeOnlyRaw.toLowerCase());
+
+    const hit = this.territoriesService.hitTestByCoordinates(
       lat,
       lng,
       zoom,
       viewportWidthPx,
     );
+
+    if (!activeOnly) {
+      return hit;
+    }
+
+    return hit.then(async (result) => {
+      const code = (result?.code_iris ?? '').toString().trim().toUpperCase();
+      if (!code) {
+        return { code_iris: null };
+      }
+
+      const activeCodes = await this.territoriesService.getActiveIrisCodes();
+      if (!activeCodes.includes(code)) {
+        return { code_iris: null };
+      }
+
+      return result;
+    });
   }
 
   @Get()

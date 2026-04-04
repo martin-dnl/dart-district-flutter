@@ -268,6 +268,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           'lng': latLng.longitude,
           if (_currentZoom != null) 'zoom': _currentZoom,
           'viewport_width_px': viewportWidthPx,
+          'active_only': 'true',
         },
       );
 
@@ -289,10 +290,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     List<TerritoryModel> territories,
     double viewportWidthPx,
   ) async {
-    var codeIris = await _resolveCodeIrisFromTap(latLng, viewportWidthPx);
-
-    // Fallback if backend hit-test is unavailable.
-    codeIris ??= _nearestTerritory(territories, latLng)?.codeIris;
+    final codeIris = await _resolveCodeIrisFromTap(latLng, viewportWidthPx);
     if (codeIris == null || codeIris.isEmpty || !mounted) {
       return;
     }
@@ -1330,34 +1328,6 @@ double? _asDouble(dynamic value) {
   }
 
   return null;
-}
-
-TerritoryModel? _nearestTerritory(
-  List<TerritoryModel> territories,
-  LatLng tap,
-) {
-  TerritoryModel? nearest;
-  var bestDistance = double.infinity;
-
-  for (final territory in territories) {
-    if (territory.latitude == 0 && territory.longitude == 0) {
-      continue;
-    }
-
-    final dLat = territory.latitude - tap.latitude;
-    final dLng = territory.longitude - tap.longitude;
-    final distance = dLat * dLat + dLng * dLng;
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      nearest = territory;
-    }
-  }
-
-  if (bestDistance > 0.05) {
-    return null;
-  }
-
-  return nearest;
 }
 
 class _TilesetConfig {

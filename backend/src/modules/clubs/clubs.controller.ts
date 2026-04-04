@@ -78,7 +78,27 @@ export class ClubsController {
       };
     }
 
-    const territory = await this.territoriesService.findByCodeIris(codeIris);
+    const territory = await this.territoriesService.findByCodeIrisOrNull(codeIris);
+    if (!territory) {
+      this.logger.warn(
+        `resolve-territory code_iris=${codeIris} found by geo matching but missing in territories table. Returning fallback payload.`,
+      );
+
+      return {
+        success: true,
+        data: {
+          code_iris: codeIris,
+          name: `IRIS ${codeIris}`,
+          city: null,
+          department: null,
+          region: null,
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+        },
+        error: null,
+      };
+    }
+
     this.logger.log(
       `resolve-territory success code_iris=${territory.code_iris}, name=${territory.name}, city=${territory.nom_com}`,
     );

@@ -800,13 +800,17 @@ export class TerritoriesService {
     return { code_iris: hit.codeIris };
   }
 
-  async findByCodeIris(codeIris: string) {
+  async findByCodeIrisOrNull(codeIris: string): Promise<Territory | null> {
     await this.ensureIrisSchema('territory lookup');
     const code = this.normalizeCodeIris(codeIris);
-    const t = await this.territoryRepo.findOne({
+    return this.territoryRepo.findOne({
       where: { code_iris: code },
       relations: ['owner_club'],
     });
+  }
+
+  async findByCodeIris(codeIris: string) {
+    const t = await this.findByCodeIrisOrNull(codeIris);
     if (!t) throw new NotFoundException('Territory not found');
     return t;
   }

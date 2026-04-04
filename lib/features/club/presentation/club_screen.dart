@@ -256,6 +256,15 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
   bool _isLocating = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(clubSearchControllerProvider.notifier).loadInitial();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();

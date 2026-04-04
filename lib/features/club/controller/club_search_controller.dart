@@ -74,6 +74,13 @@ class ClubSearchController extends StateNotifier<ClubSearchState> {
     state = const ClubSearchState();
   }
 
+  Future<void> loadInitial() async {
+    if (state.isLoading) {
+      return;
+    }
+    await _search();
+  }
+
   Future<void> _search({String? query, double? lat, double? lng}) async {
     state = state.copyWith(
       isLoading: true,

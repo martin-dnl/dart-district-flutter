@@ -6,14 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_map_tiles_pmtiles/vector_map_tiles_pmtiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 import '../../../core/config/app_colors.dart';
-import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../core/network/nominatim_service.dart';
 import '../../club/widgets/club_map_marker.dart';
@@ -39,7 +37,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   LatLng? _currentCenter;
   double? _currentZoom;
   bool _hasInitializedCamera = false;
-  bool _hasCenteredOnClubs = false;
 
   // Map controller for programmatic camera movement
   final fm.MapController _fmController = fm.MapController();
@@ -302,11 +299,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     await _openPanelForTerritoryCode(codeIris);
   }
 
-  void _maybeCenterOnClubs(List<Map<String, dynamic>> clubMarkers) {
-    if (_hasCenteredOnClubs || clubMarkers.isEmpty || !mounted) {
-      return;
-    }
-
+  (LatLng center, double zoom)? _computeCameraFromClubMarkers(
+    List<Map<String, dynamic>> clubMarkers,
+  ) {
     final points = clubMarkers
         .map((club) => LatLng(
               _asDouble(club['latitude']) ?? double.nan,
@@ -316,7 +311,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         .toList(growable: false);
 
     if (points.isEmpty) {
-      return;
+      return null;
     }
 
     final minLat = points.map((p) => p.latitude).reduce(math.min);
@@ -324,14 +319,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final minLng = points.map((p) => p.longitude).reduce(math.min);
     final maxLng = points.map((p) => p.longitude).reduce(math.max);
 
-    final centerLat = (minLat + maxLat) / 2;
-    final centerLng = (minLng + maxLng) / 2;
-    final latSpan = (maxLat - minLat).abs();
-    final lngSpan = (maxLng - minLng).abs();
-    final span = math.max(latSpan, lngSpan);
-
-    // Pick a zoom level based on spread so distant bars are still visible.
-    final initialBarsZoom = switch (span) {
+    final center = LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+    final span = math.max((maxLat - minLat).abs(), (maxLng - minLng).abs());
+    final zoom = switch (span) {
       > 6 => 4.2,
       > 4 => 4.8,
       > 2 => 5.6,
@@ -340,16 +330,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _ => 10.5,
     };
 
-    // Start by showing bars first: center camera on clubs once map data is ready.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _fmController.move(LatLng(centerLat, centerLng), initialBarsZoom);
-      setState(() {
-        _hasCenteredOnClubs = true;
-        _currentCenter = LatLng(centerLat, centerLng);
-        _currentZoom = initialBarsZoom;
-      });
-    });
+    return (center, zoom);
   }
 
   List<dynamic> _statusFilter(List<String> codes) {
@@ -867,7 +848,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
-    _maybeCenterOnClubs(mapState.clubMarkers);
     final territoriesToRender = mapState.activeIrisCodes.isEmpty
         ? mapState.territories
         : mapState.territories
@@ -901,12 +881,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           }
 
           if (!_hasInitializedCamera) {
-            _currentCenter = config.center;
-            _currentZoom = _computeZoomForVisibleWidthKm(
-              latitude: config.center.latitude,
-              viewportWidthPx: viewportWidthPx,
-              widthKm: _targetVisibleWidthKm,
-            );
+            final clubCamera = _computeCameraFromClubMarkers(mapState.clubMarkers);
+            if (clubCamera != null) {
+              _currentCenter = clubCamera.$1;
+              _currentZoom = clubCamera.$2;
+            } else {
+              _currentCenter = config.center;
+              _currentZoom = _computeZoomForVisibleWidthKm(
+                latitude: config.center.latitude,
+                viewportWidthPx: viewportWidthPx,
+                widthKm: _targetVisibleWidthKm,
+              );
+            }
             _hasInitializedCamera = true;
           }
 

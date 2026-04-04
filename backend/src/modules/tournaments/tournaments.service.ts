@@ -16,6 +16,7 @@ import { CreateTournamentDto } from './dto/create-tournament.dto';
 type FindAllOptions = {
   status?: string;
   upcoming?: string;
+  clubId?: string;
 };
 
 @Injectable()
@@ -62,6 +63,9 @@ export class TournamentsService {
 
     if (options?.status) {
       qb.andWhere('t.status = :status', { status: options.status });
+    }
+    if (options?.clubId) {
+      qb.andWhere('t.club_id = :clubId', { clubId: options.clubId });
     }
     if (options?.upcoming === 'true') {
       qb.andWhere('t.scheduled_at > :now', { now: new Date() });

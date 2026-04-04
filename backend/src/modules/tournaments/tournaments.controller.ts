@@ -40,8 +40,9 @@ export class TournamentsController {
   findAll(
     @Query('status') status?: string,
     @Query('upcoming') upcoming?: string,
+    @Query('club_id') clubId?: string,
   ) {
-    return this.tournamentsService.findAll({ status, upcoming });
+    return this.tournamentsService.findAll({ status, upcoming, clubId });
   }
 
   @Get(':id')

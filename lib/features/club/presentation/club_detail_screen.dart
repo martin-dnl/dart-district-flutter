@@ -25,6 +25,37 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
   ClubModel? _club;
   List<Map<String, dynamic>> _tournaments = const [];
 
+  List<Map<String, dynamic>> _extractMapList(dynamic payload) {
+    if (payload is List) {
+      return payload
+          .whereType<Map>()
+          .map((row) => row.map((k, v) => MapEntry(k.toString(), v)))
+          .toList(growable: false);
+    }
+
+    if (payload is Map) {
+      final mapped = payload.map((k, v) => MapEntry(k.toString(), v));
+      final data = mapped['data'];
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((row) => row.map((k, v) => MapEntry(k.toString(), v)))
+            .toList(growable: false);
+      }
+      if (data is Map) {
+        final items = data['items'];
+        if (items is List) {
+          return items
+              .whereType<Map>()
+              .map((row) => row.map((k, v) => MapEntry(k.toString(), v)))
+              .toList(growable: false);
+        }
+      }
+    }
+
+    return const <Map<String, dynamic>>[];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,20 +83,21 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
           clubResponse.data ??
           <String, dynamic>{};
 
-      final tournamentsResponse = await api.get<Map<String, dynamic>>(
-        '/tournaments',
-        queryParameters: {'club_id': widget.id},
-      );
-      final tournamentsData =
-          (tournamentsResponse.data?['data'] as List<dynamic>? ??
-                  tournamentsResponse.data as List<dynamic>? ??
-                  const <dynamic>[])
-              .whereType<Map<String, dynamic>>()
-              .where((item) {
-                final status = (item['status'] ?? '').toString().toLowerCase();
-                return status != 'completed' && status != 'cancelled';
-              })
-              .toList();
+      List<Map<String, dynamic>> tournamentsData = const [];
+      try {
+        final tournamentsResponse = await api.get<dynamic>(
+          '/tournaments',
+          queryParameters: {'club_id': widget.id},
+        );
+        tournamentsData = _extractMapList(tournamentsResponse.data)
+            .where((item) {
+              final status = (item['status'] ?? '').toString().toLowerCase();
+              return status != 'completed' && status != 'cancelled';
+            })
+            .toList(growable: false);
+      } catch (_) {
+        tournamentsData = const [];
+      }
 
       if (!mounted) return;
       setState(() {

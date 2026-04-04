@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
-import 'club_map_marker.dart';
 
 class ClubMapModal {
   const ClubMapModal._();
@@ -28,7 +27,7 @@ class ClubMapModal {
             left: 16,
             right: 16,
             top: 12,
-            bottom: MediaQuery.of(context).viewPadding.bottom + 14,
+            bottom: MediaQuery.of(context).viewPadding.bottom + 14 + 100,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -41,9 +40,7 @@ class ClubMapModal {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 12),
-              const ClubMapMarker(),
-              const SizedBox(height: 10),
+
               Text(
                 name,
                 textAlign: TextAlign.center,
@@ -78,15 +75,16 @@ class ClubMapModal {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
+                    final router = GoRouter.of(context);
                     Navigator.of(context).pop();
-                    context.push('/club/$clubId');
+                    router.push('/club/$clubId');
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.background,
                   ),
                   child: Text(
-                    'Voir le detail du club',
+                    'Voir plus',
                     style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
                   ),
                 ),

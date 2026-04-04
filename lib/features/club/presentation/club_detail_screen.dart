@@ -25,6 +25,12 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
   ClubModel? _club;
   List<Map<String, dynamic>> _tournaments = const [];
 
+  double? _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   List<Map<String, dynamic>> _extractMapList(dynamic payload) {
     if (payload is List) {
       return payload
@@ -77,11 +83,36 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
 
     try {
       final api = ref.read(apiClientProvider);
-      final clubResponse = await api.get<Map<String, dynamic>>('/clubs/${widget.id}');
-      final clubData =
-          (clubResponse.data?['data'] as Map<String, dynamic>?) ??
-          clubResponse.data ??
-          <String, dynamic>{};
+
+      final clubResponse = await api.get<dynamic>('/clubs/${widget.id}');
+      final payload = clubResponse.data;
+      final clubData = payload is Map
+          ? ((payload['data'] is Map)
+              ? (payload['data'] as Map)
+                  .map((k, v) => MapEntry(k.toString(), v))
+              : payload.map((k, v) => MapEntry(k.toString(), v)))
+          : <String, dynamic>{};
+
+      if (clubData.isEmpty) {
+        throw Exception('club_payload_empty');
+      }
+
+      ClubModel loadedClub;
+      try {
+        loadedClub = ClubModel.fromApi(clubData);
+      } catch (_) {
+        loadedClub = ClubModel(
+          id: (clubData['id'] ?? widget.id).toString(),
+          name: (clubData['name'] ?? 'Club').toString(),
+          address: clubData['address']?.toString(),
+          city: clubData['city']?.toString(),
+          postalCode: clubData['postal_code']?.toString(),
+          country: clubData['country']?.toString(),
+          latitude: _toDouble(clubData['latitude']),
+          longitude: _toDouble(clubData['longitude']),
+          codeIris: clubData['code_iris']?.toString(),
+        );
+      }
 
       List<Map<String, dynamic>> tournamentsData = const [];
       try {
@@ -101,7 +132,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
 
       if (!mounted) return;
       setState(() {
-        _club = ClubModel.fromApi(clubData);
+        _club = loadedClub;
         _tournaments = tournamentsData;
         _loading = false;
       });

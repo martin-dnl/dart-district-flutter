@@ -260,8 +260,44 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(clubSearchControllerProvider.notifier).loadInitial();
+      _loadInitialNearbyClubs();
     });
+  }
+
+  Future<void> _loadInitialNearbyClubs() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await ref.read(clubSearchControllerProvider.notifier).loadInitial();
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        await ref.read(clubSearchControllerProvider.notifier).loadInitial();
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+
+      await ref.read(clubSearchControllerProvider.notifier).searchNearby(
+            position.latitude,
+            position.longitude,
+            limit: 10,
+          );
+    } catch (_) {
+      await ref.read(clubSearchControllerProvider.notifier).loadInitial();
+    }
   }
 
   @override

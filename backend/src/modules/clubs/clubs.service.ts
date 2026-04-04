@@ -72,10 +72,8 @@ export class ClubsService {
     const take = normalizeLimit(params.limit ?? 20, 50);
 
     const hasGeo = Number.isFinite(params.lat) && Number.isFinite(params.lng);
-    const radiusKm =
-      Number.isFinite(params.radius) && (params.radius ?? 0) > 0
-        ? Number(params.radius)
-        : 20;
+    const hasRadius = Number.isFinite(params.radius) && (params.radius ?? 0) > 0;
+    const radiusKm = hasRadius ? Number(params.radius) : null;
 
     const qb = this.clubRepo
       .createQueryBuilder('club')
@@ -102,9 +100,12 @@ export class ClubsService {
 
       qb.andWhere('club.latitude IS NOT NULL AND club.longitude IS NOT NULL')
         .addSelect(distanceExpr, 'distance')
-        .andWhere(`${distanceExpr} <= :radiusKm`)
-        .setParameters({ lat, lng, radiusKm })
+        .setParameters({ lat, lng })
         .orderBy('distance', 'ASC');
+
+      if (hasRadius) {
+        qb.andWhere(`${distanceExpr} <= :radiusKm`).setParameter('radiusKm', radiusKm);
+      }
     } else {
       qb.orderBy('club.name', 'ASC');
     }

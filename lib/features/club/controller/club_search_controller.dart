@@ -61,11 +61,18 @@ class ClubSearchController extends StateNotifier<ClubSearchState> {
     });
   }
 
-  Future<void> searchNearby(double lat, double lng) async {
+  Future<void> searchNearby(
+    double lat,
+    double lng, {
+    int limit = 10,
+    double? radiusKm,
+  }) async {
     await _search(
       query: (state.query ?? '').trim().isEmpty ? null : state.query,
       lat: lat,
       lng: lng,
+      limit: limit,
+      radiusKm: radiusKm,
     );
   }
 
@@ -78,10 +85,16 @@ class ClubSearchController extends StateNotifier<ClubSearchState> {
     if (state.isLoading) {
       return;
     }
-    await _search();
+    await _search(limit: 10);
   }
 
-  Future<void> _search({String? query, double? lat, double? lng}) async {
+  Future<void> _search({
+    String? query,
+    double? lat,
+    double? lng,
+    int? limit,
+    double? radiusKm,
+  }) async {
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -94,7 +107,8 @@ class ClubSearchController extends StateNotifier<ClubSearchState> {
         'q': query?.trim(),
         'lat': lat,
         'lng': lng,
-        'limit': 20,
+        'radius': radiusKm,
+        'limit': limit ?? 10,
       };
       queryParameters.removeWhere(
         (_, value) =>

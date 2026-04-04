@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import * as path from 'path';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
@@ -410,12 +411,29 @@ export class TerritoriesService {
   private resolveIrisGeoJsonPath(): string {
     const configured = process.env.IRIS_GEOJSON_PATH?.trim();
     if (configured) {
-      return path.isAbsolute(configured)
+      const configuredPath = path.isAbsolute(configured)
         ? configured
         : path.resolve(process.cwd(), configured);
+      if (existsSync(configuredPath)) {
+        return configuredPath;
+      }
     }
 
-    return path.resolve(process.cwd(), '..', 'iris_data', 'iris_france.geojson');
+    const candidates = [
+      path.resolve(process.cwd(), 'iris_data', 'iris_france.geojson'),
+      path.resolve(process.cwd(), '..', 'iris_data', 'iris_france.geojson'),
+      path.resolve(__dirname, '..', '..', '..', '..', 'iris_data', 'iris_france.geojson'),
+      path.resolve('/', 'app', 'iris_data', 'iris_france.geojson'),
+      path.resolve('/', 'iris_data', 'iris_france.geojson'),
+    ];
+
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return candidates[1];
   }
 
   private async getIrisGeoIndex(): Promise<IndexedIrisFeature[]> {

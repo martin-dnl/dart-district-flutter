@@ -29,7 +29,8 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
-  static const double _targetVisibleWidthKm = 5;
+  static const double _targetVisibleWidthKm = 20;
+  static const double _markerMinZoom = 8;
   static const double _cityDefaultZoom = 12;
   static const double _searchResultZoom = 13.5;
 
@@ -949,7 +950,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           tileProviders: TileProviders({'pmtiles': provider}),
                           layerMode: VectorTileLayerMode.vector,
                         ),
-                      if ((_currentZoom ?? initialZoom) >= 10)
+                      if ((_currentZoom ?? initialZoom) >= _markerMinZoom)
                         fm.MarkerLayer(
                           markers: mapState.clubMarkers.map((club) {
                           final lat = _asDouble(club['latitude']);

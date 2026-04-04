@@ -79,23 +79,48 @@ class MapController extends StateNotifier<MapState> {
 
     try {
       final api = _ref.read(apiClientProvider);
-      
-      // Load all map data at once: territories with statuses and club rankings
-      final response = await api.get<Map<String, dynamic>>(
-        '/territories/map/data',
-      );
-      final clubZonesResponse = await api.get<Map<String, dynamic>>(
-        '/territories/clubs/zones',
-      );
-      final clubsMapResponse = await api.get<dynamic>('/clubs/map');
-      // ignore: avoid_print
-      print('[MapController] /clubs/map raw response type: ${clubsMapResponse.data.runtimeType}');
-      final activeZonesResponse = await api.get<Map<String, dynamic>>(
-        '/territories/tileset/active-zones',
-      );
+
+      Map<String, dynamic>? mapDataPayload;
+      Map<String, dynamic>? clubZonesPayload;
+      dynamic clubsMapPayload;
+      Map<String, dynamic>? activeZonesPayload;
+
+      try {
+        final response = await api.get<Map<String, dynamic>>('/territories/map/data');
+        mapDataPayload = response.data;
+      } catch (e) {
+        // ignore: avoid_print
+        print('[MapController] /territories/map/data failed: $e');
+      }
+
+      try {
+        final response = await api.get<Map<String, dynamic>>('/territories/clubs/zones');
+        clubZonesPayload = response.data;
+      } catch (e) {
+        // ignore: avoid_print
+        print('[MapController] /territories/clubs/zones failed: $e');
+      }
+
+      try {
+        final response = await api.get<dynamic>('/clubs/map');
+        clubsMapPayload = response.data;
+        // ignore: avoid_print
+        print('[MapController] /clubs/map raw response type: ${response.data.runtimeType}');
+      } catch (e) {
+        // ignore: avoid_print
+        print('[MapController] /clubs/map failed: $e');
+      }
+
+      try {
+        final response = await api.get<Map<String, dynamic>>('/territories/tileset/active-zones');
+        activeZonesPayload = response.data;
+      } catch (e) {
+        // ignore: avoid_print
+        print('[MapController] /territories/tileset/active-zones failed: $e');
+      }
 
       final responseData =
-          response.data?['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+          mapDataPayload?['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
       // Parse territories with their complete info (status, owner_club, etc.)
       final territoriesData =
@@ -125,19 +150,19 @@ class MapController extends StateNotifier<MapState> {
               })
               .toList();
 
-            final clubZonesData =
-              (clubZonesResponse.data?['data']?['zones'] as List<dynamic>? ??
-                  clubZonesResponse.data?['zones'] as List<dynamic>? ??
+      final clubZonesData =
+          (clubZonesPayload?['data']?['zones'] as List<dynamic>? ??
+                  clubZonesPayload?['zones'] as List<dynamic>? ??
                   <dynamic>[])
-                .whereType<Map<String, dynamic>>()
-                .toList();
+              .whereType<Map<String, dynamic>>()
+              .toList();
 
-            final clubZoneCodes = clubZonesData
-              .map((zone) => (zone['code_iris'] ?? '').toString())
-              .where((code) => code.isNotEmpty)
-              .toSet();
+      final clubZoneCodes = clubZonesData
+          .map((zone) => (zone['code_iris'] ?? '').toString())
+          .where((code) => code.isNotEmpty)
+          .toSet();
 
-      final clubMarkers = _extractMapList(clubsMapResponse.data);
+      final clubMarkers = _extractMapList(clubsMapPayload);
 
       // Debug: log club markers and active codes
       // ignore: avoid_print
@@ -148,8 +173,8 @@ class MapController extends StateNotifier<MapState> {
       }
 
       final activeCodesData =
-          (activeZonesResponse.data?['data']?['codes'] as List<dynamic>? ??
-                  activeZonesResponse.data?['codes'] as List<dynamic>? ??
+          (activeZonesPayload?['data']?['codes'] as List<dynamic>? ??
+              activeZonesPayload?['codes'] as List<dynamic>? ??
                   <dynamic>[])
               .map((item) => item.toString().trim().toUpperCase())
               .where((code) => code.isNotEmpty)

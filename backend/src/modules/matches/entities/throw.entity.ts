@@ -35,6 +35,14 @@ export class Throw {
   @Column({ type: 'int' })
   remaining: number;
 
+  @Column({ type: 'jsonb', nullable: true })
+  dart_positions?: Array<{
+    x: number;
+    y: number;
+    score?: number;
+    label?: string;
+  }>;
+
   @Column({ type: 'boolean', default: false })
   is_checkout: boolean;
 

@@ -73,7 +73,17 @@ export class MatchesController {
   submitScore(
     @Param('id', ParseUUIDPipe) id: string,
     @Body()
-    body: { player_index: number; score: number; doubles_attempted?: number },
+    body: {
+      player_index: number;
+      score: number;
+      doubles_attempted?: number;
+      dart_positions?: Array<{
+        x: number;
+        y: number;
+        score?: number;
+        label?: string;
+      }>;
+    },
     @Req() req: { user: { id: string } },
   ) {
     return this.matchesService.submitScore(id, req.user.id, body);

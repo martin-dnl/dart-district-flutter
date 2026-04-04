@@ -228,7 +228,17 @@ export class MatchesService {
   async submitScore(
     matchId: string,
     userId: string,
-    body: { player_index: number; score: number; doubles_attempted?: number },
+    body: {
+      player_index: number;
+      score: number;
+      doubles_attempted?: number;
+      dart_positions?: Array<{
+        x: number;
+        y: number;
+        score?: number;
+        label?: string;
+      }>;
+    },
   ) {
     const score = Math.max(0, Math.floor(body.score ?? 0));
     const match = await this.loadMatchWithGraph(matchId);
@@ -285,6 +295,16 @@ export class MatchesService {
       segment = `CD${doublesAttempted}`;
     }
 
+    const dartPositions = (body.dart_positions ?? [])
+      .slice(0, 3)
+      .map((p) => ({
+        x: Math.min(1, Math.max(0, Number(p.x))),
+        y: Math.min(1, Math.max(0, Number(p.y))),
+        ...(typeof p.score === 'number' ? { score: Math.floor(p.score) } : {}),
+        ...(typeof p.label === 'string' ? { label: p.label.slice(0, 16) } : {}),
+      }))
+      .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+
     const savedThrow = this.throwRepo.create({
       leg: activeLeg,
       user: { id: targetPlayer.user_id } as Throw['user'],
@@ -295,6 +315,7 @@ export class MatchesService {
       segment: `VISIT_${score}`,
       score: recordedScore,
       remaining: recordedRemaining,
+      dart_positions: dartPositions.length > 0 ? dartPositions : undefined,
       is_checkout: isCheckout,
     });
     savedThrow.segment = segment;

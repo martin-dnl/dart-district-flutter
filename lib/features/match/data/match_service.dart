@@ -87,6 +87,7 @@ class MatchService {
     required int playerIndex,
     required int score,
     int? doublesAttempted,
+    List<Map<String, dynamic>>? dartPositions,
   }) async {
     try {
       final response = await _api.post(
@@ -97,6 +98,7 @@ class MatchService {
           ...?doublesAttempted == null
               ? null
               : {'doubles_attempted': doublesAttempted},
+          ...?dartPositions == null ? null : {'dart_positions': dartPositions},
         },
       );
       return matchFromJson(response.data['data']);

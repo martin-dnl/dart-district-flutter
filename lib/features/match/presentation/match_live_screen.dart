@@ -225,7 +225,11 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     return message ?? fallback;
   }
 
-  Future<void> _submitScore(int score, {int? forcedDoublesAttempted}) async {
+  Future<void> _submitScore(
+    int score, {
+    int? forcedDoublesAttempted,
+    List<Map<String, dynamic>>? dartPositions,
+  }) async {
     final match = ref.read(matchControllerProvider);
     final currentPlayerIndex = match.currentPlayerIndex;
     final currentPlayer = match.players[currentPlayerIndex];
@@ -269,6 +273,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         playerIndex: currentPlayerIndex,
         score: score,
         doublesAttempted: doublesAttempted,
+        dartPositions: dartPositions,
       );
       if (shouldAnimateScore) {
         setState(() {
@@ -765,6 +770,16 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                                       visit.total,
                                       forcedDoublesAttempted:
                                           visit.doubleAttempts,
+                                      dartPositions: visit.dartHits
+                                          .map(
+                                            (hit) => <String, dynamic>{
+                                              'x': hit.normalizedPosition.dx,
+                                              'y': hit.normalizedPosition.dy,
+                                              'score': hit.score,
+                                              'label': hit.label,
+                                            },
+                                          )
+                                          .toList(growable: false),
                                     );
                                   },
                                 ),

@@ -1,0 +1,2 @@
+ALTER TABLE throws
+  ADD COLUMN IF NOT EXISTS dart_positions JSONB;

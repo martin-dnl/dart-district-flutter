@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ServiceUnavailableException,
+  Logger,
 } from '@nestjs/common';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -36,6 +37,7 @@ type IndexedIrisFeature = {
 export class TerritoriesService {
   private static readonly HIT_TEST_MAX_VISIBLE_WIDTH_KM = 5;
   private static readonly GEOJSON_NEAREST_FALLBACK_KM = 12;
+  private readonly logger = new Logger(TerritoriesService.name);
   private schemaInfoPromise?: Promise<{
     hasIrisTerritories: boolean;
     hasLegacyTerritories: boolean;
@@ -416,8 +418,13 @@ export class TerritoriesService {
         ? configured
         : path.resolve(process.cwd(), configured);
       if (existsSync(configuredPath)) {
+        this.logger.log(`Using IRIS GeoJSON path from IRIS_GEOJSON_PATH: ${configuredPath}`);
         return configuredPath;
       }
+
+      this.logger.warn(
+        `IRIS_GEOJSON_PATH is set but file does not exist at ${configuredPath}. Falling back to auto-detected path.`,
+      );
     }
 
     const candidates = [
@@ -430,10 +437,14 @@ export class TerritoriesService {
 
     for (const candidate of candidates) {
       if (existsSync(candidate)) {
+        this.logger.log(`Using IRIS GeoJSON path: ${candidate}`);
         return candidate;
       }
     }
 
+    this.logger.warn(
+      `No IRIS GeoJSON candidate found. Will try default fallback path: ${candidates[1]}`,
+    );
     return candidates[1];
   }
 
@@ -446,6 +457,7 @@ export class TerritoriesService {
 
   private async loadIrisGeoIndex(): Promise<IndexedIrisFeature[]> {
     const filePath = this.resolveIrisGeoJsonPath();
+    this.logger.log(`Loading IRIS GeoJSON index from ${filePath}`);
     const raw = await readFile(filePath, 'utf8');
     const parsed = JSON.parse(raw) as {
       type?: string;
@@ -510,6 +522,10 @@ export class TerritoriesService {
         polygons,
       });
     }
+
+    this.logger.log(
+      `IRIS GeoJSON index loaded: ${indexed.length} valid features from ${parsed.features.length} raw features.`,
+    );
 
     return indexed;
   }
@@ -653,7 +669,7 @@ export class TerritoriesService {
     lat: number,
     lng: number,
     maxDistanceKm: number,
-  ): IndexedIrisFeature | null {
+  ): { feature: IndexedIrisFeature; distanceKm: number } | null {
     let nearest: IndexedIrisFeature | null = null;
     let nearestDistanceKm = Number.POSITIVE_INFINITY;
 
@@ -672,7 +688,7 @@ export class TerritoriesService {
       return null;
     }
 
-    return nearest;
+    return { feature: nearest, distanceKm: nearestDistanceKm };
   }
 
   async resolveCodeIrisByPolygon(
@@ -681,13 +697,22 @@ export class TerritoriesService {
     maxDistanceKm = TerritoriesService.GEOJSON_NEAREST_FALLBACK_KM,
   ): Promise<string | null> {
     if (!this.isValidCoordinates(lat, lng)) {
+      this.logger.warn(
+        `resolveCodeIrisByPolygon rejected invalid coordinates lat=${lat}, lng=${lng}`,
+      );
       return null;
     }
 
     const index = await this.getIrisGeoIndex();
+    this.logger.debug(
+      `resolveCodeIrisByPolygon start lat=${lat}, lng=${lng}, indexSize=${index.length}, maxDistanceKm=${maxDistanceKm}`,
+    );
 
     const directHit = index.find((feature) => this.isPointInFeature(lng, lat, feature));
     if (directHit) {
+      this.logger.debug(
+        `resolveCodeIrisByPolygon direct-hit code_iris=${directHit.codeIris} for lat=${lat}, lng=${lng}`,
+      );
       return directHit.codeIris;
     }
 
@@ -695,22 +720,34 @@ export class TerritoriesService {
     if (this.isValidCoordinates(lng, lat)) {
       const swappedHit = index.find((feature) => this.isPointInFeature(lat, lng, feature));
       if (swappedHit) {
+        this.logger.warn(
+          `resolveCodeIrisByPolygon matched with swapped coordinates. input(lat=${lat}, lng=${lng}) matched as (lat=${lng}, lng=${lat}) => code_iris=${swappedHit.codeIris}`,
+        );
         return swappedHit.codeIris;
       }
     }
 
     const nearestDirect = this.findNearestFeatureByBboxDistance(index, lat, lng, maxDistanceKm);
     if (nearestDirect) {
-      return nearestDirect.codeIris;
+      this.logger.debug(
+        `resolveCodeIrisByPolygon nearest-direct code_iris=${nearestDirect.feature.codeIris}, distanceKm=${nearestDirect.distanceKm.toFixed(3)}`,
+      );
+      return nearestDirect.feature.codeIris;
     }
 
     if (this.isValidCoordinates(lng, lat)) {
       const nearestSwapped = this.findNearestFeatureByBboxDistance(index, lng, lat, maxDistanceKm);
       if (nearestSwapped) {
-        return nearestSwapped.codeIris;
+        this.logger.warn(
+          `resolveCodeIrisByPolygon nearest-swapped code_iris=${nearestSwapped.feature.codeIris}, distanceKm=${nearestSwapped.distanceKm.toFixed(3)}. input(lat=${lat}, lng=${lng}) interpreted as swapped.`,
+        );
+        return nearestSwapped.feature.codeIris;
       }
     }
 
+    this.logger.warn(
+      `resolveCodeIrisByPolygon no match for lat=${lat}, lng=${lng} (maxDistanceKm=${maxDistanceKm})`,
+    );
     return null;
   }
 

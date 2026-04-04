@@ -11,6 +11,7 @@ import {
   UseGuards,
   Req,
   ParseUUIDPipe,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ClubsService } from './clubs.service';
@@ -24,6 +25,8 @@ import { TerritoriesService } from '../territories/territories.service';
 @ApiTags('clubs')
 @Controller('clubs')
 export class ClubsController {
+  private readonly logger = new Logger(ClubsController.name);
+
   constructor(
     private readonly clubsService: ClubsService,
     private readonly territoriesService: TerritoriesService,
@@ -33,6 +36,10 @@ export class ClubsController {
   @UseGuards(JwtAuthGuard)
   @Post('resolve-territory')
   async resolveTerritory(@Body() dto: ResolveTerritoryDto) {
+    this.logger.log(
+      `resolve-territory request received latitude=${dto.latitude}, longitude=${dto.longitude}`,
+    );
+
     // Resolve from source polygons first (exact hit + tolerant nearest fallback).
     const polygonCodeIris = await this.territoriesService.resolveCodeIrisByPolygon(
       dto.latitude,
@@ -40,7 +47,12 @@ export class ClubsController {
     );
 
     let codeIris = (polygonCodeIris ?? '').toString().trim().toUpperCase();
+    if (codeIris) {
+      this.logger.log(`resolve-territory matched via polygon code_iris=${codeIris}`);
+    }
+
     if (!codeIris) {
+      this.logger.warn('resolve-territory polygon match failed, trying nearest centroid fallback');
       // Fallback to nearest centroid with a broader threshold.
       codeIris =
         (await this.clubsService.resolveNearestCodeIris(
@@ -49,9 +61,16 @@ export class ClubsController {
           30,
         )) ??
         '';
+
+      if (codeIris) {
+        this.logger.log(`resolve-territory matched via centroid fallback code_iris=${codeIris}`);
+      }
     }
 
     if (!codeIris) {
+      this.logger.warn(
+        `resolve-territory failed latitude=${dto.latitude}, longitude=${dto.longitude} (no_territory_found)`,
+      );
       return {
         success: false,
         data: null,
@@ -60,6 +79,10 @@ export class ClubsController {
     }
 
     const territory = await this.territoriesService.findByCodeIris(codeIris);
+    this.logger.log(
+      `resolve-territory success code_iris=${territory.code_iris}, name=${territory.name}, city=${territory.nom_com}`,
+    );
+
     return {
       success: true,
       data: {

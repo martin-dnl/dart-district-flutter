@@ -133,7 +133,7 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
     }
 
     if (_pendingZone == zone) {
-      _pendingMultiplier = (_pendingMultiplier + 1).clamp(1, 3);
+      _pendingMultiplier = (_pendingMultiplier + 1).clamp(1, zone == 25 ? 2 : 3);
     } else {
       _commitPendingShot();
       _pendingZone = zone;
@@ -145,8 +145,8 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
 
     setState(() {
       _shotBadge = switch (_pendingMultiplier) {
-        1 => 'S$zone',
-        2 => 'D$zone',
+        1 => zone == 25 ? 'SB' : 'S$zone',
+        2 => zone == 25 ? 'DB' : 'D$zone',
         _ => 'T$zone',
       };
     });

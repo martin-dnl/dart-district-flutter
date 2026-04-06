@@ -26,14 +26,8 @@ class ScoreDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasCheckout = checkoutText != null;
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        hasCheckout ? 12 : 16,
-        16,
-        hasCheckout ? 12 : 16,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
         color: isActive
             ? AppColors.primary.withValues(alpha: 0.15)
@@ -54,7 +48,7 @@ class ScoreDisplay extends StatelessWidget {
               color: isActive ? AppColors.primary : AppColors.textSecondary,
             ),
           ),
-          SizedBox(height: hasCheckout ? 5 : 8),
+          const SizedBox(height: 6),
           _AnimatedScoreNumber(
             score: score,
             animate: animateScoreChange,
@@ -88,7 +82,7 @@ class ScoreDisplay extends StatelessWidget {
                     ),
             ),
           ),
-          SizedBox(height: hasCheckout ? 5 : 8),
+            const SizedBox(height: 6),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [

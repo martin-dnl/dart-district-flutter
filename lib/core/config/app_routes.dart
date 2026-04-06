@@ -13,6 +13,9 @@ import '../../features/auth/presentation/sso_username_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/play/presentation/play_screen.dart';
+import '../../features/play/presentation/x01_modes_screen.dart';
+import '../../features/play/presentation/cricket_mode_screen.dart';
+import '../../features/play/presentation/chasseur_mode_screen.dart';
 import '../../features/play/presentation/game_setup_screen.dart';
 import '../../features/play/presentation/match_invite_player_screen.dart';
 import '../../features/play/presentation/qr_scan_screen.dart';
@@ -50,6 +53,9 @@ class AppRoutes {
   static const String home = '/home';
   static const String map = '/map';
   static const String play = '/play';
+  static const String playX01 = '/play/x01';
+  static const String playCricket = '/play/cricket';
+  static const String playChasseur = '/play/chasseur';
   static const String gameSetup = '/play/setup';
   static const String gameInvitePlayer = '/play/setup/invite-player';
   static const String qrScan = '/play/qr-scan';
@@ -240,6 +246,30 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: GameSetupScreen(gameMode: mode),
           );
         },
+      ),
+      GoRoute(
+        path: AppRoutes.playX01,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const X01ModesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.playCricket,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const CricketModeScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.playChasseur,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ChasseurModeScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.gameInvitePlayer,

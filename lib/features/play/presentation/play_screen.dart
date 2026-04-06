@@ -31,33 +31,30 @@ class PlayScreen extends ConsumerWidget {
                     Expanded(
                       child: GameModeCard(
                         title: '301',
-                        subtitle: 'Classique',
+                        subtitle: 'X01',
                         icon: Icons.gps_fixed,
                         color: AppColors.primary,
-                        onTap: () =>
-                            context.push(AppRoutes.gameSetup, extra: '301'),
+                        onTap: () => context.push(AppRoutes.playX01),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: GameModeCard(
                         title: '501',
-                        subtitle: 'Standard',
+                        subtitle: 'X01',
                         icon: Icons.gps_fixed,
                         color: AppColors.secondary,
-                        onTap: () =>
-                            context.push(AppRoutes.gameSetup, extra: '501'),
+                        onTap: () => context.push(AppRoutes.playX01),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: GameModeCard(
                         title: '701',
-                        subtitle: 'Long',
+                        subtitle: 'X01',
                         icon: Icons.gps_fixed,
                         color: AppColors.accent,
-                        onTap: () =>
-                            context.push(AppRoutes.gameSetup, extra: '701'),
+                        onTap: () => context.push(AppRoutes.playX01),
                       ),
                     ),
                   ],
@@ -76,8 +73,7 @@ class PlayScreen extends ConsumerWidget {
                           'Fermez les numéros 15-20 et le Bull avant votre adversaire',
                       icon: Icons.bug_report,
                       color: AppColors.success,
-                      onTap: () =>
-                          context.push(AppRoutes.gameSetup, extra: 'Cricket'),
+                      onTap: () => context.push(AppRoutes.playCricket),
                     ),
                     const SizedBox(height: 12),
                     _LargeGameModeCard(
@@ -86,8 +82,7 @@ class PlayScreen extends ConsumerWidget {
                           'Un chasseur, une proie. Touchez pour éliminer !',
                       icon: Icons.track_changes,
                       color: AppColors.error,
-                      onTap: () =>
-                          context.push(AppRoutes.gameSetup, extra: 'Chasseur'),
+                      onTap: () => context.push(AppRoutes.playChasseur),
                     ),
                   ],
                 ),

@@ -19,6 +19,7 @@ import '../models/match_model.dart';
 import '../widgets/scoreboard.dart';
 import '../widgets/dart_input.dart';
 import '../widgets/dartboard_input.dart';
+import '../widgets/tempo_zone_input.dart';
 import '../widgets/round_details.dart';
 
 class MatchLiveScreen extends ConsumerStatefulWidget {
@@ -786,6 +787,56 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                                             (hit) => <String, dynamic>{
                                               'x': hit.normalizedPosition.dx,
                                               'y': hit.normalizedPosition.dy,
+                                              'score': hit.score,
+                                              'label': hit.label,
+                                            },
+                                          )
+                                          .toList(growable: false),
+                                    );
+                                  },
+                                ),
+                              )
+                            else if (_scoreMode == _tempoScoreMode)
+                              SizedBox.expand(
+                                child: TempoScoreInput(
+                                  maxScore:
+                                      match.players[match.currentPlayerIndex].score,
+                                  fillAvailableHeight: true,
+                                  zones: const [
+                                    1,
+                                    2,
+                                    3,
+                                    4,
+                                    5,
+                                    6,
+                                    7,
+                                    8,
+                                    9,
+                                    10,
+                                    11,
+                                    12,
+                                    13,
+                                    14,
+                                    15,
+                                    16,
+                                    17,
+                                    18,
+                                    19,
+                                    20,
+                                    25,
+                                    50,
+                                  ],
+                                  canSelectZone: (_) => true,
+                                  onSubmitVisit: (visit) {
+                                    _submitScore(
+                                      visit.total,
+                                      forcedDoublesAttempted:
+                                          visit.doubleAttempts,
+                                      dartPositions: visit.darts
+                                          .map(
+                                            (hit) => <String, dynamic>{
+                                              'x': 0.0,
+                                              'y': 0.0,
                                               'score': hit.score,
                                               'label': hit.label,
                                             },

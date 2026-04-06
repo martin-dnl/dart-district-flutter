@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,13 +57,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // Theme caching – avoid rebuilding on every frame
   vtr.Theme? _cachedTheme;
-  List<TerritoryModel>? _cachedThemeTerritories;
   String? _cachedThemeLayerName;
-  Set<String>? _cachedActiveIrisCodes;
+  int? _cachedTerritoriesHash;
+  int? _cachedActiveCodesHash;
+  List<fm.Marker>? _cachedClubMarkers;
+  int? _cachedClubMarkersHash;
 
   // Debounced camera tracking – avoids setState storm while panning
   Timer? _cameraDebounce;
   bool _showZones = true;
+
+  final Future<PmTilesVectorTileProvider?> _webNoProviderFuture =
+      Future<PmTilesVectorTileProvider?>.value(null);
 
   @override
   void initState() {
@@ -287,7 +294,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Future<void> _handleMapTap(
     LatLng latLng,
-    List<TerritoryModel> territories,
     double viewportWidthPx,
   ) async {
     final codeIris = await _resolveCodeIrisFromTap(latLng, viewportWidthPx);
@@ -370,22 +376,97 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         .toList(growable: false);
   }
 
+  int _hashTerritories(List<TerritoryModel> territories) {
+    var hash = 17;
+    for (final territory in territories) {
+      hash = 37 * hash + territory.codeIris.hashCode;
+      hash = 37 * hash + territory.status.hashCode;
+    }
+    return hash;
+  }
+
+  int _hashCodes(Set<String> activeCodes) {
+    var hash = 17;
+    for (final code in activeCodes) {
+      hash = 37 * hash + code.hashCode;
+    }
+    return hash;
+  }
+
+  int _hashClubMarkers(List<Map<String, dynamic>> clubMarkers) {
+    var hash = 17;
+    for (final club in clubMarkers) {
+      hash = 37 * hash + (club['id'] ?? '').toString().hashCode;
+      hash = 37 * hash + (club['latitude'] ?? '').toString().hashCode;
+      hash = 37 * hash + (club['longitude'] ?? '').toString().hashCode;
+      hash = 37 * hash + (club['name'] ?? '').toString().hashCode;
+      hash = 37 * hash + (club['address'] ?? '').toString().hashCode;
+      hash = 37 * hash + (club['city'] ?? '').toString().hashCode;
+      hash = 37 * hash + (club['code_iris'] ?? '').toString().hashCode;
+    }
+    return hash;
+  }
+
+  List<fm.Marker> _getOrBuildClubMarkers(List<Map<String, dynamic>> clubs) {
+    final markersHash = _hashClubMarkers(clubs);
+    if (_cachedClubMarkers != null && _cachedClubMarkersHash == markersHash) {
+      return _cachedClubMarkers!;
+    }
+
+    _cachedClubMarkers = clubs.map((club) {
+      final lat = _asDouble(club['latitude']);
+      final lng = _asDouble(club['longitude']);
+      if (lat == null || lng == null) {
+        return null;
+      }
+
+      return fm.Marker(
+        point: LatLng(lat, lng),
+        width: 36,
+        height: 36,
+        child: Center(
+          child: GestureDetector(
+            onTap: () => ClubMapModal.show(
+              context,
+              clubId: (club['id'] ?? '').toString(),
+              name: (club['name'] ?? 'Club').toString(),
+              address: (club['address'] ??
+                      [
+                        club['city']?.toString(),
+                        club['code_iris']?.toString(),
+                      ].whereType<String>().where((e) => e.isNotEmpty).join(' - '))
+                  .toString(),
+              city: club['city']?.toString(),
+            ),
+            child: const ClubMapMarker(),
+          ),
+        ),
+      );
+    }).whereType<fm.Marker>().toList(growable: false);
+
+    _cachedClubMarkersHash = markersHash;
+    return _cachedClubMarkers!;
+  }
+
   vtr.Theme _getOrBuildTheme(
     List<TerritoryModel> territories,
     String layerName,
     Set<String> activeCodes,
   ) {
+    final territoriesHash = _hashTerritories(territories);
+    final activeCodesHash = _hashCodes(activeCodes);
+
     // Return cached theme if inputs haven't changed
     if (_cachedTheme != null &&
         _cachedThemeLayerName == layerName &&
-        identical(_cachedThemeTerritories, territories) &&
-        identical(_cachedActiveIrisCodes, activeCodes)) {
+        _cachedTerritoriesHash == territoriesHash &&
+        _cachedActiveCodesHash == activeCodesHash) {
       return _cachedTheme!;
     }
     _cachedTheme = _buildIrisStatusTheme(territories, layerName, activeCodes);
-    _cachedThemeTerritories = territories;
     _cachedThemeLayerName = layerName;
-    _cachedActiveIrisCodes = activeCodes;
+    _cachedTerritoriesHash = territoriesHash;
+    _cachedActiveCodesHash = activeCodesHash;
     return _cachedTheme!;
   }
 
@@ -395,19 +476,27 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     Set<String> activeCodes,
   ) {
     final conquered = territories
-        .where((t) => t.status == TerritoryStatus.conquered)
+      .where((t) =>
+        activeCodes.contains(t.codeIris) &&
+        t.status == TerritoryStatus.conquered)
         .map((t) => t.codeIris)
         .toList(growable: false);
     final locked = territories
-        .where((t) => t.status == TerritoryStatus.locked)
+      .where((t) =>
+        activeCodes.contains(t.codeIris) &&
+        t.status == TerritoryStatus.locked)
         .map((t) => t.codeIris)
         .toList(growable: false);
     final conflict = territories
-        .where((t) => t.status == TerritoryStatus.conflict)
+      .where((t) =>
+        activeCodes.contains(t.codeIris) &&
+        t.status == TerritoryStatus.conflict)
         .map((t) => t.codeIris)
         .toList(growable: false);
     final alert = territories
-        .where((t) => t.status == TerritoryStatus.alert)
+      .where((t) =>
+        activeCodes.contains(t.codeIris) &&
+        t.status == TerritoryStatus.alert)
         .map((t) => t.codeIris)
         .toList(growable: false);
 
@@ -569,10 +658,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   String _statusLabel(String status) {
     return switch (status) {
-      'conquered' => 'Notre zone',
-      'locked' => 'Conquise',
-      'conflict' => 'En guerre',
-      'alert' => 'Alerte',
+      'conquered' => 'Conquises',
+      'locked' => 'Bloquées',
+      'conflict' => 'En conflit',
+      'alert' => 'En alerte',
       _ => 'Zone libre',
     };
   }
@@ -829,11 +918,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
-    final territoriesToRender = mapState.activeIrisCodes.isEmpty
-        ? mapState.territories
-        : mapState.territories
-              .where((t) => mapState.activeIrisCodes.contains(t.codeIris))
-              .toList();
     final viewportWidthPx = MediaQuery.sizeOf(context).width;
 
     return Scaffold(
@@ -880,22 +964,30 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final initialCenter = _currentCenter ?? config.center;
           final initialZoom = _currentZoom ?? config.centerZoom;
           _showZones = _shouldRenderZones(viewportWidthPx);
+          final shouldRenderVectorZones =
+              !kIsWeb && _showZones && mapState.activeIrisCodes.isNotEmpty;
+          final clubMarkers = _getOrBuildClubMarkers(mapState.clubMarkers);
 
-          _vectorProviderFuture ??= PmTilesVectorTileProvider.fromSource(
-            config.sourceUrl,
-          );
+          if (!kIsWeb) {
+            _vectorProviderFuture ??= PmTilesVectorTileProvider.fromSource(
+              config.sourceUrl,
+            );
+          }
 
-          return FutureBuilder<PmTilesVectorTileProvider>(
-            future: _vectorProviderFuture,
+          return FutureBuilder<PmTilesVectorTileProvider?>(
+            future: kIsWeb
+                ? _webNoProviderFuture
+                : _vectorProviderFuture?.then((provider) => provider),
             builder: (context, providerSnapshot) {
-              if (providerSnapshot.connectionState != ConnectionState.done) {
+              if (!kIsWeb &&
+                  providerSnapshot.connectionState != ConnectionState.done) {
                 return const Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 );
               }
 
               final provider = providerSnapshot.data;
-              if (provider == null) {
+              if (!kIsWeb && provider == null) {
                 return const Center(
                   child: Text(
                     'Impossible de charger le provider PMTiles',
@@ -944,11 +1036,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         if (!_showZones) {
                           return;
                         }
-                        _handleMapTap(
-                          latLng,
-                          territoriesToRender,
-                          viewportWidthPx,
-                        );
+                        _handleMapTap(latLng, viewportWidthPx);
                       },
                     ),
                     children: [
@@ -959,48 +1047,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         userAgentPackageName: 'fr.dartdistrict.app',
                         tileDisplay: const fm.TileDisplay.fadeIn(),
                       ),
-                      if (_showZones && mapState.activeIrisCodes.isNotEmpty)
+                      if (shouldRenderVectorZones)
                         VectorTileLayer(
                           theme: _getOrBuildTheme(
-                            territoriesToRender,
+                            mapState.territories,
                             config.layerName,
                             mapState.activeIrisCodes,
                           ),
-                          tileProviders: TileProviders({'pmtiles': provider}),
+                          tileProviders: TileProviders({
+                            'pmtiles': provider!,
+                          }),
                           layerMode: VectorTileLayerMode.vector,
                         ),
                       if ((_currentZoom ?? initialZoom) >= _markerMinZoom)
                         fm.MarkerLayer(
-                          markers: mapState.clubMarkers.map((club) {
-                          final lat = _asDouble(club['latitude']);
-                          final lng = _asDouble(club['longitude']);
-                          if (lat == null || lng == null) {
-                            return null;
-                          }
-
-                          return fm.Marker(
-                            point: LatLng(lat, lng),
-                            width: 36,
-                            height: 36,
-                            child: Center(
-                              child: GestureDetector(
-                                onTap: () => ClubMapModal.show(
-                                  context,
-                                  clubId: (club['id'] ?? '').toString(),
-                                  name: (club['name'] ?? 'Club').toString(),
-                                  address: (club['address'] ??
-                                          [
-                                            club['city']?.toString(),
-                                            club['code_iris']?.toString(),
-                                          ].whereType<String>().where((e) => e.isNotEmpty).join(' - '))
-                                      .toString(),
-                                  city: club['city']?.toString(),
-                                ),
-                                child: const ClubMapMarker(),
-                              ),
-                            ),
-                          );
-                        }).whereType<fm.Marker>().toList(),
+                          markers: clubMarkers,
                         ),
                     ],
                   ),
@@ -1178,68 +1239,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                   ),
                   // Stats bar (top-left, shifted down to make room for search)
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(left: 12, top: 68),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.card.withValues(alpha: 0.90),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.surfaceLight),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'MES TERRITOIRES',
-                              style: TextStyle(
-                                color: AppColors.textHint,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _StatChip(
-                                  count: territoriesToRender
-                                      .where(
-                                        (t) =>
-                                            t.status ==
-                                            TerritoryStatus.conquered,
-                                      )
-                                      .length,
-                                  label: 'conquis',
-                                  color: const Color(0xFFC8FF00),
-                                ),
-                                const SizedBox(width: 10),
-                                _StatChip(
-                                  count: territoriesToRender
-                                      .where(
-                                        (t) =>
-                                            t.status ==
-                                                TerritoryStatus.conflict ||
-                                            t.status == TerritoryStatus.alert,
-                                      )
-                                      .length,
-                                  label: 'en guerre',
-                                  color: const Color(0xFFEF4444),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                   // Legend bar (bottom)
                   SafeArea(
                     child: Align(
@@ -1263,21 +1262,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
                             _LegendItem(
-                              color: Color(0xFF22C55E),
+                              color: CupertinoColors.systemYellow,
                               label: 'Disponible',
                               dashed: true,
                             ),
                             _LegendItem(
-                              color: Color(0xFFC8FF00),
-                              label: 'Notre zone',
+                              color: AppColors.primary,
+                              label: 'Conquises',
                             ),
                             _LegendItem(
                               color: Color(0xFF3B82F6),
-                              label: 'Conquise',
+                              label: 'Bloquées',
                             ),
                             _LegendItem(
                               color: Color(0xFFEF4444),
-                              label: 'En guerre',
+                              label: 'En conflit',
                             ),
                           ],
                         ),

@@ -34,6 +34,8 @@ class _TournamentCreateScreenState
   int _setsPool = 1;
   int _legsBracket = 5;
   int _setsBracket = 1;
+  bool _isRanked = false;
+  bool _isTerritorial = false;
   String? _selectedClubId;
   DateTime _scheduledAt = DateTime.now().add(const Duration(days: 7));
   bool _submitting = false;
@@ -107,6 +109,8 @@ class _TournamentCreateScreenState
             : _venueCtrl.text.trim(),
         'city': _cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim(),
         'club_id': _selectedClubId,
+        'is_ranked': _isRanked,
+        'is_territorial': _isTerritorial,
         'entry_fee': double.tryParse(_feeCtrl.text.trim()) ?? 0,
         'scheduled_at': _scheduledAt.toIso8601String(),
       });
@@ -263,6 +267,40 @@ class _TournamentCreateScreenState
                     options: const ['4', '8', '16', '32'],
                     onChanged: (value) =>
                         setState(() => _maxPlayers = int.parse(value)),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Classe',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                    value: _isRanked,
+                    activeColor: AppColors.primary,
+                    onChanged: _isTerritorial
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _isRanked = value;
+                            });
+                          },
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Territorial',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                    value: _isTerritorial,
+                    activeColor: AppColors.primary,
+                    onChanged: (value) {
+                      setState(() {
+                        _isTerritorial = value;
+                        if (value) {
+                          _isRanked = true;
+                        }
+                      });
+                    },
                   ),
                 ],
               ),

@@ -3,20 +3,26 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Club } from './entities/club.entity';
 import { ClubMember } from './entities/club-member.entity';
+import { ClubTerritoryPoints } from './entities/club-territory-points.entity';
 import { CreateClubDto } from './dto/create-club.dto';
 import { UpdateClubDto } from './dto/update-club.dto';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
 
 @Injectable()
 export class ClubsService {
+  private readonly logger = new Logger(ClubsService.name);
+
   constructor(
     @InjectRepository(Club) private readonly clubRepo: Repository<Club>,
     @InjectRepository(ClubMember) private readonly memberRepo: Repository<ClubMember>,
+    @InjectRepository(ClubTerritoryPoints)
+    private readonly ctpRepo: Repository<ClubTerritoryPoints>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -32,6 +38,22 @@ export class ClubsService {
     });
     club.code_iris = resolvedCodeIris;
     await this.clubRepo.save(club);
+
+    if (club.code_iris) {
+      const existingCtp = await this.ctpRepo.findOne({
+        where: { club_id: club.id, code_iris: club.code_iris },
+      });
+
+      if (!existingCtp) {
+        await this.ctpRepo.save(
+          this.ctpRepo.create({
+            club_id: club.id,
+            code_iris: club.code_iris,
+            points: 0,
+          }),
+        );
+      }
+    }
 
     return this.clubRepo.findOne({
       where: { id: club.id },
@@ -67,29 +89,31 @@ export class ClubsService {
     radius?: number;
     limit?: number;
   }) {
-    const queryValue = (params.q ?? '').trim().toLowerCase();
-    const likeTerm = `%${queryValue}%`;
-    const take = normalizeLimit(params.limit ?? 20, 50);
+    this.logger.log(`Club search called: ${JSON.stringify(params)}`);
+    try {
+      const queryValue = (params.q ?? '').trim().toLowerCase();
+      const likeTerm = `%${queryValue}%`;
+      const take = normalizeLimit(params.limit ?? 20, 50);
 
-    const hasGeo = Number.isFinite(params.lat) && Number.isFinite(params.lng);
-    const hasRadius = Number.isFinite(params.radius) && (params.radius ?? 0) > 0;
-    const radiusKm = hasRadius ? Number(params.radius) : null;
+      const hasGeo = Number.isFinite(params.lat) && Number.isFinite(params.lng);
+      const hasRadius = Number.isFinite(params.radius) && (params.radius ?? 0) > 0;
+      const radiusKm = hasRadius ? Number(params.radius) : null;
 
-    const qb = this.clubRepo
-      .createQueryBuilder('club')
-      .leftJoinAndSelect('club.members', 'members')
-      .take(take);
+      const qb = this.clubRepo
+        .createQueryBuilder('club')
+        .leftJoinAndSelect('club.members', 'members')
+        .take(take);
 
-    if (queryValue.length > 0) {
-      qb.andWhere('(LOWER(club.name) LIKE :q OR LOWER(club.city) LIKE :q)', {
-        q: likeTerm,
-      });
-    }
+      if (queryValue.length > 0) {
+        qb.andWhere('(LOWER(club.name) LIKE :q OR LOWER(club.city) LIKE :q)', {
+          q: likeTerm,
+        });
+      }
 
-    if (hasGeo) {
-      const lat = Number(params.lat);
-      const lng = Number(params.lng);
-      const distanceExpr = `(
+      if (hasGeo) {
+        const lat = Number(params.lat);
+        const lng = Number(params.lng);
+        const distanceExpr = `(
         6371 * acos(
           cos(radians(:lat)) *
           cos(radians(CAST(club.latitude AS double precision))) *
@@ -98,19 +122,43 @@ export class ClubsService {
         )
       )`;
 
-      qb.andWhere('club.latitude IS NOT NULL AND club.longitude IS NOT NULL')
-        .addSelect(distanceExpr, 'distance')
-        .setParameters({ lat, lng })
-        .orderBy('distance', 'ASC');
+        qb.andWhere('club.latitude IS NOT NULL AND club.longitude IS NOT NULL')
+          .addSelect(distanceExpr, 'distance')
+          .setParameters({ lat, lng })
+          .orderBy('distance', 'ASC');
 
-      if (hasRadius) {
-        qb.andWhere(`${distanceExpr} <= :radiusKm`).setParameter('radiusKm', radiusKm);
+        if (hasRadius) {
+          qb.andWhere(`${distanceExpr} <= :radiusKm`).setParameter('radiusKm', radiusKm);
+        }
+      } else {
+        qb.orderBy('club.name', 'ASC');
       }
-    } else {
-      qb.orderBy('club.name', 'ASC');
-    }
 
-    return qb.getMany();
+      return qb.getMany();
+    } catch (err) {
+      const error = err as Error;
+      this.logger.error(`Club search failed: ${error.message}`, error.stack);
+      throw err;
+    }
+  }
+
+  async getMembership(clubId: string, userId: string) {
+    return this.memberRepo.findOne({
+      where: {
+        club_id: clubId,
+        user_id: userId,
+        is_active: true,
+      },
+    });
+  }
+
+  async getTerritoryTopClubs(codeIris: string, limit = 3) {
+    return this.ctpRepo.find({
+      where: { code_iris: codeIris.toUpperCase() },
+      relations: ['club'],
+      order: { points: 'DESC' },
+      take: Math.max(1, limit),
+    });
   }
 
   async findById(id: string) {

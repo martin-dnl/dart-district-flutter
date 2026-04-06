@@ -55,6 +55,12 @@ export class Match {
   @Column({ type: 'varchar', length: 9, nullable: true })
   territory_id: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  territory_club_id: string | null;
+
+  @Column({ type: 'varchar', length: 9, nullable: true })
+  territory_code_iris: string | null;
+
   @Column({ type: 'boolean', default: false })
   is_territorial: boolean;
 

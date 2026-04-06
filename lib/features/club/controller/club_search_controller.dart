@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -115,22 +116,29 @@ class ClubSearchController extends StateNotifier<ClubSearchState> {
             value == null || (value is String && value.trim().isEmpty),
       );
 
-      final response = await api.get<Map<String, dynamic>>(
+      final response = await api.get<dynamic>(
         '/clubs/search',
         queryParameters: queryParameters,
       );
 
-      final data =
-          (response.data?['data'] as List<dynamic>? ?? const <dynamic>[])
-              .whereType<Map<String, dynamic>>()
-              .toList();
+      final payload = response.data;
+      final rawList = switch (payload) {
+        Map<String, dynamic> map => map['data'],
+        List<dynamic> list => list,
+        _ => null,
+      };
+
+      final data = (rawList as List<dynamic>? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .toList();
 
       state = state.copyWith(
         isLoading: false,
         results: data.map(ClubModel.fromApi).toList(),
         error: null,
       );
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('Club search error: $e\n$stack');
       state = state.copyWith(
         isLoading: false,
         results: const [],

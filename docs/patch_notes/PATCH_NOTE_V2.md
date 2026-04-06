@@ -1,5 +1,59 @@
 # Patch Note — Dart District v2.x.x
 
+## 🚀 Sprint Territoires & Clubs (2026-04-06)
+
+### ✅ Corrections UX / Partie
+- Animation plus fluide sur la navbar (transition d'etat du bouton de navigation).
+- Configuration de partie revue:
+  - options disponibles: Inviter un ami, Scan, Local
+  - suppression du bouton Territoire des options principales
+  - ajout de switches dans Type de match: Classe et Territorial
+  - renommage de "Vs Invite" en "Local"
+- Le mode par defaut reste Local et le type de match est maintenant Amical par defaut.
+- En mode Territorial, le mode Classe est force a actif.
+
+### ✅ Correctif clubs
+- Correction robuste du parsing de la reponse de recherche clubs (support payload enveloppe et payload brut).
+- Ajout de logs explicites en cas d'echec de recherche clubs pour faciliter le diagnostic.
+
+### ✅ Territorial Match Rules
+- Le switch Territorial ouvre un scan QR de club et affiche le nom du club cible.
+- Blocage du lancement de partie avec message clair si:
+  - les deux joueurs appartiennent au meme club
+  - aucun des deux joueurs n'appartient au club du territoire scanne
+
+### ✅ Backend Match & ELO Territorial
+- Ajout de nouveaux champs sur les matchs:
+  - territory_club_id
+  - territory_code_iris
+- Ajout du traitement ELO en fin de match dans le service de matchs.
+- Ajout de la logique de points territoriaux:
+  - le delta ELO du gagnant est converti en points territoire-club
+  - creation automatique de l'association club/territoire si absente
+
+### ✅ Classement Clubs par Territoire
+- Nouvelle table: club_territory_points
+- Initialisation automatique de la relation club-territoire (points a 0) a la creation d'un club.
+- Enrichissement de la modale territoire sur la carte avec un podium Top 3 des clubs.
+
+### ✅ Tournois
+- Ajout du flag is_ranked sur les tournois (DTO + entite + migration).
+- Ajout des options Classe / Territorial dans l'ecran de creation de tournoi.
+- Si Territorial est active sur un tournoi, Classe est force a actif.
+- Controle d'acces creation tournoi lie a un club:
+  - admin autorise
+  - president du club autorise
+
+### ✅ Auth / Donnees exposees
+- Le JWT inclut maintenant le flag is_admin pour les controles backend.
+- Les donnees contact exposent club_id pour les validations territoriales cote client.
+
+### 🗄️ Migration SQL
+- Nouvelle migration: backend/sql/021_territory_club_points_and_match_fields.sql
+  - creation table club_territory_points
+  - ajout des colonnes territory_club_id / territory_code_iris sur matches
+  - ajout de la colonne is_ranked sur tournaments
+
 ## 🎯 Nouvelles fonctionnalités
 
 ### Mode Invité amélioré

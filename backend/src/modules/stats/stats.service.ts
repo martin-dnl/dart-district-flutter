@@ -6,6 +6,9 @@ import { EloHistory } from './entities/elo-history.entity';
 import { User } from '../users/entities/user.entity';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
 import { Throw } from '../matches/entities/throw.entity';
+import { Match } from '../matches/entities/match.entity';
+import { ClubMember } from '../clubs/entities/club-member.entity';
+import { ClubTerritoryPoints } from '../clubs/entities/club-territory-points.entity';
 
 const K_FACTOR = 32;
 
@@ -16,6 +19,11 @@ export class StatsService {
     @InjectRepository(EloHistory) private readonly eloRepo: Repository<EloHistory>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Throw) private readonly throwRepo: Repository<Throw>,
+    @InjectRepository(Match) private readonly matchRepo: Repository<Match>,
+    @InjectRepository(ClubMember)
+    private readonly clubMemberRepo: Repository<ClubMember>,
+    @InjectRepository(ClubTerritoryPoints)
+    private readonly ctpRepo: Repository<ClubTerritoryPoints>,
   ) {}
 
   /* ── Player Stats ── */
@@ -164,6 +172,62 @@ export class StatsService {
       order: { created_at: 'DESC' },
       take,
     });
+  }
+
+  async processTerritoryPoints(params: {
+    matchId: string;
+    winnerId: string;
+    loserId: string;
+    eloDelta?: number;
+  }) {
+    void params.loserId;
+
+    const match = await this.matchRepo.findOne({
+      where: { id: params.matchId },
+    });
+
+    if (!match || !match.is_territorial || !match.territory_code_iris) {
+      return null;
+    }
+
+    const winnerMembership = await this.clubMemberRepo.findOne({
+      where: {
+        user_id: params.winnerId,
+        is_active: true,
+      },
+      relations: ['club'],
+      order: { joined_at: 'ASC' },
+    });
+
+    if (!winnerMembership) {
+      return null;
+    }
+
+    const winnerClubId = winnerMembership.club.id;
+    const codeIris = match.territory_code_iris.toUpperCase();
+    const pointsToAdd = Math.max(0, Math.floor(params.eloDelta ?? 0));
+
+    if (pointsToAdd <= 0) {
+      return null;
+    }
+
+    let association = await this.ctpRepo.findOne({
+      where: {
+        club_id: winnerClubId,
+        code_iris: codeIris,
+      },
+    });
+
+    if (!association) {
+      association = this.ctpRepo.create({
+        club_id: winnerClubId,
+        code_iris: codeIris,
+        points: 0,
+      });
+    }
+
+    association.points += pointsToAdd;
+    return this.ctpRepo.save(association);
   }
 
   async getDartboardPeriods(userId: string) {

@@ -19,6 +19,8 @@ class MatchModel {
   final String finishType; // 'doubleOut', 'singleOut', 'masterOut'
   final bool isRanked;
   final bool isTerritorial;
+  final String? territoryClubId;
+  final String? territoryCodeIris;
   final int? abandonedByIndex;
 
   const MatchModel({
@@ -42,6 +44,8 @@ class MatchModel {
     this.finishType = 'doubleOut',
     this.isRanked = true,
     this.isTerritorial = false,
+    this.territoryClubId,
+    this.territoryCodeIris,
     this.abandonedByIndex,
   });
 
@@ -63,6 +67,8 @@ class MatchModel {
     String? finishType,
     bool? isRanked,
     bool? isTerritorial,
+    String? territoryClubId,
+    String? territoryCodeIris,
     int? abandonedByIndex,
   }) {
     return MatchModel(
@@ -86,6 +92,8 @@ class MatchModel {
       finishType: finishType ?? this.finishType,
       isRanked: isRanked ?? this.isRanked,
       isTerritorial: isTerritorial ?? this.isTerritorial,
+      territoryClubId: territoryClubId ?? this.territoryClubId,
+      territoryCodeIris: territoryCodeIris ?? this.territoryCodeIris,
       abandonedByIndex: abandonedByIndex ?? this.abandonedByIndex,
     );
   }

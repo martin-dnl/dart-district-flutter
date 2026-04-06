@@ -210,8 +210,8 @@ class _DockItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOutCubic,
       margin: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -231,12 +231,17 @@ class _DockItem extends StatelessWidget {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Icon(
-                      icon,
-                      size: 26,
-                      color: selected
-                          ? AppColors.background
-                          : AppColors.textSecondary,
+                    TweenAnimationBuilder<Color?>(
+                      tween: ColorTween(
+                        end: selected
+                            ? AppColors.background
+                            : AppColors.textSecondary,
+                      ),
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOutCubic,
+                      builder: (context, color, _) {
+                        return Icon(icon, size: 26, color: color);
+                      },
                     ),
                     if (badgeCount > 0)
                       Positioned(

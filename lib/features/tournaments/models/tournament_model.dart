@@ -14,6 +14,8 @@ class TournamentModel {
     required this.creatorUsername,
     required this.status,
     required this.isRegistered,
+    required this.isRanked,
+    required this.isTerritorial,
     this.description,
     this.clubId,
     this.clubName,
@@ -51,6 +53,8 @@ class TournamentModel {
   final String? creatorUsername;
   final String status;
   final bool isRegistered;
+  final bool isRanked;
+  final bool isTerritorial;
   final int? poolCount;
   final int? playersPerPool;
   final int? qualifiedPerPool;
@@ -123,6 +127,8 @@ class TournamentModel {
       creatorUsername: creatorUsername,
       status: (json['status'] ?? 'open').toString(),
       isRegistered: isRegistered,
+      isRanked: (json['is_ranked'] as bool?) ?? false,
+      isTerritorial: (json['is_territorial'] as bool?) ?? false,
       poolCount: _toNullableInt(json['pool_count']),
       playersPerPool: _toNullableInt(json['players_per_pool']),
       qualifiedPerPool: _toNullableInt(json['qualified_per_pool']),

@@ -18,6 +18,8 @@ class MatchService {
     required String finishType,
     required bool isRanked,
     bool isTerritorial = false,
+    String? territoryClubId,
+    String? territoryCodeIris,
   }) async {
     try {
       final response = await _api.post(
@@ -32,6 +34,9 @@ class MatchService {
           'finish_type': finishType,
           'is_ranked': isRanked,
           'is_territorial': isTerritorial,
+          if (territoryClubId != null) 'territory_club_id': territoryClubId,
+          if (territoryCodeIris != null)
+            'territory_code_iris': territoryCodeIris,
         },
       );
 
@@ -199,6 +204,8 @@ class MatchService {
       finishType: (json['finish_type'] ?? 'doubleOut').toString(),
       isRanked: (json['is_ranked'] as bool?) ?? true,
       isTerritorial: (json['is_territorial'] as bool?) ?? false,
+      territoryClubId: (json['territory_club_id'] as String?),
+      territoryCodeIris: (json['territory_code_iris'] as String?),
       abandonedByIndex: (json['abandoned_by_index'] as num?)?.toInt(),
     );
   }

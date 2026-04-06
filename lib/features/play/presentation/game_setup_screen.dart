@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../club/models/club_model.dart';
-import '../../club/widgets/member_list_tile.dart';
 import '../../contacts/controller/contacts_controller.dart';
 import '../../contacts/models/contact_models.dart';
 import '../../match/controller/pending_invitation_controller.dart';
@@ -31,9 +30,11 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   int _legsPerSet = 3;
   int _setsToWin = 1;
   int _startingPlayerIndex = 0;
-  bool _isRanked = true;
+  bool _isRanked = false;
+  bool _isTerritorial = false;
   GameStartOption _startOption = GameStartOption.guest;
   ContactModel? _selectedOpponent;
+  ClubModel? _territoryClub;
   bool _isLaunchingScan = false;
 
   @override
@@ -50,6 +51,8 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
           _startOption = GameStartOption.guest;
           _selectedOpponent = null;
           _isRanked = false;
+          _isTerritorial = false;
+          _territoryClub = null;
         });
       });
     }
@@ -150,26 +153,21 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                     if (!isGuest)
                       _OptionCard(
                         icon: Icons.qr_code_scanner,
-                        label: 'Scanner QR',
+                        label: 'Scan',
                         selected: _startOption == GameStartOption.scanQr,
                         onTap: _handleUserQrScan,
                       ),
-                    if (!isGuest)
-                      _OptionCard(
-                        icon: Icons.flag_circle,
-                        label: 'Territoire',
-                        selected: _startOption == GameStartOption.territory,
-                        onTap: _handleTerritoryScan,
-                      ),
                     _OptionCard(
                       icon: Icons.person_outline,
-                      label: 'Vs Invite',
+                      label: 'Local',
                       selected: _startOption == GameStartOption.guest,
                       onTap: () {
                         setState(() {
                           _startOption = GameStartOption.guest;
                           _selectedOpponent = null;
                           _isRanked = false;
+                          _isTerritorial = false;
+                          _territoryClub = null;
                         });
                       },
                     ),
@@ -190,51 +188,110 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment<bool>(value: true, label: Text('Classe')),
-                        ButtonSegment<bool>(value: false, label: Text('Amical')),
-                      ],
-                      selected: {_isRanked},
-                      onSelectionChanged: _startOption == GameStartOption.guest
-                          ? null
-                          : (values) {
-                              setState(() {
-                                _isRanked = values.first;
-                              });
-                            },
-                      showSelectedIcon: false,
-                      style: ButtonStyle(
-                        minimumSize: const WidgetStatePropertyAll(
-                          Size(double.infinity, 48),
-                        ),
-                        side: const WidgetStatePropertyAll(
-                          BorderSide(color: AppColors.stroke),
-                        ),
-                        shape: WidgetStatePropertyAll(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _isRanked ? 'Classe' : 'Amical',
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        foregroundColor: WidgetStateProperty.resolveWith((
-                          states,
-                        ) {
-                          if (states.contains(WidgetState.selected)) {
-                            return AppColors.background;
-                          }
-                          return AppColors.textSecondary;
-                        }),
-                        backgroundColor: WidgetStateProperty.resolveWith((
-                          states,
-                        ) {
-                          if (states.contains(WidgetState.selected)) {
-                            return AppColors.primary;
-                          }
-                          return AppColors.surface;
-                        }),
-                      ),
+                        Switch.adaptive(
+                          value: _isRanked,
+                          activeColor: AppColors.primary,
+                          onChanged:
+                              _startOption == GameStartOption.guest ||
+                                  _isTerritorial
+                              ? null
+                              : (val) {
+                                  setState(() {
+                                    _isRanked = val;
+                                  });
+                                },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Territorial',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: _isTerritorial,
+                              activeColor: AppColors.primary,
+                              onChanged: _startOption == GameStartOption.guest
+                                  ? null
+                                  : (val) {
+                                      if (!val) {
+                                        setState(() {
+                                          _isTerritorial = false;
+                                          _territoryClub = null;
+                                        });
+                                        return;
+                                      }
+
+                                      setState(() {
+                                        _isTerritorial = true;
+                                        _isRanked = true;
+                                      });
+                                      _handleTerritoryClubScan();
+                                    },
+                            ),
+                          ],
+                        ),
+                        if (_isTerritorial && _territoryClub != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    _territoryClub!.name,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -391,8 +448,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
         return true;
       case GameStartOption.inviteFriend:
       case GameStartOption.scanQr:
-      case GameStartOption.territory:
-        return selectedOpponent != null;
+        return selectedOpponent != null && (!_isTerritorial || _territoryClub != null);
     }
   }
 
@@ -420,14 +476,13 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     });
   }
 
-  Future<void> _handleTerritoryScan() async {
+  Future<void> _handleTerritoryClubScan() async {
     if (_isLaunchingScan) {
       return;
     }
 
     setState(() {
       _isLaunchingScan = true;
-      _startOption = GameStartOption.territory;
     });
 
     final result = await context.push(
@@ -442,73 +497,11 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     if (result is! ClubModel) {
       setState(() {
         _isLaunchingScan = false;
+        _isTerritorial = false;
+        _territoryClub = null;
       });
       return;
     }
-
-    final selected = await showModalBottomSheet<ContactModel>(
-      context: context,
-      backgroundColor: AppColors.background,
-      showDragHandle: true,
-      builder: (context) {
-        if (result.members.isEmpty) {
-          return const SizedBox(
-            height: 180,
-            child: Center(
-              child: Text(
-                'Aucun membre disponible dans ce club.',
-                style: TextStyle(color: AppColors.textPrimary),
-              ),
-            ),
-          );
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Selectionnez un adversaire (${result.name})',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: result.members.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final member = result.members[index];
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          context.pop(
-                            ContactModel(
-                              id: member.id,
-                              username: member.username,
-                              avatarUrl: member.avatarUrl,
-                              elo: member.elo,
-                            ),
-                          );
-                        },
-                        child: MemberListTile(member: member, rank: index + 1),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
 
     if (!mounted) {
       return;
@@ -516,10 +509,33 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
 
     setState(() {
       _isLaunchingScan = false;
-      if (selected != null) {
-        _selectedOpponent = selected;
-      }
+      _territoryClub = result;
     });
+  }
+
+  void _showTerritoryError(String message) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            'Defi territorial impossible',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _startMatch({required ContactModel? selectedOpponent}) async {
@@ -565,6 +581,34 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
       return;
     }
 
+    if (_isTerritorial) {
+      if (_territoryClub == null) {
+        _showTerritoryError(
+          'Scannez le QR du club du territoire avant de lancer la partie.',
+        );
+        return;
+      }
+
+      if (currentUser.clubId != null &&
+          currentUser.clubId == selectedOpponent.clubId) {
+        _showTerritoryError(
+          'Les deux joueurs appartiennent au meme club.',
+        );
+        return;
+      }
+
+      final territoryClubId = _territoryClub!.id;
+      final currentUserInClub = currentUser.clubId == territoryClubId;
+      final opponentInClub = selectedOpponent.clubId == territoryClubId;
+
+      if (!currentUserInClub && !opponentInClub) {
+        _showTerritoryError(
+          'Aucun des deux joueurs n\'appartient au club ${_territoryClub!.name}.',
+        );
+        return;
+      }
+    }
+
     try {
       final api = ref.read(apiClientProvider);
       final service = MatchService(api);
@@ -578,7 +622,9 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
         legsPerSet: _legsPerSet,
         finishType: _finishApiLabel(_finishType),
         isRanked: _isRanked,
-        isTerritorial: _startOption == GameStartOption.territory,
+        isTerritorial: _isTerritorial,
+        territoryClubId: _isTerritorial ? _territoryClub?.id : null,
+        territoryCodeIris: _isTerritorial ? _territoryClub?.codeIris : null,
       );
 
       ref.read(pendingInvitationProvider.notifier).startWaiting(invitation);
@@ -709,7 +755,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   }
 }
 
-enum GameStartOption { inviteFriend, scanQr, territory, guest }
+enum GameStartOption { inviteFriend, scanQr, guest }
 
 class _OptionCard extends StatelessWidget {
   const _OptionCard({

@@ -45,6 +45,10 @@ export class CreateTournamentDto {
   @IsOptional()
   is_territorial?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  is_ranked?: boolean;
+
   @IsString()
   @IsOptional()
   @IsIn(['301', '501', '701', 'cricket', 'chasseur'])

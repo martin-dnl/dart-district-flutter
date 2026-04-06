@@ -15,6 +15,7 @@ import { SubmitThrowDto } from './dto/submit-throw.dto';
 import { SystemGateway } from '../realtime/gateways/system.gateway';
 import { MatchGateway } from '../realtime/gateways/match.gateway';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
+import { StatsService } from '../stats/stats.service';
 
 @Injectable()
 export class MatchesService {
@@ -28,6 +29,7 @@ export class MatchesService {
     private readonly dataSource: DataSource,
     private readonly systemGateway: SystemGateway,
     private readonly matchGateway: MatchGateway,
+    private readonly statsService: StatsService,
   ) {}
 
   async createInvitation(
@@ -41,6 +43,8 @@ export class MatchesService {
       finish_type?: string;
       is_ranked?: boolean;
       is_territorial?: boolean;
+      territory_club_id?: string;
+      territory_code_iris?: string;
     },
   ) {
     if (!body.invitee_id) {
@@ -68,6 +72,8 @@ export class MatchesService {
         legs_per_set: legsPerSet,
         is_ranked: body.is_ranked ?? false,
         is_territorial: body.is_territorial ?? false,
+        territory_club_id: body.territory_club_id ?? null,
+        territory_code_iris: body.territory_code_iris ?? null,
         status: 'pending',
         inviter_id: inviterId,
         invitee_id: body.invitee_id,
@@ -423,7 +429,10 @@ export class MatchesService {
         total_sets: dto.best_of_sets,
         legs_per_set: dto.best_of_legs,
         is_territorial: dto.is_territorial ?? false,
+        is_ranked: dto.is_ranked ?? false,
         territory_id: dto.territory_id ?? null,
+        territory_club_id: dto.club_id ?? null,
+        territory_code_iris: dto.territory_id ?? null,
         tournament_id: dto.tournament_id ?? null,
         status: 'in_progress',
         started_at: new Date(),
@@ -735,10 +744,31 @@ export class MatchesService {
       match.ended_at = new Date();
       await this.matchRepo.save(match);
 
+      const loserId = match.players.find((p) => p.user.id !== lastSetWinnerId)?.user
+        .id;
+
       // Update match players
       for (const mp of match.players) {
         mp.is_winner = mp.user.id === lastSetWinnerId;
         await this.playerRepo.save(mp);
+      }
+
+      if (loserId) {
+        const eloResult = await this.statsService.processElo(
+          match.id,
+          lastSetWinnerId,
+          loserId,
+          match.is_ranked,
+        );
+
+        if (match.is_territorial) {
+          await this.statsService.processTerritoryPoints({
+            matchId: match.id,
+            winnerId: lastSetWinnerId,
+            loserId,
+            eloDelta: Math.abs(eloResult?.winner.delta ?? 0),
+          });
+        }
       }
     } else {
       // New set + first leg
@@ -899,6 +929,8 @@ export class MatchesService {
       'finish_type': match.finish,
       'is_ranked': match.is_ranked,
       'is_territorial': match.is_territorial,
+      'territory_club_id': match.territory_club_id,
+      'territory_code_iris': match.territory_code_iris,
       'abandoned_by_index': abandonedByIndex < 0 ? null : abandonedByIndex,
     };
   }

@@ -12,6 +12,8 @@ import { TournamentPool } from './entities/tournament-pool.entity';
 import { TournamentPoolStanding } from './entities/tournament-pool-standing.entity';
 import { TournamentBracketMatch } from './entities/tournament-bracket-match.entity';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
+import { User } from '../users/entities/user.entity';
+import { ClubMember } from '../clubs/entities/club-member.entity';
 
 type FindAllOptions = {
   status?: string;
@@ -32,9 +34,46 @@ export class TournamentsService {
     private readonly standingRepo: Repository<TournamentPoolStanding>,
     @InjectRepository(TournamentBracketMatch)
     private readonly bracketRepo: Repository<TournamentBracketMatch>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    @InjectRepository(ClubMember)
+    private readonly clubMemberRepo: Repository<ClubMember>,
   ) {}
 
+  async canCreateForClub(userId: string, clubId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.is_admin) {
+      return true;
+    }
+
+    const membership = await this.clubMemberRepo.findOne({
+      where: {
+        club_id: clubId,
+        user_id: userId,
+        is_active: true,
+      },
+    });
+
+    return membership?.role === 'president';
+  }
+
   async create(dto: CreateTournamentDto, userId: string) {
+    if (dto.club_id) {
+      const canCreateForClub = await this.canCreateForClub(userId, dto.club_id);
+      if (!canCreateForClub) {
+        throw new ForbiddenException(
+          'Only an admin or the club president can create a club tournament',
+        );
+      }
+    }
+
+    const isTerritorial = dto.is_territorial ?? false;
+    const isRanked = dto.is_ranked ?? false;
+
     const poolCount =
       dto.format === 'pools_then_elimination' ? (dto.pool_count ?? 4) : null;
     const playersPerPool =
@@ -45,6 +84,8 @@ export class TournamentsService {
     const tournament = this.tournamentRepo.create({
       ...dto,
       club_id: dto.club_id ?? null,
+      is_territorial: isTerritorial,
+      is_ranked: isTerritorial ? true : isRanked,
       current_phase: 'registration',
       pool_count: poolCount,
       players_per_pool: playersPerPool,

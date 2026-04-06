@@ -5,6 +5,7 @@ class ContactModel {
     this.avatarUrl,
     this.elo = 1000,
     this.unreadCount = 0,
+    this.clubId,
   });
 
   final String id;
@@ -12,14 +13,22 @@ class ContactModel {
   final String? avatarUrl;
   final int elo;
   final int unreadCount;
+  final String? clubId;
 
   factory ContactModel.fromApi(Map<String, dynamic> json) {
+    final memberships = json['club_memberships'] as List<dynamic>?;
+    final firstMembership = memberships != null && memberships.isNotEmpty
+        ? memberships.first as Map<String, dynamic>
+        : null;
+    final club = firstMembership?['club'] as Map<String, dynamic>?;
+
     return ContactModel(
       id: (json['id'] ?? '').toString(),
       username: (json['username'] ?? 'Joueur').toString(),
       avatarUrl: json['avatar_url'] as String?,
       elo: (json['elo'] as num?)?.toInt() ?? 1000,
       unreadCount: (json['unread_count'] as num?)?.toInt() ?? 0,
+      clubId: (json['club_id'] ?? club?['id'])?.toString(),
     );
   }
 
@@ -29,6 +38,7 @@ class ContactModel {
     String? avatarUrl,
     int? elo,
     int? unreadCount,
+    String? clubId,
   }) {
     return ContactModel(
       id: id ?? this.id,
@@ -36,6 +46,7 @@ class ContactModel {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       elo: elo ?? this.elo,
       unreadCount: unreadCount ?? this.unreadCount,
+      clubId: clubId ?? this.clubId,
     );
   }
 }

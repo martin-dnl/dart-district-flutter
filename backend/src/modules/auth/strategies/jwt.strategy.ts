@@ -8,6 +8,7 @@ export interface JwtPayload {
   email: string;
   username: string;
   is_guest?: boolean;
+  is_admin?: boolean;
 }
 
 @Injectable()
@@ -26,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       username: payload.username,
       is_guest: payload.is_guest === true,
+      is_admin: payload.is_admin === true,
     };
   }
 }

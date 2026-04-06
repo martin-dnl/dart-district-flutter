@@ -34,6 +34,8 @@ export class MatchesController {
       sets_to_win?: number;
       legs_per_set?: number;
       finish_type?: string;
+      territory_club_id?: string;
+      territory_code_iris?: string;
     },
     @Req() req: { user: { id: string } },
   ) {

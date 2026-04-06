@@ -229,6 +229,7 @@ export class AuthService {
       sub: user.id,
       email: user.email ?? '',
       username: user.username,
+      is_admin: user.is_admin,
     };
 
     const access_token = this.jwtService.sign(payload);

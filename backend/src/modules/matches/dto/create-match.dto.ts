@@ -33,6 +33,10 @@ export class CreateMatchDto {
   @IsOptional()
   is_territorial?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  is_ranked?: boolean;
+
   @IsString()
   @Matches(/^[0-9A-Za-z]{9}$/)
   @IsOptional()

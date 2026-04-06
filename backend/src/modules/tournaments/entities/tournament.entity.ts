@@ -31,6 +31,9 @@ export class Tournament {
   @Column({ type: 'boolean', default: false })
   is_territorial: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  is_ranked: boolean;
+
   @Column({ type: 'enum', enum: ['301', '501', '701', 'cricket', 'chasseur'], default: '501' })
   mode: string;
 

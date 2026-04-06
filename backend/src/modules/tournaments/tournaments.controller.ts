@@ -27,10 +27,23 @@ export class TournamentsController {
   @Post()
   create(
     @Body() dto: CreateTournamentDto,
-    @Req() req: { user: { id: string; is_guest?: boolean } },
+    @Req() req: { user: { id: string; is_guest?: boolean; is_admin?: boolean } },
   ) {
     if (req.user.is_guest || req.user.id === 'guest') {
       throw new ForbiddenException('Guest account cannot create tournaments');
+    }
+
+    if (dto.club_id && req.user.is_admin !== true) {
+      return this.tournamentsService
+        .canCreateForClub(req.user.id, dto.club_id)
+        .then((canCreate) => {
+          if (!canCreate) {
+            throw new ForbiddenException(
+              'Only an admin or the club president can create a club tournament',
+            );
+          }
+          return this.tournamentsService.create(dto, req.user.id);
+        });
     }
 
     return this.tournamentsService.create(dto, req.user.id);

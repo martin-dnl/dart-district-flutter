@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
@@ -65,7 +66,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // Debounced camera tracking – avoids setState storm while panning
   Timer? _cameraDebounce;
+  Timer? _interactionDebounce;
   bool _showZones = true;
+  bool _isMapInteracting = false;
+  LatLng? _lastZoneEvalCenter;
+  double? _lastZoneEvalZoom;
 
   final Future<PmTilesVectorTileProvider?> _webNoProviderFuture =
       Future<PmTilesVectorTileProvider?>.value(null);
@@ -81,10 +86,42 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void dispose() {
     _debounce?.cancel();
     _cameraDebounce?.cancel();
+    _interactionDebounce?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     _fmController.dispose();
     super.dispose();
+  }
+
+  bool get _isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  bool _shouldReevaluateZones(fm.MapCamera position) {
+    final center = position.center;
+    final zoom = position.zoom;
+    if (center == null || zoom == null) {
+      return false;
+    }
+
+    final lastCenter = _lastZoneEvalCenter;
+    final lastZoom = _lastZoneEvalZoom;
+    if (lastCenter == null || lastZoom == null) {
+      _lastZoneEvalCenter = center;
+      _lastZoneEvalZoom = zoom;
+      return true;
+    }
+
+    final shouldReeval =
+        (zoom - lastZoom).abs() >= 0.10 ||
+        (center.latitude - lastCenter.latitude).abs() >= 0.015 ||
+        (center.longitude - lastCenter.longitude).abs() >= 0.015;
+
+    if (shouldReeval) {
+      _lastZoneEvalCenter = center;
+      _lastZoneEvalZoom = zoom;
+    }
+
+    return shouldReeval;
   }
 
   Future<void> _initUserLocation() async {
@@ -292,10 +329,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  Future<void> _handleMapTap(
-    LatLng latLng,
-    double viewportWidthPx,
-  ) async {
+  Future<void> _handleMapTap(LatLng latLng, double viewportWidthPx) async {
     final codeIris = await _resolveCodeIrisFromTap(latLng, viewportWidthPx);
     if (codeIris == null || codeIris.isEmpty || !mounted) {
       return;
@@ -309,10 +343,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     List<Map<String, dynamic>> clubMarkers,
   ) {
     final points = clubMarkers
-        .map((club) => LatLng(
-              _asDouble(club['latitude']) ?? double.nan,
-              _asDouble(club['longitude']) ?? double.nan,
-            ))
+        .map(
+          (club) => LatLng(
+            _asDouble(club['latitude']) ?? double.nan,
+            _asDouble(club['longitude']) ?? double.nan,
+          ),
+        )
         .where((p) => p.latitude.isFinite && p.longitude.isFinite)
         .toList(growable: false);
 
@@ -413,36 +449,43 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       return _cachedClubMarkers!;
     }
 
-    _cachedClubMarkers = clubs.map((club) {
-      final lat = _asDouble(club['latitude']);
-      final lng = _asDouble(club['longitude']);
-      if (lat == null || lng == null) {
-        return null;
-      }
+    _cachedClubMarkers = clubs
+        .map((club) {
+          final lat = _asDouble(club['latitude']);
+          final lng = _asDouble(club['longitude']);
+          if (lat == null || lng == null) {
+            return null;
+          }
 
-      return fm.Marker(
-        point: LatLng(lat, lng),
-        width: 36,
-        height: 36,
-        child: Center(
-          child: GestureDetector(
-            onTap: () => ClubMapModal.show(
-              context,
-              clubId: (club['id'] ?? '').toString(),
-              name: (club['name'] ?? 'Club').toString(),
-              address: (club['address'] ??
-                      [
-                        club['city']?.toString(),
-                        club['code_iris']?.toString(),
-                      ].whereType<String>().where((e) => e.isNotEmpty).join(' - '))
-                  .toString(),
-              city: club['city']?.toString(),
+          return fm.Marker(
+            point: LatLng(lat, lng),
+            width: 36,
+            height: 36,
+            child: Center(
+              child: GestureDetector(
+                onTap: () => ClubMapModal.show(
+                  context,
+                  clubId: (club['id'] ?? '').toString(),
+                  name: (club['name'] ?? 'Club').toString(),
+                  address:
+                      (club['address'] ??
+                              [
+                                    club['city']?.toString(),
+                                    club['code_iris']?.toString(),
+                                  ]
+                                  .whereType<String>()
+                                  .where((e) => e.isNotEmpty)
+                                  .join(' - '))
+                          .toString(),
+                  city: club['city']?.toString(),
+                ),
+                child: const ClubMapMarker(),
+              ),
             ),
-            child: const ClubMapMarker(),
-          ),
-        ),
-      );
-    }).whereType<fm.Marker>().toList(growable: false);
+          );
+        })
+        .whereType<fm.Marker>()
+        .toList(growable: false);
 
     _cachedClubMarkersHash = markersHash;
     return _cachedClubMarkers!;
@@ -476,27 +519,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     Set<String> activeCodes,
   ) {
     final conquered = territories
-      .where((t) =>
-        activeCodes.contains(t.codeIris) &&
-        t.status == TerritoryStatus.conquered)
+        .where(
+          (t) =>
+              activeCodes.contains(t.codeIris) &&
+              t.status == TerritoryStatus.conquered,
+        )
         .map((t) => t.codeIris)
         .toList(growable: false);
     final locked = territories
-      .where((t) =>
-        activeCodes.contains(t.codeIris) &&
-        t.status == TerritoryStatus.locked)
+        .where(
+          (t) =>
+              activeCodes.contains(t.codeIris) &&
+              t.status == TerritoryStatus.locked,
+        )
         .map((t) => t.codeIris)
         .toList(growable: false);
     final conflict = territories
-      .where((t) =>
-        activeCodes.contains(t.codeIris) &&
-        t.status == TerritoryStatus.conflict)
+        .where(
+          (t) =>
+              activeCodes.contains(t.codeIris) &&
+              t.status == TerritoryStatus.conflict,
+        )
         .map((t) => t.codeIris)
         .toList(growable: false);
     final alert = territories
-      .where((t) =>
-        activeCodes.contains(t.codeIris) &&
-        t.status == TerritoryStatus.alert)
+        .where(
+          (t) =>
+              activeCodes.contains(t.codeIris) &&
+              t.status == TerritoryStatus.alert,
+        )
         .map((t) => t.codeIris)
         .toList(growable: false);
 
@@ -666,10 +717,91 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     };
   }
 
+  Widget _buildPodium(List<Map<String, dynamic>> topClubs) {
+    const podiumColors = [
+      Color(0xFFFFD700),
+      Color(0xFFC0C0C0),
+      Color(0xFFCD7F32),
+    ];
+
+    const podiumHeights = [80.0, 60.0, 45.0];
+    final displayOrder = <int>[];
+    if (topClubs.length >= 2) {
+      displayOrder.add(1);
+    }
+    displayOrder.add(0);
+    if (topClubs.length >= 3) {
+      displayOrder.add(2);
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: displayOrder.map((index) {
+        if (index >= topClubs.length) {
+          return const SizedBox.shrink();
+        }
+
+        final club = topClubs[index];
+        final rank = (club['rank'] as num?)?.toInt() ?? (index + 1);
+        final name = (club['club_name'] ?? '').toString();
+        final points = (club['points'] as num?)?.toInt() ?? 0;
+
+        return Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$points pts',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                height: podiumHeights[index],
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: podiumColors[index].withValues(alpha: 0.3),
+                  border: Border.all(color: podiumColors[index]),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(8),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$rank',
+                  style: TextStyle(
+                    color: podiumColors[index],
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Future<void> _openPanelForTerritoryCode(String codeIris) async {
     Map<String, dynamic>? territory;
     Map<String, dynamic>? activeDuel;
     List<Map<String, dynamic>> latestEvents = const [];
+    List<Map<String, dynamic>> topClubs = const [];
 
     try {
       final api = ref.read(apiClientProvider);
@@ -684,6 +816,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             (panelData['latest_events'] as List<dynamic>? ?? const <dynamic>[])
                 .whereType<Map<String, dynamic>>()
                 .toList();
+        topClubs =
+            (panelData['top_clubs'] as List<dynamic>? ?? const <dynamic>[])
+                .whereType<Map<String, dynamic>>()
+                .toList();
       }
     } catch (_) {
       territory = null;
@@ -693,12 +829,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       return;
     }
 
-    final territoryData = territory ?? <String, dynamic>{
-      'code_iris': codeIris,
-      'name': 'Territoire $codeIris',
-      'status': 'available',
-      'points_value': '–',
-    };
+    final territoryData =
+        territory ??
+        <String, dynamic>{
+          'code_iris': codeIris,
+          'name': 'Territoire $codeIris',
+          'status': 'available',
+          'points_value': '–',
+        };
 
     final status = (territoryData['status'] ?? 'available').toString();
     final ownerClub = territoryData['owner_club'] as Map<String, dynamic>?;
@@ -750,7 +888,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              (territoryData['name'] ?? territoryData['code_iris'] ?? codeIris)
+                              (territoryData['name'] ??
+                                      territoryData['code_iris'] ??
+                                      codeIris)
                                   .toString(),
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
@@ -869,7 +1009,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                color: const Color(
+                                  0xFFEF4444,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
@@ -884,6 +1026,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ],
                       ),
                     ),
+                  ],
+                  if (topClubs.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Classement du territoire',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPodium(topClubs),
                   ],
                   const SizedBox(height: 16),
                   Text(
@@ -946,7 +1101,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           }
 
           if (!_hasInitializedCamera) {
-            final clubCamera = _computeCameraFromClubMarkers(mapState.clubMarkers);
+            final clubCamera = _computeCameraFromClubMarkers(
+              mapState.clubMarkers,
+            );
             if (clubCamera != null) {
               _currentCenter = clubCamera.$1;
               _currentZoom = clubCamera.$2;
@@ -965,8 +1122,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final initialZoom = _currentZoom ?? config.centerZoom;
           _showZones = _shouldRenderZones(viewportWidthPx);
           final shouldRenderVectorZones =
-              !kIsWeb && _showZones && mapState.activeIrisCodes.isNotEmpty;
+              !kIsWeb &&
+              _showZones &&
+              mapState.activeIrisCodes.isNotEmpty &&
+              !(_isAndroid && _isMapInteracting);
           final clubMarkers = _getOrBuildClubMarkers(mapState.clubMarkers);
+          final shouldRenderMarkers =
+              ((_currentZoom ?? initialZoom) >= _markerMinZoom) &&
+              !(_isAndroid && _isMapInteracting);
 
           if (!kIsWeb) {
             _vectorProviderFuture ??= PmTilesVectorTileProvider.fromSource(
@@ -1010,11 +1173,30 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         _currentCenter = position.center;
                         _currentZoom = position.zoom;
 
+                        if (_isAndroid && hasGesture && !_isMapInteracting) {
+                          setState(() => _isMapInteracting = true);
+                        }
+
+                        if (_isAndroid) {
+                          _interactionDebounce?.cancel();
+                          _interactionDebounce = Timer(
+                            const Duration(milliseconds: 180),
+                            () {
+                              if (!mounted || !_isMapInteracting) return;
+                              setState(() => _isMapInteracting = false);
+                            },
+                          );
+                        }
+
+                        if (!_shouldReevaluateZones(position)) {
+                          return;
+                        }
+
                         // Debounce the setState to 150ms so we don't
                         // rebuild on every single pan frame.
                         _cameraDebounce?.cancel();
                         _cameraDebounce = Timer(
-                          const Duration(milliseconds: 150),
+                          const Duration(milliseconds: 220),
                           () {
                             if (!mounted) return;
                             final shouldShow = _shouldRenderZones(
@@ -1054,15 +1236,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             config.layerName,
                             mapState.activeIrisCodes,
                           ),
-                          tileProviders: TileProviders({
-                            'pmtiles': provider!,
-                          }),
+                          tileProviders: TileProviders({'pmtiles': provider!}),
                           layerMode: VectorTileLayerMode.vector,
+                          concurrency: _isAndroid ? 2 : 4,
+                          maximumTileSubstitutionDifference: _isAndroid ? 1 : 2,
+                          memoryTileDataCacheMaxSize: _isAndroid ? 12 : 20,
                         ),
-                      if ((_currentZoom ?? initialZoom) >= _markerMinZoom)
-                        fm.MarkerLayer(
-                          markers: clubMarkers,
-                        ),
+                      if (shouldRenderMarkers)
+                        fm.MarkerLayer(markers: clubMarkers),
                     ],
                   ),
                   // City search bar (top)

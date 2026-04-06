@@ -835,10 +835,43 @@ export class TerritoriesService {
       relations: ['challengerClub', 'defenderClub'],
     });
 
+    let topClubs: Array<{
+      rank: number;
+      club_id: string;
+      club_name: string;
+      points: number;
+    }> = [];
+
+    try {
+      const rows = await this.dataSource.query(
+        `
+          SELECT ctp.club_id, c.name AS club_name, ctp.points
+          FROM club_territory_points ctp
+          INNER JOIN clubs c ON c.id = ctp.club_id
+          WHERE ctp.code_iris = $1
+          ORDER BY ctp.points DESC, c.name ASC
+          LIMIT 3
+        `,
+        [territory.code_iris],
+      );
+
+      topClubs = rows.map((row: Record<string, unknown>, index: number) => ({
+        rank: index + 1,
+        club_id: row.club_id as string,
+        club_name: (row.club_name ?? '').toString(),
+        points: Number(row.points ?? 0),
+      }));
+    } catch (error) {
+      if (!this.isMissingRelationError(error, 'club_territory_points')) {
+        throw error;
+      }
+    }
+
     return {
       territory,
       active_duel: activeDuel,
       latest_events: lastEvents,
+      top_clubs: topClubs,
     };
   }
 

@@ -7,6 +7,8 @@ import { TournamentPoolStanding } from './entities/tournament-pool-standing.enti
 import { TournamentBracketMatch } from './entities/tournament-bracket-match.entity';
 import { TournamentsService } from './tournaments.service';
 import { TournamentsController } from './tournaments.controller';
+import { User } from '../users/entities/user.entity';
+import { ClubMember } from '../clubs/entities/club-member.entity';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { TournamentsController } from './tournaments.controller';
       TournamentPool,
       TournamentPoolStanding,
       TournamentBracketMatch,
+      User,
+      ClubMember,
     ]),
   ],
   controllers: [TournamentsController],

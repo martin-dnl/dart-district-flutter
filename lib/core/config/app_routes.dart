@@ -30,6 +30,9 @@ import '../../features/match/presentation/match_live_screen.dart';
 import '../../features/match/presentation/match_history_screen.dart';
 import '../../features/match/presentation/match_report_screen.dart';
 import '../../features/match/presentation/match_spectate_screen.dart';
+import '../../features/match/presentation/cricket_match_screen.dart';
+import '../../features/match/presentation/chasseur_match_screen.dart';
+import '../../features/match/presentation/chasseur_zone_selection_screen.dart';
 import '../../features/tournaments/presentation/tournaments_list_screen.dart';
 import '../../features/tournaments/presentation/tournament_create_screen.dart';
 import '../../features/tournaments/presentation/tournament_detail_screen.dart';
@@ -63,6 +66,9 @@ class AppRoutes {
   static const String about = '/profile/about';
   static const String badges = '/profile/badges';
   static const String matchLive = '/match';
+  static const String matchCricket = '/match/cricket';
+  static const String matchChasseur = '/match/chasseur';
+  static const String matchChasseurZones = '/match/chasseur/zones';
   static const String matchHistory = '/match-history';
   static const String matchReport = '/match/:id/report';
   static const String matchSpectate = '/match/:id/spectate';
@@ -264,6 +270,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, state) => NoTransitionPage(
           key: state.pageKey,
           child: const MatchLiveScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.matchCricket,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const CricketMatchScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.matchChasseur,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ChasseurMatchScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.matchChasseurZones,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ChasseurZoneSelectionScreen(),
         ),
       ),
       GoRoute(

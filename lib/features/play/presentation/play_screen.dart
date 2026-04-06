@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../widgets/game_mode_card.dart';
 import '../widgets/ongoing_matches_tile.dart';
 
@@ -17,6 +18,10 @@ class PlayScreen extends ConsumerWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            SliverToBoxAdapter(
+              child: SectionHeader(title: 'Mode jeu'),
+            ),
             // X01 Modes
             SliverToBoxAdapter(
               child: Padding(
@@ -59,6 +64,7 @@ class PlayScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),

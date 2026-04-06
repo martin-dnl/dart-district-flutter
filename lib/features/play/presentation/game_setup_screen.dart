@@ -7,6 +7,8 @@ import '../../../core/config/app_routes.dart';
 import '../../club/models/club_model.dart';
 import '../../contacts/controller/contacts_controller.dart';
 import '../../contacts/models/contact_models.dart';
+import '../../match/controller/chasseur_match_controller.dart';
+import '../../match/controller/cricket_match_controller.dart';
 import '../../match/controller/pending_invitation_controller.dart';
 import '../../match/controller/match_controller.dart';
 import '../../match/data/match_service.dart';
@@ -37,6 +39,13 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   ClubModel? _territoryClub;
   bool _isLaunchingScan = false;
 
+  bool get _isSpecialMode =>
+      widget.gameMode.toLowerCase() == 'cricket' ||
+      widget.gameMode.toLowerCase() == 'chasseur';
+
+  bool get _isCricketMode => widget.gameMode.toLowerCase() == 'cricket';
+  bool get _isChasseurMode => widget.gameMode.toLowerCase() == 'chasseur';
+
   @override
   Widget build(BuildContext context) {
     final contacts = ref.watch(contactsControllerProvider);
@@ -61,6 +70,20 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
         (_startOption == GameStartOption.inviteFriend
             ? contacts.selectedFriend
             : null);
+
+    if (_isSpecialMode && (_isRanked || _isTerritorial || _territoryClub != null)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _isRanked = false;
+          _isTerritorial = false;
+          _territoryClub = null;
+        });
+      });
+    }
+
     final canStart = _canStartMatch(selectedOpponent);
     final opponentLabel = selectedOpponent?.username ?? 'Adversaire';
 
@@ -180,7 +203,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   const SizedBox(height: 10),
                   _SelectedFriendInfo(friendName: selectedOpponent.username),
                 ],
-                if (!isGuest) ...[
+                if (!isGuest && !_isSpecialMode) ...[
                   const SizedBox(height: 24),
                   const Text(
                     'Type de match',
@@ -299,77 +322,81 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                const Text(
-                  'Type de finish',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                if (!_isSpecialMode) ...[
+                  const Text(
+                    'Type de finish',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: FinishType.values.map((type) {
-                    final selected = _finishType == type;
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: GestureDetector(
-                          onTap: () => setState(() => _finishType = type),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? AppColors.primary
-                                  : AppColors.card,
-                              borderRadius: BorderRadius.circular(12),
-                              border: selected
-                                  ? null
-                                  : Border.all(
-                                      color: AppColors.surfaceLight,
-                                      width: 0.5,
-                                    ),
-                            ),
-                            child: Text(
-                              _finishLabel(type),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                  const SizedBox(height: 10),
+                  Row(
+                    children: FinishType.values.map((type) {
+                      final selected = _finishType == type;
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _finishType = type),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
                                 color: selected
-                                    ? AppColors.background
-                                    : AppColors.textSecondary,
+                                    ? AppColors.primary
+                                    : AppColors.card,
+                                borderRadius: BorderRadius.circular(12),
+                                border: selected
+                                    ? null
+                                    : Border.all(
+                                        color: AppColors.surfaceLight,
+                                        width: 0.5,
+                                      ),
+                              ),
+                              child: Text(
+                                _finishLabel(type),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected
+                                      ? AppColors.background
+                                      : AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 24),
-                _buildCounter(
-                  label: 'Legs par set (BO)',
-                  value: _legsPerSet,
-                  onMinus: () {
-                    if (_legsPerSet > 1) {
-                      setState(() => _legsPerSet--);
-                    }
-                  },
-                  onPlus: () => setState(() => _legsPerSet++),
-                ),
-                const SizedBox(height: 16),
-                _buildCounter(
-                  label: 'Sets pour gagner',
-                  value: _setsToWin,
-                  onMinus: () {
-                    if (_setsToWin > 1) {
-                      setState(() => _setsToWin--);
-                    }
-                  },
-                  onPlus: () => setState(() => _setsToWin++),
-                ),
-                const SizedBox(height: 16),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                if (!_isChasseurMode) ...[
+                  _buildCounter(
+                    label: 'Legs par set (BO)',
+                    value: _legsPerSet,
+                    onMinus: () {
+                      if (_legsPerSet > 1) {
+                        setState(() => _legsPerSet--);
+                      }
+                    },
+                    onPlus: () => setState(() => _legsPerSet++),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCounter(
+                    label: 'Sets pour gagner',
+                    value: _setsToWin,
+                    onMinus: () {
+                      if (_setsToWin > 1) {
+                        setState(() => _setsToWin--);
+                      }
+                    },
+                    onPlus: () => setState(() => _setsToWin++),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 const Text(
                   'Qui commence ?',
                   style: TextStyle(
@@ -549,12 +576,38 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     final startingScore = _resolveStartingScore(gameMode);
 
     notifier.setMode(gameMode);
-    notifier.setFinishType(_finishType);
+    notifier.setFinishType(_isSpecialMode ? FinishType.singleOut : _finishType);
     notifier.setLegsPerSet(_legsPerSet);
     notifier.setSetsToWin(_setsToWin);
 
+    final currentUserName = authState.user?.username ?? 'Joueur 1';
+    final opponentName = selectedOpponent?.username ?? 'Invite';
+
+    if (_isCricketMode) {
+      ref.read(cricketMatchControllerProvider.notifier).setupMatch(
+            playerNames: [currentUserName, opponentName],
+            setsToWin: _setsToWin,
+            legsPerSet: _legsPerSet,
+            startingPlayerIndex: _startingPlayerIndex,
+          );
+      if (mounted) {
+        context.push(AppRoutes.matchCricket);
+      }
+      return;
+    }
+
+    if (_isChasseurMode) {
+      ref.read(chasseurMatchControllerProvider.notifier).setupMatch(
+            playerNames: [currentUserName, opponentName],
+            startingPlayerIndex: _startingPlayerIndex,
+          );
+      if (mounted) {
+        context.push(AppRoutes.matchChasseurZones);
+      }
+      return;
+    }
+
     if (_startOption == GameStartOption.guest) {
-      final currentUserName = authState.user?.username ?? 'Joueur 1';
       ref
           .read(matchControllerProvider.notifier)
           .setupMatch(

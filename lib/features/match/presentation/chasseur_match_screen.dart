@@ -121,33 +121,7 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  child: state.lastFeedback == null
-                      ? const SizedBox.shrink()
-                      : Container(
-                          key: ValueKey<String>(state.lastFeedback!),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.primary),
-                          ),
-                          child: Text(
-                            state.lastFeedback!,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
+              child: const SizedBox.shrink(),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -174,6 +148,8 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                     maxScore: 180,
                                     fillAvailableHeight: true,
                                     submitEachDartInstantly: true,
+                                    displayDartLabels: _currentTurnDartLabels(state),
+                                    displayCurrentDartIndex: state.currentDartInTurn,
                                     ringColorResolver: (sector, ring) {
                                       if (_isChasseurTargetSector(state, sector)) {
                                         return AppColors.warning.withValues(alpha: 0.70);
@@ -224,6 +200,8 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                           maxScore: 180,
                                           fillAvailableHeight: true,
                                           submitEachDartInstantly: true,
+                                          displayDartLabels: _currentTurnDartLabels(state),
+                                          displayCurrentDartIndex: state.currentDartInTurn,
                                           gridCrossAxisCount: 4,
                                           zones: const [
                                             1,
@@ -315,6 +293,29 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
 
   bool _isChasseurTargetBull(ChasseurMatchState state) {
     return _isChasseurTargetSector(state, 25);
+  }
+
+  List<String> _currentTurnDartLabels(ChasseurMatchState state) {
+    return state.currentTurnDarts
+        .take(3)
+        .map((dart) {
+          if (dart.zone <= 0) {
+            return '-';
+          }
+          if (dart.zone == 25) {
+            if (dart.multiplier >= 2) {
+              return 'DB';
+            }
+            return 'SB';
+          }
+          final prefix = switch (dart.multiplier) {
+            1 => 'S',
+            2 => 'D',
+            _ => 'T',
+          };
+          return '$prefix${dart.zone}';
+        })
+        .toList(growable: false);
   }
 
   ({int zone, int multiplier})? _toChasseurDart(DartHit hit) {

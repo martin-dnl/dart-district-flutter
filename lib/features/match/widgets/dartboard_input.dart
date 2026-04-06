@@ -44,6 +44,8 @@ class DartboardInput extends StatefulWidget {
     required this.onSubmitVisit,
     this.fillAvailableHeight = false,
     this.submitEachDartInstantly = false,
+    this.displayDartLabels,
+    this.displayCurrentDartIndex,
     this.ringColorResolver,
     this.ringLabelResolver,
     this.outerBullColor,
@@ -54,6 +56,8 @@ class DartboardInput extends StatefulWidget {
   final ValueChanged<DartboardVisit> onSubmitVisit;
   final bool fillAvailableHeight;
   final bool submitEachDartInstantly;
+  final List<String>? displayDartLabels;
+  final int? displayCurrentDartIndex;
   final Color? Function(int sector, DartRing ring)? ringColorResolver;
   final String? Function(int sector, DartRing ring)? ringLabelResolver;
   final Color? outerBullColor;
@@ -450,6 +454,15 @@ class _DartboardInputState extends State<DartboardInput> {
   }
 
   String _dartLabel(int index) {
+    final displayLabels = widget.displayDartLabels;
+    if (widget.submitEachDartInstantly && displayLabels != null) {
+      if (index >= displayLabels.length) {
+        return '-';
+      }
+      final label = displayLabels[index].trim();
+      return label.isEmpty ? '-' : label;
+    }
+
     if (index >= _darts.length) {
       return '-';
     }
@@ -493,7 +506,11 @@ class _DartboardInputState extends State<DartboardInput> {
       height: 42,
       child: Row(
         children: List<Widget>.generate(3, (index) {
-          final isCurrent = index == _darts.length && index < 3;
+          final currentDartIndex = widget.submitEachDartInstantly &&
+                  widget.displayCurrentDartIndex != null
+              ? widget.displayCurrentDartIndex!.clamp(0, 2)
+              : _darts.length;
+          final isCurrent = index == currentDartIndex && index < 3;
           final valueColor = isCurrent
               ? const Color(0xFFF4CF38)
               : AppColors.textPrimary;

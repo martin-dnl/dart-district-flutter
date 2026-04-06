@@ -41,6 +41,8 @@ class TempoScoreInput extends StatefulWidget {
     this.fillAvailableHeight = false,
     this.gridCrossAxisCount = 5,
     this.submitEachDartInstantly = false,
+    this.displayDartLabels,
+    this.displayCurrentDartIndex,
     this.zones = const <int>[
       1,
       2,
@@ -74,6 +76,8 @@ class TempoScoreInput extends StatefulWidget {
   final bool fillAvailableHeight;
   final int gridCrossAxisCount;
   final bool submitEachDartInstantly;
+  final List<String>? displayDartLabels;
+  final int? displayCurrentDartIndex;
 
   @override
   State<TempoScoreInput> createState() => _TempoScoreInputState();
@@ -284,6 +288,15 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
   }
 
   String _dartLabel(int index) {
+    final displayLabels = widget.displayDartLabels;
+    if (widget.submitEachDartInstantly && displayLabels != null) {
+      if (index >= displayLabels.length) {
+        return '-';
+      }
+      final label = displayLabels[index].trim();
+      return label.isEmpty ? '-' : label;
+    }
+
     if (index >= _darts.length) {
       return '-';
     }
@@ -315,7 +328,11 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
       height: 42,
       child: Row(
         children: List<Widget>.generate(3, (index) {
-          final isCurrent = index == _darts.length && index < 3;
+          final currentDartIndex = widget.submitEachDartInstantly &&
+                  widget.displayCurrentDartIndex != null
+              ? widget.displayCurrentDartIndex!.clamp(0, 2)
+              : _darts.length;
+          final isCurrent = index == currentDartIndex && index < 3;
           final valueColor = isCurrent
               ? const Color(0xFFF4CF38)
               : AppColors.textPrimary;

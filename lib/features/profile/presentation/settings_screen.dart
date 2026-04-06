@@ -23,7 +23,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _manualScoreMode = 'MANUAL';
   static const String _dartboardScoreMode = 'DARTBOARD';
+  static const String _tempoScoreMode = 'TEMPO';
   String _scoreMode = _manualScoreMode;
+
+  bool _isSupportedScoreMode(String value) {
+    return value == _manualScoreMode ||
+        value == _dartboardScoreMode ||
+        value == _tempoScoreMode;
+  }
 
   @override
   void initState() {
@@ -47,8 +54,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) {
         return;
       }
+      final normalized = value.toUpperCase();
       setState(() {
-        _scoreMode = value.isEmpty ? _manualScoreMode : value;
+        _scoreMode = _isSupportedScoreMode(normalized)
+            ? normalized
+            : _manualScoreMode;
         _isLoadingGameOptions = false;
       });
     } catch (_) {
@@ -63,7 +73,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveScoreMode(String mode) async {
-    final nextMode = mode.trim().isEmpty ? _manualScoreMode : mode.trim();
+    final rawMode = mode.trim().toUpperCase();
+    final nextMode = _isSupportedScoreMode(rawMode)
+        ? rawMode
+        : _manualScoreMode;
     final previous = _scoreMode;
     setState(() {
       _scoreMode = nextMode;
@@ -207,6 +220,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     DropdownMenuItem(
                       value: _dartboardScoreMode,
                       child: Text('DARTBOARD'),
+                    ),
+                    DropdownMenuItem(
+                      value: _tempoScoreMode,
+                      child: Text('TEMPO'),
                     ),
                   ],
                   onChanged: _isSavingGameOptions

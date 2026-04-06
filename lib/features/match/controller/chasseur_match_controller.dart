@@ -57,8 +57,8 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
         ChasseurPlayerState(name: normalizedNames[0], zone: selectedZones[0]),
         ChasseurPlayerState(name: normalizedNames[1], zone: selectedZones[1]),
       ],
-      currentPlayerIndex: remoteMatch.currentPlayerIndex.clamp(0, 1),
-      currentRound: remoteMatch.currentRound,
+      currentPlayerIndex: remoteMatch.startingPlayerIndex.clamp(0, 1),
+      currentRound: 1,
       currentDartInTurn: 0,
       phase: allZonesSelected ? ChasseurPhase.playing : ChasseurPhase.zoneSelection,
       status: remoteMatch.status,
@@ -80,8 +80,6 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
 
     _history.clear();
     state = state.copyWith(
-      currentPlayerIndex: remoteMatch.currentPlayerIndex.clamp(0, 1),
-      currentRound: remoteMatch.currentRound,
       status: remoteMatch.status,
       phase: allZonesSelected ? ChasseurPhase.playing : ChasseurPhase.zoneSelection,
     );
@@ -275,6 +273,39 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
       return;
     }
     state = _history.removeLast();
+  }
+
+  void undoRound() {
+    if (_history.isEmpty) {
+      return;
+    }
+
+    final targetRound = state.currentRound;
+    while (_history.isNotEmpty && state.currentRound == targetRound) {
+      state = _history.removeLast();
+    }
+  }
+
+  void abandonMatch(int abandoningPlayerIndex) {
+    if (state.status != MatchStatus.inProgress) {
+      return;
+    }
+    if (abandoningPlayerIndex < 0 || abandoningPlayerIndex >= state.players.length) {
+      return;
+    }
+
+    final players = List<ChasseurPlayerState>.from(state.players);
+    players[abandoningPlayerIndex] = players[abandoningPlayerIndex].copyWith(
+      lives: -1,
+      isEliminated: true,
+    );
+
+    final winner = players.indexWhere((p) => !p.isEliminated);
+    state = state.copyWith(
+      players: players,
+      status: MatchStatus.finished,
+      winnerIndex: winner >= 0 ? winner : null,
+    );
   }
 
   int _nextActivePlayer(List<ChasseurPlayerState> players, int currentIndex) {

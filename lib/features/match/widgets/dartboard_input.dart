@@ -43,11 +43,21 @@ class DartboardInput extends StatefulWidget {
     required this.maxScore,
     required this.onSubmitVisit,
     this.fillAvailableHeight = false,
+    this.submitEachDartInstantly = false,
+    this.ringColorResolver,
+    this.ringLabelResolver,
+    this.outerBullColor,
+    this.innerBullColor,
   });
 
   final int maxScore;
   final ValueChanged<DartboardVisit> onSubmitVisit;
   final bool fillAvailableHeight;
+  final bool submitEachDartInstantly;
+  final Color? Function(int sector, DartRing ring)? ringColorResolver;
+  final String? Function(int sector, DartRing ring)? ringLabelResolver;
+  final Color? outerBullColor;
+  final Color? innerBullColor;
 
   @override
   State<DartboardInput> createState() => _DartboardInputState();
@@ -359,6 +369,20 @@ class _DartboardInputState extends State<DartboardInput> {
     setState(() {
       _darts.add(hit);
     });
+
+    if (widget.submitEachDartInstantly) {
+      widget.onSubmitVisit(
+        DartboardVisit(
+          darts: <int>[hit.score],
+          total: hit.score.clamp(0, widget.maxScore),
+          doubleAttempts: hit.ring == DartRing.double ? 1 : 0,
+          dartHits: <DartHit>[hit],
+        ),
+      );
+      setState(() {
+        _darts.clear();
+      });
+    }
   }
 
   void _addMiss() {
@@ -367,14 +391,32 @@ class _DartboardInputState extends State<DartboardInput> {
     }
 
     setState(() {
-      _darts.add(
+      final miss =
         const DartHit(
           normalizedPosition: Offset.zero,
           score: 0,
           label: '-',
           ring: DartRing.singleOuter,
-        ),
-      );
+        );
+      _darts.add(miss);
+      if (widget.submitEachDartInstantly) {
+        widget.onSubmitVisit(
+          DartboardVisit(
+            darts: const <int>[0],
+            total: 0,
+            doubleAttempts: 0,
+            dartHits: const <DartHit>[
+              DartHit(
+                normalizedPosition: Offset.zero,
+                score: 0,
+                label: '-',
+                ring: DartRing.singleOuter,
+              ),
+            ],
+          ),
+        );
+        _darts.clear();
+      }
     });
   }
 
@@ -560,6 +602,10 @@ class _DartboardInputState extends State<DartboardInput> {
                     wireWhite: _wireWhite,
                     markerBlue: _markerBlue,
                     sectorOrder: _sectorOrder,
+                    ringColorResolver: widget.ringColorResolver,
+                    ringLabelResolver: widget.ringLabelResolver,
+                    outerBullColor: widget.outerBullColor,
+                    innerBullColor: widget.innerBullColor,
                   ),
                 ),
               ),
@@ -594,13 +640,15 @@ class _DartboardInputState extends State<DartboardInput> {
                   right: viewportSize.width - squareRect.right + buttonMargin,
                   bottom:
                       viewportSize.height - squareRect.bottom + buttonMargin,
-                  child: _roundActionButton(
-                    icon: Icons.check_rounded,
-                    onTap: _canSubmit ? _submitVisit : null,
-                    size: buttonSize,
-                    backgroundColor: AppColors.primary,
-                    iconColor: Colors.white,
-                  ),
+                  child: widget.submitEachDartInstantly
+                      ? const SizedBox.shrink()
+                      : _roundActionButton(
+                          icon: Icons.check_rounded,
+                          onTap: _canSubmit ? _submitVisit : null,
+                          size: buttonSize,
+                          backgroundColor: AppColors.primary,
+                          iconColor: Colors.white,
+                        ),
                 ),
             ],
 
@@ -631,8 +679,8 @@ class _DartboardInputState extends State<DartboardInput> {
     final scale = _currentZoom;
 
     return Matrix4.identity()
-      ..translate(fx * (1 - scale), fy * (1 - scale), 0)
-      ..scale(scale, scale, 1.0);
+      ..translateByDouble(fx * (1 - scale), fy * (1 - scale), 0, 1)
+      ..scaleByDouble(scale, scale, 1.0, 1.0);
   }
 
   Widget _roundActionButton({
@@ -699,6 +747,10 @@ class _DartboardPainter extends CustomPainter {
     required this.wireWhite,
     required this.markerBlue,
     required this.sectorOrder,
+    this.ringColorResolver,
+    this.ringLabelResolver,
+    this.outerBullColor,
+    this.innerBullColor,
   });
 
   final Rect boardRect;
@@ -721,6 +773,10 @@ class _DartboardPainter extends CustomPainter {
   final Color markerBlue;
 
   final List<int> sectorOrder;
+  final Color? Function(int sector, DartRing ring)? ringColorResolver;
+  final String? Function(int sector, DartRing ring)? ringLabelResolver;
+  final Color? outerBullColor;
+  final Color? innerBullColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -752,7 +808,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rOuterBull,
         outerRatio: rTripleInner,
-        fill: i.isEven ? beigeSegment : blackSegment,
+        fill: ringColorResolver?.call(number, DartRing.singleInner) ??
+            (i.isEven ? beigeSegment : blackSegment),
         highlighted: _isHighlighted(number, DartRing.singleInner),
       );
 
@@ -763,7 +820,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rTripleInner,
         outerRatio: rTripleOuter,
-        fill: i.isEven ? ringGreen : ringRed,
+        fill: ringColorResolver?.call(number, DartRing.triple) ??
+            (i.isEven ? ringGreen : ringRed),
         highlighted: _isHighlighted(number, DartRing.triple),
       );
 
@@ -774,7 +832,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rTripleOuter,
         outerRatio: rDoubleInner,
-        fill: i.isEven ? blackSegment : beigeSegment,
+        fill: ringColorResolver?.call(number, DartRing.singleOuter) ??
+            (i.isEven ? blackSegment : beigeSegment),
         highlighted: _isHighlighted(number, DartRing.singleOuter),
       );
 
@@ -785,7 +844,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rDoubleInner,
         outerRatio: 1.0,
-        fill: i.isEven ? ringRed : ringGreen,
+        fill: ringColorResolver?.call(number, DartRing.double) ??
+            (i.isEven ? ringRed : ringGreen),
         highlighted: _isHighlighted(number, DartRing.double),
       );
     }
@@ -805,7 +865,7 @@ class _DartboardPainter extends CustomPainter {
       Paint()
         ..color = isOuterBull
             ? AppColors.primary.withValues(alpha: 0.78)
-            : ringGreen,
+            : (outerBullColor ?? ringGreen),
     );
 
     canvas.drawCircle(
@@ -814,13 +874,14 @@ class _DartboardPainter extends CustomPainter {
       Paint()
         ..color = isInnerBull
             ? AppColors.primary.withValues(alpha: 0.88)
-            : ringRed,
+            : (innerBullColor ?? ringRed),
     );
 
     canvas.drawCircle(center, playableRadius * rOuterBull, wirePaint);
     canvas.drawCircle(center, playableRadius * rInnerBull, wirePaint);
 
     _drawNumbers(canvas, center, playableRadius, outerRadius);
+    _drawRingLabels(canvas, center, playableRadius);
     _drawDartMarkers(canvas);
   }
 
@@ -928,6 +989,45 @@ class _DartboardPainter extends CustomPainter {
     }
   }
 
+  void _drawRingLabels(Canvas canvas, Offset center, double playableRadius) {
+    final resolver = ringLabelResolver;
+    if (resolver == null) {
+      return;
+    }
+
+    final tp = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    const sectorSweep = 2 * math.pi / 20;
+    final labelRadius = playableRadius * ((rTripleOuter + rDoubleInner) / 2);
+
+    for (var i = 0; i < 20; i++) {
+      final sector = sectorOrder[i];
+      final label = resolver(sector, DartRing.singleOuter);
+      if (label == null || label.isEmpty) {
+        continue;
+      }
+
+      final angle = -math.pi / 2 + i * sectorSweep;
+      final pos = Offset(
+        center.dx + labelRadius * math.cos(angle),
+        center.dy + labelRadius * math.sin(angle),
+      );
+
+      tp.text = TextSpan(
+        text: label,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(pos.dx - tp.width / 2, pos.dy - tp.height / 2));
+    }
+  }
+
   void _drawDartMarkers(Canvas canvas) {
     for (final hit in dartMarkers) {
       if (hit.score == 0) {
@@ -960,7 +1060,11 @@ class _DartboardPainter extends CustomPainter {
         oldDelegate.highlightedHit?.ring != highlightedHit?.ring ||
         oldDelegate.boardRect != boardRect ||
         oldDelegate.dartMarkers.length != dartMarkers.length ||
-        oldDelegate.dartMarkers.hashCode != dartMarkers.hashCode;
+        oldDelegate.dartMarkers.hashCode != dartMarkers.hashCode ||
+        oldDelegate.ringColorResolver != ringColorResolver ||
+        oldDelegate.ringLabelResolver != ringLabelResolver ||
+        oldDelegate.outerBullColor != outerBullColor ||
+        oldDelegate.innerBullColor != innerBullColor;
   }
 }
 

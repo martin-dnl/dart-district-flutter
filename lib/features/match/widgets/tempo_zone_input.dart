@@ -40,6 +40,7 @@ class TempoScoreInput extends StatefulWidget {
     required this.canSelectZone,
     this.fillAvailableHeight = false,
     this.gridCrossAxisCount = 5,
+    this.submitEachDartInstantly = false,
     this.zones = const <int>[
       1,
       2,
@@ -72,6 +73,7 @@ class TempoScoreInput extends StatefulWidget {
   final List<int> zones;
   final bool fillAvailableHeight;
   final int gridCrossAxisCount;
+  final bool submitEachDartInstantly;
 
   @override
   State<TempoScoreInput> createState() => _TempoScoreInputState();
@@ -196,7 +198,22 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
       return;
     }
 
-    _darts.add(_toTempoDart(zone: zone, multiplier: multiplier));
+    final dart = _toTempoDart(zone: zone, multiplier: multiplier);
+    _darts.add(dart);
+
+    if (widget.submitEachDartInstantly) {
+      widget.onSubmitVisit(
+        TempoVisit(
+          darts: <TempoDart>[dart],
+          total: dart.score.clamp(0, widget.maxScore),
+          doubleAttempts:
+              ((!dart.isMiss && dart.multiplier == 2) || dart.zone == 50)
+              ? 1
+              : 0,
+        ),
+      );
+      _darts.clear();
+    }
 
     _pendingZone = null;
     _pendingMultiplier = 0;
@@ -212,7 +229,26 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
     if (_darts.length >= _maxDarts) {
       return;
     }
-    _darts.add(_toTempoDart(zone: 0, multiplier: 1));
+    final miss = _toTempoDart(zone: 0, multiplier: 1);
+    _darts.add(miss);
+    if (widget.submitEachDartInstantly) {
+      widget.onSubmitVisit(
+        const TempoVisit(
+          darts: <TempoDart>[
+            TempoDart(
+              zone: 0,
+              multiplier: 1,
+              score: 0,
+              label: '-',
+              isMiss: true,
+            ),
+          ],
+          total: 0,
+          doubleAttempts: 0,
+        ),
+      );
+      _darts.clear();
+    }
     setState(() {});
   }
 
@@ -383,17 +419,19 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: FilledButton(
-                  onPressed: _canSubmit ? _onValidate : null,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check),
-                      SizedBox(width: 6),
-                      Text('Valider'),
-                    ],
-                  ),
-                ),
+                child: widget.submitEachDartInstantly
+                    ? const SizedBox.shrink()
+                    : FilledButton(
+                        onPressed: _canSubmit ? _onValidate : null,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check),
+                            SizedBox(width: 6),
+                            Text('Valider'),
+                          ],
+                        ),
+                      ),
               ),
             ],
           ),

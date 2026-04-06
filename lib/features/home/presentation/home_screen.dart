@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../match/controller/ongoing_matches_controller.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../controller/home_controller.dart';
 import '../controller/my_active_tournaments_provider.dart';
@@ -28,8 +29,21 @@ class HomeScreen extends ConsumerWidget {
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.pageGradient),
         child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
+          child: RefreshIndicator(
+            onRefresh: () async {
+              final loadHome = ref.read(homeControllerProvider.notifier).load();
+              ref.invalidate(recentRankedMatchesProvider);
+              ref.invalidate(myActiveTournamentsProvider);
+              await Future.wait([
+                loadHome,
+                ref.read(recentRankedMatchesProvider.future),
+                ref.read(myActiveTournamentsProvider.future),
+                ref.read(ongoingMatchesControllerProvider.notifier).refresh(),
+              ]);
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -174,7 +188,8 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 18)),
-            ],
+              ],
+            ),
           ),
         ),
       ),

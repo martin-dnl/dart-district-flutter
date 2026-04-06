@@ -4,20 +4,44 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../match/controller/ongoing_matches_controller.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../widgets/game_mode_card.dart';
 import '../widgets/ongoing_matches_tile.dart';
 
-class PlayScreen extends ConsumerWidget {
+class PlayScreen extends ConsumerStatefulWidget {
   const PlayScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlayScreen> createState() => _PlayScreenState();
+}
+
+class _PlayScreenState extends ConsumerState<PlayScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(ongoingMatchesControllerProvider.notifier).refresh();
+    });
+  }
+
+  Future<void> _onRefresh() async {
+    await ref.read(ongoingMatchesControllerProvider.notifier).refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
             
 
             // X01 Modes
@@ -99,7 +123,8 @@ class PlayScreen extends ConsumerWidget {
             // Ongoing Matches
             SliverToBoxAdapter(child: OngoingMatchesTile()),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          ],
+            ],
+          ),
         ),
       ),
     );

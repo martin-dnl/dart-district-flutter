@@ -17,6 +17,7 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/stat_card.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../match/controller/ongoing_matches_controller.dart';
 import '../../auth/models/user_model.dart';
 import '../controller/profile_controller.dart';
 import '../data/profile_service.dart';
@@ -50,7 +51,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _loadVisitorProfileIfNeeded(),
+      (_) async {
+        await _loadVisitorProfileIfNeeded();
+        await _refreshProfileData();
+      },
     );
   }
 
@@ -98,6 +102,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       setState(() => _isLoadingVisitor = false);
     }
+  }
+
+  Future<void> _refreshProfileData() async {
+    final currentUser = ref.read(currentUserProvider);
+    if (_isOwnProfile(currentUser)) {
+      await Future.wait([
+        ref.read(authControllerProvider.notifier).refreshCurrentUser(),
+        ref.read(profileControllerProvider.notifier).refresh(),
+        ref.read(ongoingMatchesControllerProvider.notifier).refresh(),
+      ]);
+      return;
+    }
+    await _loadVisitorProfileIfNeeded();
   }
 
   Future<void> _changeAvatar() async {
@@ -307,8 +324,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: CustomScrollView(
-            slivers: [
+          child: RefreshIndicator(
+            onRefresh: _refreshProfileData,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
               // Profile header
               SliverToBoxAdapter(
                 child: Padding(
@@ -606,7 +626,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
+              ],
+            ),
           ),
         ),
       ),

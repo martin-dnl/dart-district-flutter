@@ -70,10 +70,6 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
 
     _history.clear();
     state = state.copyWith(
-      currentPlayerIndex: remoteMatch.currentPlayerIndex.clamp(0, state.players.length - 1),
-      currentRound: remoteMatch.currentRound,
-      currentLeg: remoteMatch.currentLeg,
-      currentSet: remoteMatch.currentSet,
       status: remoteMatch.status,
     );
   }
@@ -186,6 +182,38 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
       return;
     }
     state = _history.removeLast();
+  }
+
+  void undoRound() {
+    if (_history.isEmpty) {
+      return;
+    }
+
+    final targetRound = state.currentRound;
+    while (_history.isNotEmpty && state.currentRound == targetRound) {
+      state = _history.removeLast();
+    }
+  }
+
+  void abandonMatch(int abandoningPlayerIndex) {
+    if (state.status != MatchStatus.inProgress) {
+      return;
+    }
+    if (abandoningPlayerIndex < 0 || abandoningPlayerIndex >= state.players.length) {
+      return;
+    }
+
+    final winnerIndex = abandoningPlayerIndex == 0 ? 1 : 0;
+    final players = List<CricketPlayerState>.from(state.players);
+    if (winnerIndex >= 0 && winnerIndex < players.length) {
+      players[winnerIndex] = players[winnerIndex].copyWith(setsWon: state.setsToWin);
+    }
+
+    state = state.copyWith(
+      players: players,
+      status: MatchStatus.finished,
+      winnerIndex: winnerIndex,
+    );
   }
 
   bool _isLegWinner(List<CricketPlayerState> players, int currentIndex, int opponentIndex) {

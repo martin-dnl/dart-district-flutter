@@ -54,6 +54,9 @@ class _MatchCard extends ConsumerWidget {
     final player1 = match.players[0];
     final player2 = match.players[1];
     final isPlayer1Turn = match.currentPlayerIndex == 0;
+    final isSpecialMode =
+        match.mode.trim().toLowerCase() == 'cricket' ||
+        match.mode.trim().toLowerCase() == 'chasseur';
 
     return GestureDetector(
       onTap: () {
@@ -98,6 +101,7 @@ class _MatchCard extends ConsumerWidget {
               playerName: player1.name,
               score: player1.score,
               legsWon: player1.legsWon,
+              showScore: !isSpecialMode,
               isTurn: isPlayer1Turn,
             ),
             const SizedBox(height: 8),
@@ -105,6 +109,7 @@ class _MatchCard extends ConsumerWidget {
               playerName: player2.name,
               score: player2.score,
               legsWon: player2.legsWon,
+              showScore: !isSpecialMode,
               isTurn: !isPlayer1Turn,
             ),
             const SizedBox(height: 10),
@@ -166,12 +171,14 @@ class _PlayerScoreRow extends StatelessWidget {
     required this.playerName,
     required this.score,
     required this.legsWon,
+    required this.showScore,
     required this.isTurn,
   });
 
   final String playerName;
   final int score;
   final int legsWon;
+  final bool showScore;
   final bool isTurn;
 
   @override
@@ -199,14 +206,24 @@ class _PlayerScoreRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            '$score',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          if (showScore)
+            Text(
+              '$score',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            )
+          else
+            const Text(
+              '-',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textHint,
+              ),
             ),
-          ),
           const SizedBox(width: 12),
           Text(
             'Legs: $legsWon',

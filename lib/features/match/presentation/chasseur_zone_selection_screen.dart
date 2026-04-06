@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/network/api_providers.dart';
-import '../../auth/controller/auth_controller.dart';
 import '../controller/chasseur_match_controller.dart';
 import '../controller/match_controller.dart';
 import '../controller/ongoing_matches_controller.dart';
@@ -78,16 +77,12 @@ class ChasseurZoneSelectionScreen extends ConsumerWidget {
             ...state.players.asMap().entries.map((entry) {
               final index = entry.key;
               final player = entry.value;
-              final localUserName = ref.read(authControllerProvider).user?.username ?? '';
-              final isMyTurnToPick = isRemote
-                  ? (player.name == localUserName)
-                  : true;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _PlayerZoneSelector(
                   playerName: player.name,
                   selectedZone: player.zone,
-                  enabled: isMyTurnToPick,
+                  enabled: true,
                   isZoneTaken: (zone) {
                     return state.players.asMap().entries.any(
                           (other) => other.key != index && other.value.zone == zone,

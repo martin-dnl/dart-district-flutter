@@ -23,7 +23,7 @@ class OngoingMatchesTile extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Text(
             'Matchs en cours',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(

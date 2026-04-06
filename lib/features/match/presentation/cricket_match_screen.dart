@@ -119,68 +119,68 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                   ),
                 ],
               ),
-
-              void _onTapZone(int zone) {
-                final state = ref.read(cricketMatchControllerProvider);
-                if (state.status != MatchStatus.inProgress) {
-                  return;
-                }
-
-                if (_pendingZone == zone) {
-                  _pendingMultiplier = (_pendingMultiplier + 1).clamp(1, 3);
-                } else {
-                  _commitPendingShot();
-                  _pendingZone = zone;
-                  _pendingMultiplier = 1;
-                }
-
-                _pendingShotTimer?.cancel();
-                _pendingShotTimer = Timer(const Duration(milliseconds: 520), _commitPendingShot);
-
-                setState(() {
-                  _shotBadge = switch (_pendingMultiplier) {
-                    1 => 'S$zone',
-                    2 => 'D$zone',
-                    _ => 'T$zone',
-                  };
-                });
-              }
-
-              void _commitPendingShot() {
-                final zone = _pendingZone;
-                final multiplier = _pendingMultiplier;
-                if (zone == null || multiplier < 1) {
-                  return;
-                }
-
-                _pendingShotTimer?.cancel();
-                _pendingShotTimer = null;
-                _pendingZone = null;
-                _pendingMultiplier = 0;
-
-                ref.read(cricketMatchControllerProvider.notifier).registerDart(zone, multiplier);
-
-                Future<void>.delayed(const Duration(milliseconds: 380), () {
-                  if (!mounted) {
-                    return;
-                  }
-                  setState(() {
-                    _shotBadge = null;
-                  });
-                });
-              }
             ),
           ],
         ),
-                final p1Closed = cricketZones.where((z) => state.players[0].isClosed(z)).length;
-                final p2Closed = cricketZones.where((z) => state.players[1].isClosed(z)).length;
-                final recent = state.roundHistory.reversed.take(4).toList(growable: false);
       ),
     );
   }
 
+  void _onTapZone(int zone) {
+    final state = ref.read(cricketMatchControllerProvider);
+    if (state.status != MatchStatus.inProgress) {
+      return;
+    }
+
+    if (_pendingZone == zone) {
+      _pendingMultiplier = (_pendingMultiplier + 1).clamp(1, 3);
+    } else {
+      _commitPendingShot();
+      _pendingZone = zone;
+      _pendingMultiplier = 1;
+    }
+
+    _pendingShotTimer?.cancel();
+    _pendingShotTimer = Timer(const Duration(milliseconds: 520), _commitPendingShot);
+
+    setState(() {
+      _shotBadge = switch (_pendingMultiplier) {
+        1 => 'S$zone',
+        2 => 'D$zone',
+        _ => 'T$zone',
+      };
+    });
+  }
+
+  void _commitPendingShot() {
+    final zone = _pendingZone;
+    final multiplier = _pendingMultiplier;
+    if (zone == null || multiplier < 1) {
+      return;
+    }
+
+    _pendingShotTimer?.cancel();
+    _pendingShotTimer = null;
+    _pendingZone = null;
+    _pendingMultiplier = 0;
+
+    ref.read(cricketMatchControllerProvider.notifier).registerDart(zone, multiplier);
+
+    Future<void>.delayed(const Duration(milliseconds: 380), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _shotBadge = null;
+      });
+    });
+  }
+
   Future<void> _showEndDialog(CricketMatchState state) async {
     final winner = state.winnerIndex != null ? state.players[state.winnerIndex!] : null;
+    final p1Closed = cricketZones.where((z) => state.players[0].isClosed(z)).length;
+    final p2Closed = cricketZones.where((z) => state.players[1].isClosed(z)).length;
+    final recent = state.roundHistory.reversed.take(4).toList(growable: false);
 
     await showDialog<void>(
       context: context,
@@ -243,7 +243,7 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                 Navigator.of(dialogContext).pop();
                 context.go(AppRoutes.play);
               },
-              child: const Text('Retour au Play'),
+              child: const Text('Revenir au menu'),
             ),
           ],
         );

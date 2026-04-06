@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/network/api_providers.dart';
 import '../controller/chasseur_match_controller.dart';
 import '../models/chasseur_match_state.dart';
 import '../models/match_model.dart';
+import '../widgets/tempo_zone_input.dart';
 
 class ChasseurMatchScreen extends ConsumerStatefulWidget {
   const ChasseurMatchScreen({super.key});
@@ -17,6 +19,150 @@ class ChasseurMatchScreen extends ConsumerStatefulWidget {
 
 class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
   bool _endDialogShown = false;
+  static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
+  static const String _manualScoreMode = 'MANUAL';
+  static const String _dartboardScoreMode = 'DARTBOARD';
+  static const String _tempoScoreMode = 'TEMPO';
+  String _scoreMode = _manualScoreMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScoreMode();
+  }
+
+  Future<void> _loadScoreMode() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get<Map<String, dynamic>>(
+        '/users/me/settings',
+        queryParameters: {'key': _scoreModeSettingKey},
+      );
+      final raw = response.data ?? const <String, dynamic>{};
+      final data = raw['data'] is Map<String, dynamic>
+          ? raw['data'] as Map<String, dynamic>
+          : raw;
+      final value = (data['value'] ?? '').toString().trim();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _scoreMode = value.isEmpty ? _manualScoreMode : value;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _scoreMode = _manualScoreMode;
+      });
+    }
+  }
+
+  Future<void> _updateScoreMode(String mode) async {
+    final normalized = mode.trim().isEmpty ? _manualScoreMode : mode.trim();
+    final previous = _scoreMode;
+    setState(() {
+      _scoreMode = normalized;
+    });
+
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.patch<Map<String, dynamic>>(
+        '/users/me/settings',
+        data: {'key': _scoreModeSettingKey, 'value': normalized},
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _scoreMode = previous;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de sauvegarder le mode.')),
+      );
+    }
+  }
+
+  Future<void> _openSettings() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      builder: (ctx) {
+        var localMode = _scoreMode;
+        return StatefulBuilder(
+          builder: (ctx, setModalState) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Parametres partie',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: localMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Mode de saisie',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: _manualScoreMode,
+                        child: Text('MANUAL'),
+                      ),
+                      DropdownMenuItem(
+                        value: _dartboardScoreMode,
+                        child: Text('DARTBOARD'),
+                      ),
+                      DropdownMenuItem(
+                        value: _tempoScoreMode,
+                        child: Text('TEMPO'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setModalState(() {
+                        localMode = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Mode DARTBOARD non disponible pour Chasseur pour le moment.',
+                    style: TextStyle(color: AppColors.textHint, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, localMode),
+                      child: const Text('Appliquer'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected != null) {
+      await _updateScoreMode(selected);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +185,13 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Chasseur'),
+        actions: [
+          IconButton(
+            onPressed: _openSettings,
+            icon: const Icon(Icons.settings, color: AppColors.textSecondary),
+            tooltip: 'Parametres partie',
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -96,12 +249,38 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: _ZoneGrid(
-                  state: state,
-                  onSingle: (zone) => controller.registerDart(zone, 1),
-                  onDouble: (zone) => controller.registerDart(zone, 2),
-                  onTriple: (zone) => controller.registerDart(zone, 3),
-                ),
+                child: _scoreMode == _tempoScoreMode
+                    ? TempoZoneInput(
+                        remainingDarts: 3 - state.currentDartInTurn,
+                        canSelectZone: (zone) {
+                          final ownerIndex = state.players.indexWhere(
+                            (p) => p.zone == zone && !p.isEliminated,
+                          );
+                          final current = state.players[state.currentPlayerIndex];
+                          if (ownerIndex == -1) {
+                            return true;
+                          }
+                          if (ownerIndex == state.currentPlayerIndex) {
+                            return true;
+                          }
+                          return current.isHunter;
+                        },
+                        onSubmit: (shots) {
+                          for (final shot in shots) {
+                            if (shot.isMiss) {
+                              controller.registerDart(-1, 1);
+                              continue;
+                            }
+                            controller.registerDart(shot.zone, shot.multiplier);
+                          }
+                        },
+                      )
+                    : _ZoneGrid(
+                        state: state,
+                        onSingle: (zone) => controller.registerDart(zone, 1),
+                        onDouble: (zone) => controller.registerDart(zone, 2),
+                        onTriple: (zone) => controller.registerDart(zone, 3),
+                      ),
               ),
             ),
             Padding(
@@ -161,7 +340,7 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                 Navigator.of(dialogContext).pop();
                 context.go(AppRoutes.play);
               },
-              child: const Text('Retour au Play'),
+              child: const Text('Revenir au menu'),
             ),
           ],
         );

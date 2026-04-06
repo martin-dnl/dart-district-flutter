@@ -34,6 +34,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _manualScoreMode = 'MANUAL';
   static const String _dartboardScoreMode = 'DARTBOARD';
+  static const String _tempoScoreMode = 'TEMPO';
   String _scoreMode = _manualScoreMode;
 
   bool _isRemoteMatch() {
@@ -400,6 +401,10 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                       DropdownMenuItem(
                         value: _dartboardScoreMode,
                         child: Text('DARTBOARD'),
+                      ),
+                      DropdownMenuItem(
+                        value: _tempoScoreMode,
+                        child: Text('TEMPO'),
                       ),
                     ],
                     onChanged: (value) {
@@ -791,12 +796,13 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                                 ),
                               )
                             else
-                              const Center(
-                                child: Text(
-                                  'Mode de saisie non supporte pour le moment.',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                  ),
+                              SizedBox.expand(
+                                child: DartInput(
+                                  maxScore: match
+                                      .players[match.currentPlayerIndex]
+                                      .score,
+                                  onSubmit: _submitScore,
+                                  fillAvailableHeight: true,
                                 ),
                               ),
                             _X01GuidelineTab(

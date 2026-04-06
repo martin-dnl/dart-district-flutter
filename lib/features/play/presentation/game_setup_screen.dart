@@ -116,60 +116,63 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 2.15,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                Row(
                   children: [
-                    if (!isGuest)
-                      _OptionCard(
-                        icon: Icons.person_add,
-                        label: 'Inviter un ami',
-                        selected: _startOption == GameStartOption.inviteFriend,
-                        onTap: () async {
-                          final result = await context.push(
-                            AppRoutes.gameInvitePlayer,
-                          );
-                          if (!mounted) {
-                            return;
-                          }
-                          final selected = result is ContactModel
-                              ? result
-                              : ref
-                                    .read(contactsControllerProvider)
-                                    .selectedFriend;
-                          if (selected == null) {
-                            return;
-                          }
+                    if (!isGuest) ...[
+                      Expanded(
+                        child: _OptionCard(
+                          icon: Icons.person_add,
+                          label: 'Inviter',
+                          selected:
+                              _startOption == GameStartOption.inviteFriend,
+                          onTap: () async {
+                            final result = await context.push(
+                              AppRoutes.gameInvitePlayer,
+                            );
+                            if (!mounted) {
+                              return;
+                            }
+                            final selected = result is ContactModel
+                                ? result
+                                : ref
+                                      .read(contactsControllerProvider)
+                                      .selectedFriend;
+                            if (selected == null) {
+                              return;
+                            }
+                            setState(() {
+                              _startOption = GameStartOption.inviteFriend;
+                              _selectedOpponent = selected;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _OptionCard(
+                          icon: Icons.qr_code_scanner,
+                          label: 'Scan',
+                          selected: _startOption == GameStartOption.scanQr,
+                          onTap: _handleUserQrScan,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: _OptionCard(
+                        icon: Icons.person_outline,
+                        label: 'Local',
+                        selected: _startOption == GameStartOption.guest,
+                        onTap: () {
                           setState(() {
-                            _startOption = GameStartOption.inviteFriend;
-                            _selectedOpponent = selected;
+                            _startOption = GameStartOption.guest;
+                            _selectedOpponent = null;
+                            _isRanked = false;
+                            _isTerritorial = false;
+                            _territoryClub = null;
                           });
                         },
                       ),
-                    if (!isGuest)
-                      _OptionCard(
-                        icon: Icons.qr_code_scanner,
-                        label: 'Scan',
-                        selected: _startOption == GameStartOption.scanQr,
-                        onTap: _handleUserQrScan,
-                      ),
-                    _OptionCard(
-                      icon: Icons.person_outline,
-                      label: 'Local',
-                      selected: _startOption == GameStartOption.guest,
-                      onTap: () {
-                        setState(() {
-                          _startOption = GameStartOption.guest;
-                          _selectedOpponent = null;
-                          _isRanked = false;
-                          _isTerritorial = false;
-                          _territoryClub = null;
-                        });
-                      },
                     ),
                   ],
                 ),
@@ -775,7 +778,7 @@ class _OptionCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: selected
               ? AppColors.primary.withValues(alpha: 0.2)
@@ -791,13 +794,13 @@ class _OptionCard extends StatelessWidget {
             Icon(
               icon,
               color: selected ? AppColors.primary : AppColors.textSecondary,
-              size: 26,
+              size: 22,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: selected
                     ? AppColors.textPrimary
                     : AppColors.textSecondary,

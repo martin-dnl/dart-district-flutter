@@ -178,6 +178,10 @@ class AppScaffold extends ConsumerWidget {
   bool _shouldShowPageHeader(String location) {
     if (location.startsWith(AppRoutes.home)) return false;
     if (location.startsWith(AppRoutes.profile)) return false;
+    if (location.startsWith(AppRoutes.map)) return false;
+    if (location.startsWith(AppRoutes.play)) return false;
+    if (location.startsWith(AppRoutes.club)) return false;
+    if (location.startsWith(AppRoutes.contacts)) return false;
     return true;
   }
 

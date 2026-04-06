@@ -70,25 +70,36 @@ class ClubModel {
       name: (json['name'] ?? 'Club').toString(),
       city: json['city'] as String?,
       address: json['address'] as String?,
-        postalCode: json['postal_code'] as String?,
-        country: json['country'] as String?,
-        latitude: (json['latitude'] as num?)?.toDouble() ??
-          double.tryParse((json['latitude'] ?? '').toString()),
-        longitude: (json['longitude'] as num?)?.toDouble() ??
-          double.tryParse((json['longitude'] ?? '').toString()),
-        openingHours: json['opening_hours'] as Map<String, dynamic>?,
-        codeIris: json['code_iris'] as String?,
+      postalCode: json['postal_code'] as String?,
+      country: json['country'] as String?,
+      latitude: _asDouble(json['latitude']),
+      longitude: _asDouble(json['longitude']),
+      openingHours: json['opening_hours'] as Map<String, dynamic>?,
+      codeIris: json['code_iris'] as String?,
       imageUrl: json['image_url'] as String?,
-      memberCount:
-          (json['member_count'] as num?)?.toInt() ?? membersJson.length,
-      dartBoardsCount: (json['dart_boards_count'] as num?)?.toInt() ?? 0,
+      memberCount: _asInt(json['member_count']) ?? membersJson.length,
+      dartBoardsCount: _asInt(json['dart_boards_count']) ?? 0,
       zonesControlled:
-          (json['zones_controlled'] as num?)?.toInt() ??
-          (json['conquest_points'] as num?)?.toInt() ??
+          _asInt(json['zones_controlled']) ??
+          _asInt(json['conquest_points']) ??
           0,
-      rank: (json['rank'] as num?)?.toInt() ?? 0,
+      rank: _asInt(json['rank']) ?? 0,
       members: membersJson.map(ClubMember.fromApi).toList(),
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? double.tryParse(value)?.toInt();
+    return null;
+  }
+
+  static double? _asDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 }
 

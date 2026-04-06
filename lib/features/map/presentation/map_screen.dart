@@ -36,7 +36,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   static const double _searchResultZoom = 13.5;
 
   late Future<_TilesetConfig?> _tilesetFuture;
-  Future<PmTilesVectorTileProvider>? _vectorProviderFuture;
+  Future<PmTilesVectorTileProvider?>? _vectorProviderFuture;
   LatLng? _currentCenter;
   double? _currentZoom;
   bool _hasInitializedCamera = false;
@@ -66,9 +66,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // Debounced camera tracking – avoids setState storm while panning
   Timer? _cameraDebounce;
-  Timer? _interactionDebounce;
   bool _showZones = true;
-  bool _isMapInteracting = false;
   LatLng? _lastZoneEvalCenter;
   double? _lastZoneEvalZoom;
 
@@ -86,7 +84,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void dispose() {
     _debounce?.cancel();
     _cameraDebounce?.cancel();
-    _interactionDebounce?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     _fmController.dispose();
@@ -1124,12 +1121,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final shouldRenderVectorZones =
               !kIsWeb &&
               _showZones &&
-              mapState.activeIrisCodes.isNotEmpty &&
-              !(_isAndroid && _isMapInteracting);
+              mapState.activeIrisCodes.isNotEmpty;
           final clubMarkers = _getOrBuildClubMarkers(mapState.clubMarkers);
           final shouldRenderMarkers =
-              ((_currentZoom ?? initialZoom) >= _markerMinZoom) &&
-              !(_isAndroid && _isMapInteracting);
+              ((_currentZoom ?? initialZoom) >= _markerMinZoom);
 
           if (!kIsWeb) {
             _vectorProviderFuture ??= PmTilesVectorTileProvider.fromSource(
@@ -1138,9 +1133,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           }
 
           return FutureBuilder<PmTilesVectorTileProvider?>(
-            future: kIsWeb
-                ? _webNoProviderFuture
-                : _vectorProviderFuture?.then((provider) => provider),
+            future: kIsWeb ? _webNoProviderFuture : _vectorProviderFuture,
             builder: (context, providerSnapshot) {
               if (!kIsWeb &&
                   providerSnapshot.connectionState != ConnectionState.done) {
@@ -1168,25 +1161,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       initialZoom: initialZoom,
                       minZoom: 4,
                       maxZoom: 18,
-                      onPositionChanged: (position, hasGesture) {
+                      onPositionChanged: (position, _) {
                         // Track center/zoom without rebuilding widget tree.
                         _currentCenter = position.center;
                         _currentZoom = position.zoom;
-
-                        if (_isAndroid && hasGesture && !_isMapInteracting) {
-                          setState(() => _isMapInteracting = true);
-                        }
-
-                        if (_isAndroid) {
-                          _interactionDebounce?.cancel();
-                          _interactionDebounce = Timer(
-                            const Duration(milliseconds: 180),
-                            () {
-                              if (!mounted || !_isMapInteracting) return;
-                              setState(() => _isMapInteracting = false);
-                            },
-                          );
-                        }
 
                         if (!_shouldReevaluateZones(position)) {
                           return;
@@ -1249,7 +1227,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   // City search bar (top)
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [

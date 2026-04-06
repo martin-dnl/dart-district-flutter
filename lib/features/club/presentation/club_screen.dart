@@ -403,6 +403,17 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
                     : const Icon(Icons.my_location_rounded),
                 label: const Text('Clubs à proximité'),
               ),
+              if (canCreateClub) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => context.push(AppRoutes.clubCreate),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Créer un club'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Expanded(
                 child: _ClubSearchResults(

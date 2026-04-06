@@ -34,7 +34,7 @@ class MatchInvitationOverlay extends ConsumerWidget {
             ref
                 .read(ongoingMatchesControllerProvider.notifier)
                 .clearLastInvitationResponse();
-            ref.read(routerProvider).push(AppRoutes.matchLive);
+            ref.read(routerProvider).push(_routeForMatch(invitationResponse));
           });
         } else if (invitationResponse.invitationStatus ==
             InvitationStatus.refused) {
@@ -96,7 +96,7 @@ class MatchInvitationOverlay extends ConsumerWidget {
         }
 
         ref.read(matchControllerProvider.notifier).loadMatch(acceptedMatch);
-        ref.read(routerProvider).push(AppRoutes.matchLive);
+        ref.read(routerProvider).push(_routeForMatch(acceptedMatch));
       },
       onRefuse: () async {
         await ref
@@ -133,5 +133,32 @@ class MatchInvitationOverlay extends ConsumerWidget {
         ref.read(pendingInvitationProvider.notifier).clearInvitation();
       },
     );
+  }
+
+  String _routeForMatch(MatchModel match) {
+    final mode = match.mode.trim().toLowerCase();
+    if (mode == 'cricket') {
+      return AppRoutes.matchCricket;
+    }
+    if (mode == 'chasseur') {
+      return _hasChasseurZonesSelected(match)
+          ? AppRoutes.matchChasseur
+          : AppRoutes.matchChasseurZones;
+    }
+    return AppRoutes.matchLive;
+  }
+
+  bool _hasChasseurZonesSelected(MatchModel match) {
+    final picked = <int>{};
+    for (final round in match.roundHistory) {
+      final label = round.dartPositions.isNotEmpty
+          ? (round.dartPositions.first.label ?? '')
+          : '';
+      final selection = RegExp(r'^Z:([1-9]|1[0-9]|20|25)$').firstMatch(label);
+      if (selection != null) {
+        picked.add(round.playerIndex);
+      }
+    }
+    return picked.length >= 2;
   }
 }

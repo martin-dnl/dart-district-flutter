@@ -369,26 +369,30 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: FilledButton(
                   onPressed: _onBack,
-                  icon: const Icon(Icons.undo),
-                  label: const Text('Retour'),
+                  child: const Icon(Icons.undo),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
+                child: FilledButton(
                   onPressed: _darts.length >= _maxDarts ? null : _onMiss,
-                  icon: const Icon(Icons.close),
-                  label: const Text('Miss'),
+                  child: const Icon(Icons.close),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: FilledButton.icon(
+                child: FilledButton(
                   onPressed: _canSubmit ? _onValidate : null,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Valider'),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check),
+                      SizedBox(width: 6),
+                      Text('Valider'),
+                    ],
+                  ),
                 ),
               ),
             ],

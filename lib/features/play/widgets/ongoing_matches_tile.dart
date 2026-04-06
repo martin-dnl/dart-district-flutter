@@ -58,7 +58,7 @@ class _MatchCard extends ConsumerWidget {
     return GestureDetector(
       onTap: () {
         ref.read(matchControllerProvider.notifier).loadMatch(match);
-        context.push(AppRoutes.matchLive);
+        context.push(_routeForMatch(match));
       },
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -114,7 +114,7 @@ class _MatchCard extends ConsumerWidget {
               child: ElevatedButton(
                 onPressed: () {
                   ref.read(matchControllerProvider.notifier).loadMatch(match);
-                  context.push(AppRoutes.matchLive);
+                  context.push(_routeForMatch(match));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -131,6 +131,33 @@ class _MatchCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _routeForMatch(MatchModel match) {
+    final mode = match.mode.trim().toLowerCase();
+    if (mode == 'cricket') {
+      return AppRoutes.matchCricket;
+    }
+    if (mode == 'chasseur') {
+      return _hasChasseurZonesSelected(match)
+          ? AppRoutes.matchChasseur
+          : AppRoutes.matchChasseurZones;
+    }
+    return AppRoutes.matchLive;
+  }
+
+  bool _hasChasseurZonesSelected(MatchModel match) {
+    final picked = <int>{};
+    for (final round in match.roundHistory) {
+      final label = round.dartPositions.isNotEmpty
+          ? (round.dartPositions.first.label ?? '')
+          : '';
+      final selection = RegExp(r'^Z:([1-9]|1[0-9]|20|25)$').firstMatch(label);
+      if (selection != null) {
+        picked.add(round.playerIndex);
+      }
+    }
+    return picked.length >= 2;
   }
 }
 

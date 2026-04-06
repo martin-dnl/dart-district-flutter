@@ -4,7 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/network/api_providers.dart';
 import '../controller/chasseur_match_controller.dart';
+import '../controller/match_controller.dart';
+import '../controller/ongoing_matches_controller.dart';
+import '../data/match_service.dart';
 import '../models/chasseur_match_state.dart';
 import '../models/match_model.dart';
 import '../widgets/tempo_zone_input.dart';
@@ -18,6 +22,7 @@ class ChasseurMatchScreen extends ConsumerStatefulWidget {
 
 class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
   bool _endDialogShown = false;
+  String? _lastRemoteSyncKey;
 
   @override
   Widget build(BuildContext context) {
@@ -33,13 +38,49 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       }
     });
 
+    ref.listen<OngoingMatchesState>(ongoingMatchesControllerProvider, (_, next) {
+      final current = ref.read(matchControllerProvider);
+      if (!_isRemoteChasseur(current)) {
+        return;
+      }
+      for (final candidate in next.matches) {
+        if (candidate.id == current.id) {
+          ref.read(matchControllerProvider.notifier).loadMatch(candidate);
+          ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(candidate);
+          break;
+        }
+      }
+    });
+
     final state = ref.watch(chasseurMatchControllerProvider);
     final controller = ref.read(chasseurMatchControllerProvider.notifier);
+    final remoteMatch = ref.watch(matchControllerProvider);
+
+    if (_isRemoteChasseur(remoteMatch)) {
+      final syncKey =
+          '${remoteMatch.id}:${remoteMatch.roundHistory.length}:${remoteMatch.currentRound}:${remoteMatch.currentPlayerIndex}:${remoteMatch.status.name}';
+      if (_lastRemoteSyncKey != syncKey) {
+        _lastRemoteSyncKey = syncKey;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(remoteMatch);
+        });
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Chasseur'),
+        actions: [
+          IconButton(
+            onPressed: () => context.go(AppRoutes.play),
+            icon: const Icon(Icons.close),
+            tooltip: 'Quitter',
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -116,8 +157,6 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                             child: Column(
                               children: [
                                 const SizedBox(height: 8),
-                                const _LockedModeSelector(),
-                                const SizedBox(height: 8),
                                 Expanded(
                                   child: TempoScoreInput(
                                     maxScore: 180,
@@ -149,6 +188,11 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                     ],
                                     canSelectZone: (zone) => _canSelectTempoZone(state, zone),
                                     onSubmitVisit: (visit) {
+                                      final remote = ref.read(matchControllerProvider);
+                                      if (_isRemoteChasseur(remote)) {
+                                        _submitRemoteChasseurVisit(remote, visit);
+                                        return;
+                                      }
                                       for (final shot in visit.darts) {
                                         if (shot.isMiss || shot.score == 0) {
                                           controller.registerDart(-1, 1);
@@ -171,28 +215,6 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: controller.undoLastDart,
-                      icon: const Icon(Icons.undo),
-                      label: const Text('Undo'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => context.go(AppRoutes.play),
-                      icon: const Icon(Icons.stop_circle_outlined),
-                      label: const Text('Quitter'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -213,6 +235,54 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       return true;
     }
     return current.isHunter;
+  }
+
+  bool _isRemoteChasseur(MatchModel match) {
+    final hasRemoteContext = match.inviterId != null || match.inviteeId != null;
+    return hasRemoteContext && match.mode.toLowerCase() == 'chasseur';
+  }
+
+  Future<void> _submitRemoteChasseurVisit(MatchModel match, TempoVisit visit) async {
+    final api = ref.read(apiClientProvider);
+    final service = MatchService(api);
+
+    try {
+      MatchModel current = match;
+      for (final shot in visit.darts) {
+        final zone = shot.isMiss || shot.score == 0
+            ? -1
+            : (shot.zone == 50 ? 25 : shot.zone);
+        final multiplier = shot.isMiss || shot.score == 0 ? 1 : shot.multiplier;
+        final score = zone <= 0 ? 0 : zone * multiplier;
+
+        current = await service.updateMatchScore(
+          matchId: current.id,
+          playerIndex: current.currentPlayerIndex,
+          score: score,
+          dartPositions: <Map<String, dynamic>>[
+            {
+              'x': 0.0,
+              'y': 0.0,
+              'score': score,
+              'label': 'H:$zone:$multiplier',
+            },
+          ],
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+      ref.read(matchControllerProvider.notifier).loadMatch(current);
+      ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(current);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Synchronisation Chasseur indisponible.')),
+      );
+    }
   }
 
   Future<void> _showEndDialog(ChasseurMatchState state) async {
@@ -365,72 +435,6 @@ class _PlayerCard extends StatelessWidget {
               style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _LockedModeSelector extends StatelessWidget {
-  const _LockedModeSelector();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: _ModePill(
-            label: 'MANUAL',
-            selected: false,
-            enabled: false,
-          ),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          child: _ModePill(
-            label: 'TEMPO',
-            selected: true,
-            enabled: true,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ModePill extends StatelessWidget {
-  const _ModePill({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-  });
-
-  final String label;
-  final bool selected;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: selected
-            ? AppColors.primary.withValues(alpha: 0.2)
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.surfaceLight,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        enabled ? label : '$label (disabled)',
-        style: TextStyle(
-          color: enabled
-              ? (selected ? AppColors.primary : AppColors.textSecondary)
-              : AppColors.textHint,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
       ),
     );
   }

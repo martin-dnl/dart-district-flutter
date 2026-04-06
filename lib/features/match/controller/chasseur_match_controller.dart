@@ -41,6 +41,90 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
     );
   }
 
+  void loadRemoteMatch(MatchModel remoteMatch) {
+    final names = remoteMatch.players.map((p) => p.name).toList(growable: false);
+    final normalizedNames = names.length >= 2
+        ? names.take(2).toList(growable: false)
+        : const <String>['Joueur 1', 'Joueur 2'];
+
+    final selectedZones = _extractRemoteZones(remoteMatch);
+    final allZonesSelected = selectedZones.every((z) => z != null);
+
+    _history.clear();
+    state = ChasseurMatchState(
+      id: remoteMatch.id,
+      players: <ChasseurPlayerState>[
+        ChasseurPlayerState(name: normalizedNames[0], zone: selectedZones[0]),
+        ChasseurPlayerState(name: normalizedNames[1], zone: selectedZones[1]),
+      ],
+      currentPlayerIndex: remoteMatch.currentPlayerIndex.clamp(0, 1),
+      currentRound: remoteMatch.currentRound,
+      currentDartInTurn: 0,
+      phase: allZonesSelected ? ChasseurPhase.playing : ChasseurPhase.zoneSelection,
+      status: remoteMatch.status,
+    );
+
+    for (final round in remoteMatch.roundHistory) {
+      final label = round.dartPositions.isNotEmpty
+          ? (round.dartPositions.first.label ?? '')
+          : '';
+      if (_parseRemoteZoneSelection(label) != null) {
+        continue;
+      }
+      final parsed = _parseRemoteChasseurLabel(label);
+      if (parsed == null) {
+        continue;
+      }
+      registerDart(parsed.zone, parsed.multiplier);
+    }
+
+    _history.clear();
+    state = state.copyWith(
+      currentPlayerIndex: remoteMatch.currentPlayerIndex.clamp(0, 1),
+      currentRound: remoteMatch.currentRound,
+      status: remoteMatch.status,
+      phase: allZonesSelected ? ChasseurPhase.playing : ChasseurPhase.zoneSelection,
+    );
+  }
+
+  List<int?> _extractRemoteZones(MatchModel remoteMatch) {
+    final zones = <int?>[null, null];
+    for (final round in remoteMatch.roundHistory) {
+      if (round.playerIndex < 0 || round.playerIndex >= zones.length) {
+        continue;
+      }
+      final label = round.dartPositions.isNotEmpty
+          ? (round.dartPositions.first.label ?? '')
+          : '';
+      final selected = _parseRemoteZoneSelection(label);
+      if (selected != null) {
+        zones[round.playerIndex] = selected;
+      }
+    }
+    return zones;
+  }
+
+  int? _parseRemoteZoneSelection(String raw) {
+    final match = RegExp(r'^Z:([1-9]|1[0-9]|20|25)$').firstMatch(raw);
+    if (match == null) {
+      return null;
+    }
+    return int.tryParse(match.group(1) ?? '');
+  }
+
+  ({int zone, int multiplier})? _parseRemoteChasseurLabel(String raw) {
+    final match = RegExp(r'^H:([-]?\d+):([1-3])$').firstMatch(raw);
+    if (match == null) {
+      return null;
+    }
+    final zone = int.tryParse(match.group(1) ?? '');
+    final multiplier = int.tryParse(match.group(2) ?? '');
+    if (zone == null || multiplier == null) {
+      return null;
+    }
+    return (zone: zone, multiplier: multiplier);
+  }
+
   bool assignZone(int playerIndex, int zone) {
     if (playerIndex < 0 || playerIndex >= state.players.length) {
       return false;

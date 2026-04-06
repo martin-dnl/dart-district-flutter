@@ -18,11 +18,10 @@ class PlayScreen extends ConsumerWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            SliverToBoxAdapter(
-              child: SectionHeader(title: 'Mode jeu'),
-            ),
+            
+
             // X01 Modes
+            const SliverToBoxAdapter(child: SectionHeader(title: 'Modes X01')),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -31,37 +30,44 @@ class PlayScreen extends ConsumerWidget {
                     Expanded(
                       child: GameModeCard(
                         title: '301',
-                        subtitle: 'X01',
+                        subtitle: 'Classique',
                         icon: Icons.gps_fixed,
                         color: AppColors.primary,
-                        onTap: () => context.push(AppRoutes.playX01),
+                        onTap: () =>
+                            context.push(AppRoutes.gameSetup, extra: '301'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: GameModeCard(
                         title: '501',
-                        subtitle: 'X01',
+                        subtitle: 'Standard',
                         icon: Icons.gps_fixed,
                         color: AppColors.secondary,
-                        onTap: () => context.push(AppRoutes.playX01),
+                        onTap: () =>
+                            context.push(AppRoutes.gameSetup, extra: '501'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: GameModeCard(
                         title: '701',
-                        subtitle: 'X01',
+                        subtitle: 'Long',
                         icon: Icons.gps_fixed,
                         color: AppColors.accent,
-                        onTap: () => context.push(AppRoutes.playX01),
+                        onTap: () =>
+                            context.push(AppRoutes.gameSetup, extra: '701'),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+            // Special Modes
+            const SliverToBoxAdapter(
+              child: SectionHeader(title: 'Modes Spéciaux'),
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -73,7 +79,8 @@ class PlayScreen extends ConsumerWidget {
                           'Fermez les numéros 15-20 et le Bull avant votre adversaire',
                       icon: Icons.bug_report,
                       color: AppColors.success,
-                      onTap: () => context.push(AppRoutes.playCricket),
+                      onTap: () =>
+                          context.push(AppRoutes.gameSetup, extra: 'Cricket'),
                     ),
                     const SizedBox(height: 12),
                     _LargeGameModeCard(
@@ -82,7 +89,8 @@ class PlayScreen extends ConsumerWidget {
                           'Un chasseur, une proie. Touchez pour éliminer !',
                       icon: Icons.track_changes,
                       color: AppColors.error,
-                      onTap: () => context.push(AppRoutes.playChasseur),
+                      onTap: () =>
+                          context.push(AppRoutes.gameSetup, extra: 'Chasseur'),
                     ),
                   ],
                 ),

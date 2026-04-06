@@ -6,7 +6,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/network/api_providers.dart';
 import '../controller/cricket_match_controller.dart';
+import '../controller/match_controller.dart';
+import '../controller/ongoing_matches_controller.dart';
+import '../data/match_service.dart';
 import '../models/cricket_match_state.dart';
 import '../models/match_model.dart';
 
@@ -22,7 +26,7 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
   Timer? _pendingShotTimer;
   int? _pendingZone;
   int _pendingMultiplier = 0;
-  String? _shotBadge;
+  String? _lastRemoteSyncKey;
 
   @override
   void dispose() {
@@ -44,14 +48,49 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
       }
     });
 
+    ref.listen<OngoingMatchesState>(ongoingMatchesControllerProvider, (_, next) {
+      final current = ref.read(matchControllerProvider);
+      if (!_isRemoteCricket(current)) {
+        return;
+      }
+      for (final candidate in next.matches) {
+        if (candidate.id == current.id) {
+          ref.read(matchControllerProvider.notifier).loadMatch(candidate);
+          ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(candidate);
+          break;
+        }
+      }
+    });
+
     final state = ref.watch(cricketMatchControllerProvider);
+    final remoteMatch = ref.watch(matchControllerProvider);
+
+    if (_isRemoteCricket(remoteMatch)) {
+      final syncKey =
+          '${remoteMatch.id}:${remoteMatch.roundHistory.length}:${remoteMatch.currentRound}:${remoteMatch.currentPlayerIndex}:${remoteMatch.status.name}';
+      if (_lastRemoteSyncKey != syncKey) {
+        _lastRemoteSyncKey = syncKey;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(remoteMatch);
+        });
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Cricket'),
         leading: IconButton(
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.play);
+            }
+          },
           icon: const Icon(Icons.arrow_back),
         ),
       ),
@@ -69,28 +108,6 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                 ),
               ),
             ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              child: _shotBadge == null
-                  ? const SizedBox.shrink()
-                  : Container(
-                      key: ValueKey<String>(_shotBadge!),
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.primary),
-                      ),
-                      child: Text(
-                        _shotBadge!,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
               child: Row(
@@ -102,8 +119,12 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                         _pendingShotTimer = null;
                         _pendingZone = null;
                         _pendingMultiplier = 0;
-                        setState(() => _shotBadge = null);
-                        ref.read(cricketMatchControllerProvider.notifier).undoLastDart();
+                        final current = ref.read(matchControllerProvider);
+                        if (_isRemoteCricket(current)) {
+                          unawaited(_undoRemoteLastDart(current));
+                        } else {
+                          ref.read(cricketMatchControllerProvider.notifier).undoLastDart();
+                        }
                       },
                       icon: const Icon(Icons.undo),
                       label: const Text('Undo'),
@@ -142,14 +163,6 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
 
     _pendingShotTimer?.cancel();
     _pendingShotTimer = Timer(const Duration(milliseconds: 520), _commitPendingShot);
-
-    setState(() {
-      _shotBadge = switch (_pendingMultiplier) {
-        1 => zone == 25 ? 'SB' : 'S$zone',
-        2 => zone == 25 ? 'DB' : 'D$zone',
-        _ => 'T$zone',
-      };
-    });
   }
 
   void _commitPendingShot() {
@@ -163,17 +176,76 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
     _pendingShotTimer = null;
     _pendingZone = null;
     _pendingMultiplier = 0;
+    final current = ref.read(matchControllerProvider);
+    if (_isRemoteCricket(current)) {
+      unawaited(_submitRemoteCricketDart(current, zone, multiplier));
+      return;
+    }
 
     ref.read(cricketMatchControllerProvider.notifier).registerDart(zone, multiplier);
+  }
 
-    Future<void>.delayed(const Duration(milliseconds: 380), () {
+  bool _isRemoteCricket(MatchModel match) {
+    final hasRemoteContext = match.inviterId != null || match.inviteeId != null;
+    return hasRemoteContext && match.mode.toLowerCase() == 'cricket';
+  }
+
+  Future<void> _submitRemoteCricketDart(
+    MatchModel match,
+    int zone,
+    int multiplier,
+  ) async {
+    final api = ref.read(apiClientProvider);
+    final service = MatchService(api);
+    final score = zone <= 0 ? 0 : zone * multiplier;
+
+    try {
+      final updated = await service.updateMatchScore(
+        matchId: match.id,
+        playerIndex: match.currentPlayerIndex,
+        score: score,
+        dartPositions: <Map<String, dynamic>>[
+          {
+            'x': 0.0,
+            'y': 0.0,
+            'score': score,
+            'label': 'C:$zone:$multiplier',
+          },
+        ],
+      );
       if (!mounted) {
         return;
       }
-      setState(() {
-        _shotBadge = null;
-      });
-    });
+      ref.read(matchControllerProvider.notifier).loadMatch(updated);
+      ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(updated);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Synchronisation Cricket indisponible.')),
+      );
+    }
+  }
+
+  Future<void> _undoRemoteLastDart(MatchModel match) async {
+    final api = ref.read(apiClientProvider);
+    final service = MatchService(api);
+    try {
+      final updated = await service.undoLastThrow(match.id);
+      if (!mounted) {
+        return;
+      }
+      ref.read(matchControllerProvider.notifier).loadMatch(updated);
+      ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(updated);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'annuler la derniere fleche.')),
+      );
+    }
   }
 
   Future<void> _showEndDialog(CricketMatchState state) async {
@@ -395,7 +467,7 @@ class _CricketGrid extends StatelessWidget {
         Expanded(
           child: ListView.separated(
             itemCount: cricketZones.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final zone = cricketZones[index];
               return Row(

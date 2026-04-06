@@ -45,6 +45,52 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
     );
   }
 
+  void loadRemoteMatch(MatchModel remoteMatch) {
+    final names = remoteMatch.players.map((p) => p.name).toList(growable: false);
+    setupMatch(
+      playerNames: names.length >= 2 ? names : const ['Joueur 1', 'Joueur 2'],
+      setsToWin: remoteMatch.setsToWin,
+      legsPerSet: remoteMatch.legsPerSet,
+      startingPlayerIndex: remoteMatch.startingPlayerIndex,
+    );
+
+    for (final round in remoteMatch.roundHistory) {
+      if (round.playerIndex < 0 || round.playerIndex >= state.players.length) {
+        continue;
+      }
+      final label = round.dartPositions.isNotEmpty
+          ? (round.dartPositions.first.label ?? '')
+          : '';
+      final parsed = _parseRemoteCricketLabel(label);
+      if (parsed == null) {
+        continue;
+      }
+      registerDart(parsed.zone, parsed.multiplier);
+    }
+
+    _history.clear();
+    state = state.copyWith(
+      currentPlayerIndex: remoteMatch.currentPlayerIndex.clamp(0, state.players.length - 1),
+      currentRound: remoteMatch.currentRound,
+      currentLeg: remoteMatch.currentLeg,
+      currentSet: remoteMatch.currentSet,
+      status: remoteMatch.status,
+    );
+  }
+
+  ({int zone, int multiplier})? _parseRemoteCricketLabel(String raw) {
+    final match = RegExp(r'^C:([-]?\d+):([1-3])$').firstMatch(raw);
+    if (match == null) {
+      return null;
+    }
+    final zone = int.tryParse(match.group(1) ?? '');
+    final multiplier = int.tryParse(match.group(2) ?? '');
+    if (zone == null || multiplier == null) {
+      return null;
+    }
+    return (zone: zone, multiplier: multiplier);
+  }
+
   void registerDart(int zone, int multiplier) {
     if (state.status != MatchStatus.inProgress) {
       return;

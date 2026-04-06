@@ -235,7 +235,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                         ),
                         Switch.adaptive(
                           value: _isRanked,
-                          activeColor: AppColors.primary,
+                          activeThumbColor: AppColors.primary,
                           onChanged:
                               _startOption == GameStartOption.guest ||
                                   _isTerritorial
@@ -273,7 +273,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                             ),
                             Switch.adaptive(
                               value: _isTerritorial,
-                              activeColor: AppColors.primary,
+                              activeThumbColor: AppColors.primary,
                               onChanged: _startOption == GameStartOption.guest
                                   ? null
                                   : (val) {
@@ -583,31 +583,31 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     final currentUserName = authState.user?.username ?? 'Joueur 1';
     final opponentName = selectedOpponent?.username ?? 'Invite';
 
-    if (_isCricketMode) {
-      ref.read(cricketMatchControllerProvider.notifier).setupMatch(
-            playerNames: [currentUserName, opponentName],
-            setsToWin: _setsToWin,
-            legsPerSet: _legsPerSet,
-            startingPlayerIndex: _startingPlayerIndex,
-          );
-      if (mounted) {
-        context.push(AppRoutes.matchCricket);
-      }
-      return;
-    }
-
-    if (_isChasseurMode) {
-      ref.read(chasseurMatchControllerProvider.notifier).setupMatch(
-            playerNames: [currentUserName, opponentName],
-            startingPlayerIndex: _startingPlayerIndex,
-          );
-      if (mounted) {
-        context.push(AppRoutes.matchChasseurZones);
-      }
-      return;
-    }
-
     if (_startOption == GameStartOption.guest) {
+      if (_isCricketMode) {
+        ref.read(cricketMatchControllerProvider.notifier).setupMatch(
+              playerNames: [currentUserName, opponentName],
+              setsToWin: _setsToWin,
+              legsPerSet: _legsPerSet,
+              startingPlayerIndex: _startingPlayerIndex,
+            );
+        if (mounted) {
+          context.push(AppRoutes.matchCricket);
+        }
+        return;
+      }
+
+      if (_isChasseurMode) {
+        ref.read(chasseurMatchControllerProvider.notifier).setupMatch(
+              playerNames: [currentUserName, opponentName],
+              startingPlayerIndex: _startingPlayerIndex,
+            );
+        if (mounted) {
+          context.push(AppRoutes.matchChasseurZones);
+        }
+        return;
+      }
+
       ref
           .read(matchControllerProvider.notifier)
           .setupMatch(
@@ -668,11 +668,12 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     try {
       final api = ref.read(apiClientProvider);
       final service = MatchService(api);
+      final invitationStartingScore = _isSpecialMode ? 99999 : startingScore;
 
       final invitation = await service.createMatchInvitation(
         inviteeId: selectedOpponent.id,
         mode: _modeLabel(gameMode),
-        startingScore: startingScore,
+        startingScore: invitationStartingScore,
         playerNames: [currentUser.username, selectedOpponent.username],
         setsToWin: _setsToWin,
         legsPerSet: _legsPerSet,

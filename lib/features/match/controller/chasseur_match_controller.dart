@@ -6,15 +6,15 @@ import '../models/match_model.dart';
 
 class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
   ChasseurMatchController()
-      : super(
-          ChasseurMatchState(
-            id: const Uuid().v4(),
-            players: const [
-              ChasseurPlayerState(name: 'Joueur 1'),
-              ChasseurPlayerState(name: 'Joueur 2'),
-            ],
-          ),
-        );
+    : super(
+        ChasseurMatchState(
+          id: const Uuid().v4(),
+          players: const [
+            ChasseurPlayerState(name: 'Joueur 1'),
+            ChasseurPlayerState(name: 'Joueur 2'),
+          ],
+        ),
+      );
 
   final List<ChasseurMatchState> _history = <ChasseurMatchState>[];
 
@@ -35,14 +35,19 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
       players: normalizedNames
           .map((name) => ChasseurPlayerState(name: name))
           .toList(growable: false),
-      currentPlayerIndex: startingPlayerIndex.clamp(0, normalizedNames.length - 1),
+      currentPlayerIndex: startingPlayerIndex.clamp(
+        0,
+        normalizedNames.length - 1,
+      ),
       phase: ChasseurPhase.zoneSelection,
       status: MatchStatus.waiting,
     );
   }
 
   void loadRemoteMatch(MatchModel remoteMatch) {
-    final names = remoteMatch.players.map((p) => p.name).toList(growable: false);
+    final names = remoteMatch.players
+        .map((p) => p.name)
+        .toList(growable: false);
     final normalizedNames = names.length >= 2
         ? names.take(2).toList(growable: false)
         : const <String>['Joueur 1', 'Joueur 2'];
@@ -60,7 +65,9 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
       currentPlayerIndex: remoteMatch.startingPlayerIndex.clamp(0, 1),
       currentRound: 1,
       currentDartInTurn: 0,
-      phase: allZonesSelected ? ChasseurPhase.playing : ChasseurPhase.zoneSelection,
+      phase: allZonesSelected
+          ? ChasseurPhase.playing
+          : ChasseurPhase.zoneSelection,
       status: remoteMatch.status,
     );
 
@@ -81,7 +88,9 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
     _history.clear();
     state = state.copyWith(
       status: remoteMatch.status,
-      phase: allZonesSelected ? ChasseurPhase.playing : ChasseurPhase.zoneSelection,
+      phase: allZonesSelected
+          ? ChasseurPhase.playing
+          : ChasseurPhase.zoneSelection,
     );
   }
 
@@ -189,12 +198,12 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
       feedback = '$shotLabel${zone == 25 ? 'Bull' : zone} - +$livesChanged vie';
     } else if (currentPlayer.isHunter) {
       final maybeTarget = players.asMap().entries.firstWhere(
-            (entry) =>
-                entry.key != currentIndex &&
-                entry.value.zone == zone &&
-                !entry.value.isEliminated,
-            orElse: () => const MapEntry(-1, ChasseurPlayerState(name: 'none')),
-          );
+        (entry) =>
+            entry.key != currentIndex &&
+            entry.value.zone == zone &&
+            !entry.value.isEliminated,
+        orElse: () => const MapEntry(-1, ChasseurPlayerState(name: 'none')),
+      );
 
       if (maybeTarget.key != -1) {
         targetPlayerIndex = maybeTarget.key;
@@ -205,7 +214,8 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
           lives: nextLives,
           isEliminated: nextLives < 0,
         );
-        feedback = '$shotLabel${zone == 25 ? 'Bull' : zone} - -$multiplier vie ${target.name}';
+        feedback =
+            '$shotLabel${zone == 25 ? 'Bull' : zone} - -$multiplier vie ${target.name}';
       }
     }
 
@@ -218,6 +228,29 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
         targetPlayerIndex: targetPlayerIndex,
       ),
     ];
+
+    final activePlayersCount = players.where((p) => !p.isEliminated).length;
+    if (activePlayersCount <= 1) {
+      final winner = players.indexWhere((p) => !p.isEliminated);
+      final roundHistory = [
+        ...state.roundHistory,
+        ChasseurRoundEntry(
+          playerIndex: currentIndex,
+          round: state.currentRound,
+          darts: nextDarts,
+        ),
+      ];
+      state = state.copyWith(
+        players: players,
+        roundHistory: roundHistory,
+        currentTurnDarts: const [],
+        currentDartInTurn: 0,
+        status: MatchStatus.finished,
+        winnerIndex: winner >= 0 ? winner : null,
+        lastFeedback: feedback,
+      );
+      return;
+    }
 
     if (nextDarts.length < 3) {
       state = state.copyWith(
@@ -237,20 +270,6 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
         darts: nextDarts,
       ),
     ];
-
-    if (players.where((p) => !p.isEliminated).length <= 1) {
-      final winner = players.indexWhere((p) => !p.isEliminated);
-      state = state.copyWith(
-        players: players,
-        roundHistory: roundHistory,
-        currentTurnDarts: const [],
-        currentDartInTurn: 0,
-        status: MatchStatus.finished,
-        winnerIndex: winner >= 0 ? winner : null,
-        lastFeedback: feedback,
-      );
-      return;
-    }
 
     final nextPlayer = _nextActivePlayer(players, currentIndex);
     final nextRound = nextPlayer <= currentIndex
@@ -290,7 +309,8 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
     if (state.status != MatchStatus.inProgress) {
       return;
     }
-    if (abandoningPlayerIndex < 0 || abandoningPlayerIndex >= state.players.length) {
+    if (abandoningPlayerIndex < 0 ||
+        abandoningPlayerIndex >= state.players.length) {
       return;
     }
 
@@ -323,5 +343,5 @@ class ChasseurMatchController extends StateNotifier<ChasseurMatchState> {
 
 final chasseurMatchControllerProvider =
     StateNotifierProvider<ChasseurMatchController, ChasseurMatchState>((ref) {
-  return ChasseurMatchController();
-});
+      return ChasseurMatchController();
+    });

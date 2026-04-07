@@ -38,6 +38,7 @@ class TempoScoreInput extends StatefulWidget {
     required this.maxScore,
     required this.onSubmitVisit,
     required this.canSelectZone,
+    this.remainingScore,
     this.fillAvailableHeight = false,
     this.gridCrossAxisCount = 5,
     this.submitEachDartInstantly = false,
@@ -70,6 +71,7 @@ class TempoScoreInput extends StatefulWidget {
   });
 
   final int maxScore;
+  final int? remainingScore;
   final ValueChanged<TempoVisit> onSubmitVisit;
   final bool Function(int zone) canSelectZone;
   final List<int> zones;
@@ -96,10 +98,21 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
   }
 
   int get _maxDarts => 3;
-  bool get _canSubmit => _darts.length == _maxDarts;
+  bool get _canSubmit {
+    if (_darts.length == _maxDarts) {
+      return true;
+    }
+    final remaining = widget.remainingScore;
+    if (remaining == null) {
+      return false;
+    }
+    return _darts.isNotEmpty && _total >= remaining;
+  }
+
   int get _total => _darts.fold<int>(0, (sum, hit) => sum + hit.score);
-  int get _doubleAttempts =>
-      _darts.where((d) => (!d.isMiss && d.multiplier == 2) || d.zone == 50).length;
+  int get _doubleAttempts => _darts
+      .where((d) => (!d.isMiss && d.multiplier == 2) || d.zone == 50)
+      .length;
 
   int _maxMultiplierForZone(int zone) {
     if (zone == 50) {
@@ -328,7 +341,8 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
       height: 42,
       child: Row(
         children: List<Widget>.generate(3, (index) {
-          final currentDartIndex = widget.submitEachDartInstantly &&
+          final currentDartIndex =
+              widget.submitEachDartInstantly &&
                   widget.displayCurrentDartIndex != null
               ? widget.displayCurrentDartIndex!.clamp(0, 2)
               : _darts.length;

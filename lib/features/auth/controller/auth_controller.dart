@@ -7,12 +7,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/config/app_constants.dart';
+import '../../../core/database/local_storage.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_providers.dart';
 import '../data/auth_repository.dart';
 import '../models/user_model.dart';
 
-enum AuthStatus { initial, authenticated, unauthenticated, loading, needsUsernameSetup }
+enum AuthStatus {
+  initial,
+  authenticated,
+  unauthenticated,
+  loading,
+  needsUsernameSetup,
+}
 
 class AuthState {
   final AuthStatus status;
@@ -50,15 +57,24 @@ class AuthState {
 }
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController(this._repository) : super(const AuthState()) {
+  AuthController(this._repository, this._apiClient) : super(const AuthState()) {
     _unauthorizedSub = ApiClient.unauthorizedStream.listen((_) {
       state = const AuthState(status: AuthStatus.unauthenticated);
+    });
+    _syncTicker = Timer.periodic(const Duration(seconds: 20), (_) {
+      _syncPendingSettingsSilently();
     });
     restoreSession();
   }
 
   final AuthRepository _repository;
+  final ApiClient _apiClient;
   StreamSubscription<void>? _unauthorizedSub;
+  Timer? _syncTicker;
+  static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
+  static const String _settingsBox = 'settings';
+  static const String _scoreModeLocalKey = 'score_mode';
+  static const String _scoreModePendingSyncKey = 'score_mode_pending_sync';
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     // On mobile, use serverClientId (Web OAuth client id) to retrieve idToken.
     // On web, configure clientId directly.
@@ -101,8 +117,41 @@ class AuthController extends StateNotifier<AuthState> {
         user: user,
         error: null,
       );
+      await _syncPendingSettingsSilently();
     } catch (_) {
       state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  Future<void> _syncPendingSettingsSilently() async {
+    if (state.status != AuthStatus.authenticated) {
+      return;
+    }
+
+    final pending = await LocalStorage.get<String>(
+      _settingsBox,
+      _scoreModePendingSyncKey,
+    );
+    if (pending != '1') {
+      return;
+    }
+
+    final localMode = await LocalStorage.get<String>(
+      _settingsBox,
+      _scoreModeLocalKey,
+    );
+    if (localMode == null || localMode.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      await _apiClient.patch<Map<String, dynamic>>(
+        '/users/me/settings',
+        data: {'key': _scoreModeSettingKey, 'value': localMode.trim()},
+      );
+      await LocalStorage.remove(_settingsBox, _scoreModePendingSyncKey);
+    } catch (_) {
+      // Keep pending marker; next successful network window will resync.
     }
   }
 
@@ -196,7 +245,8 @@ class AuthController extends StateNotifier<AuthState> {
         clearOnboardingPayload: true,
       );
     } catch (error) {
-      final message = _extractApiErrorMessage(error) ??
+      final message =
+          _extractApiErrorMessage(error) ??
           'Finalisation du profil SSO impossible. Verifiez le pseudo et reessayez.';
       state = state.copyWith(
         status: AuthStatus.needsUsernameSetup,
@@ -226,9 +276,9 @@ class AuthController extends StateNotifier<AuthState> {
       }
       if (message is List) {
         final first = message.whereType<String>().cast<String?>().firstWhere(
-              (value) => value != null && value.trim().isNotEmpty,
-              orElse: () => null,
-            );
+          (value) => value != null && value.trim().isNotEmpty,
+          orElse: () => null,
+        );
         if (first != null) {
           return first;
         }
@@ -324,7 +374,8 @@ class AuthController extends StateNotifier<AuthState> {
           account: account,
           authentication: authentication,
           flowStage: 'id_and_access_tokens_missing_or_empty',
-          error: 'Google sign-in failed: both idToken and accessToken are null/empty',
+          error:
+              'Google sign-in failed: both idToken and accessToken are null/empty',
           stackTrace: StackTrace.current,
         );
         if (kDebugMode) {
@@ -351,24 +402,24 @@ class AuthController extends StateNotifier<AuthState> {
           : await _repository.signInWithGoogleAccessToken(
               accessToken: accessToken!,
             );
-        state = state.copyWith(
-          status: result.isNewUser
-              ? AuthStatus.needsUsernameSetup
-              : AuthStatus.authenticated,
-          user: result.user,
-          onboardingPayload: result.isNewUser
-              ? {
-                  'username': result.user.username.startsWith('Joueur_')
-                      ? ''
-                      : result.user.username,
-                  'email': result.user.email ?? '',
-                  'isSso': true,
-                  if (result.ssoToken != null) 'sso_token': result.ssoToken!,
-                }
-              : null,
-          error: null,
-          debugDetails: null,
-        );
+      state = state.copyWith(
+        status: result.isNewUser
+            ? AuthStatus.needsUsernameSetup
+            : AuthStatus.authenticated,
+        user: result.user,
+        onboardingPayload: result.isNewUser
+            ? {
+                'username': result.user.username.startsWith('Joueur_')
+                    ? ''
+                    : result.user.username,
+                'email': result.user.email ?? '',
+                'isSso': true,
+                if (result.ssoToken != null) 'sso_token': result.ssoToken!,
+              }
+            : null,
+        error: null,
+        debugDetails: null,
+      );
     } catch (error, stackTrace) {
       final details = _buildGoogleDiagnostics(
         account: account,
@@ -457,9 +508,7 @@ class AuthController extends StateNotifier<AuthState> {
         ..writeln(
           'access_token_present=${accessToken != null && accessToken.isNotEmpty}',
         )
-        ..writeln(
-          'access_token_length=${accessToken?.length ?? 0}',
-        )
+        ..writeln('access_token_length=${accessToken?.length ?? 0}')
         ..writeln(
           'server_auth_code_present=${serverAuthCode != null && serverAuthCode.isNotEmpty}',
         );
@@ -516,6 +565,8 @@ class AuthController extends StateNotifier<AuthState> {
       return;
     }
 
+    await _syncPendingSettingsSilently();
+
     try {
       final user = await _repository.fetchCurrentUser();
       state = state.copyWith(user: user, error: null, debugDetails: null);
@@ -547,6 +598,7 @@ class AuthController extends StateNotifier<AuthState> {
   @override
   void dispose() {
     _unauthorizedSub?.cancel();
+    _syncTicker?.cancel();
     super.dispose();
   }
 }
@@ -554,7 +606,7 @@ class AuthController extends StateNotifier<AuthState> {
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
   (ref) {
     final api = ref.watch(apiClientProvider);
-    return AuthController(AuthRepository(api));
+    return AuthController(AuthRepository(api), api);
   },
 );
 

@@ -62,6 +62,23 @@ class ClubSearchController extends StateNotifier<ClubSearchState> {
     });
   }
 
+  Future<void> searchByTextNow(String query) async {
+    final trimmed = query.trim();
+    _debounce?.cancel();
+
+    if (trimmed.isEmpty) {
+      state = state.copyWith(
+        results: const [],
+        isLoading: false,
+        query: '',
+        error: null,
+      );
+      return;
+    }
+
+    await _search(query: trimmed);
+  }
+
   Future<void> searchNearby(
     double lat,
     double lng, {

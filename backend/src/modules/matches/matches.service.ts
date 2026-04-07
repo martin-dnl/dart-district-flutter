@@ -16,6 +16,7 @@ import { SystemGateway } from '../realtime/gateways/system.gateway';
 import { MatchGateway } from '../realtime/gateways/match.gateway';
 import { normalizeLimit } from '../../common/utils/normalize-limit';
 import { StatsService } from '../stats/stats.service';
+import { Territory } from '../territories/entities/territory.entity';
 
 @Injectable()
 export class MatchesService {
@@ -26,6 +27,8 @@ export class MatchesService {
     @InjectRepository(Set) private readonly setRepo: Repository<Set>,
     @InjectRepository(Leg) private readonly legRepo: Repository<Leg>,
     @InjectRepository(Throw) private readonly throwRepo: Repository<Throw>,
+    @InjectRepository(Territory)
+    private readonly territoryRepo: Repository<Territory>,
     private readonly dataSource: DataSource,
     private readonly systemGateway: SystemGateway,
     private readonly matchGateway: MatchGateway,
@@ -646,6 +649,59 @@ export class MatchesService {
       final_sets: finalSets,
       players,
       timeline,
+    };
+  }
+
+  async getResultSummary(matchId: string, userId: string) {
+    const match = await this.loadMatchWithGraph(matchId);
+    const orderedPlayers = this.getOrderedPlayers(match);
+    const me = orderedPlayers.find((player) => player.user_id === userId);
+    if (!me) {
+      throw new BadRequestException('You are not a player in this match');
+    }
+
+    const eloRow = await this.dataSource.query(
+      `
+        SELECT elo_before, elo_after, delta
+        FROM elo_history
+        WHERE match_id = $1 AND user_id = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [matchId, userId],
+    );
+
+    const winner = orderedPlayers.find((player) => player.is_winner);
+    const isWinner = winner?.user_id === userId;
+    const eloBefore = Number(eloRow?.[0]?.elo_before ?? 0);
+    const eloAfter = Number(eloRow?.[0]?.elo_after ?? 0);
+    const eloDelta = Number(eloRow?.[0]?.delta ?? 0);
+
+    let territoryName: string | null = null;
+    if (match.territory_code_iris) {
+      const territory = await this.territoryRepo.findOne({
+        where: { code_iris: match.territory_code_iris.toUpperCase() },
+      });
+      territoryName = territory?.name ?? null;
+    }
+
+    const territoryPointsGained =
+      match.is_ranked && match.is_territorial && isWinner
+        ? Math.max(0, Math.abs(eloDelta))
+        : 0;
+
+    return {
+      match_id: match.id,
+      is_ranked: match.is_ranked,
+      is_territorial: match.is_territorial,
+      user_id: userId,
+      is_winner: isWinner,
+      elo_before: eloBefore,
+      elo_after: eloAfter,
+      elo_delta: eloDelta,
+      territory_points_gained: territoryPointsGained,
+      territory_code_iris: match.territory_code_iris ?? null,
+      territory_name: territoryName,
     };
   }
 

@@ -1,17 +1,38 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/database/local_storage.dart';
 import '../../../core/security/token_storage.dart';
 import '../models/user_model.dart';
+import 'package:dio/dio.dart';
 
 class AuthRepository {
   final ApiClient _api;
+  static const String _authBox = 'auth';
+  static const String _cachedUserKey = 'cached_user';
 
   AuthRepository(this._api);
 
   Future<UserModel?> restoreSession() async {
     final token = await TokenStorage.readAccessToken();
     if (token == null || token.isEmpty) return null;
-    final me = await _fetchCurrentUser();
-    return me;
+
+    try {
+      final me = await _fetchCurrentUser();
+      return me;
+    } on DioException catch (error) {
+      if (_isOfflineError(error)) {
+        final cached = await LocalStorage.get<dynamic>(
+          _authBox,
+          _cachedUserKey,
+        );
+        if (cached is Map) {
+          final payload = cached.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          return UserModel.fromJson(payload);
+        }
+      }
+      return null;
+    }
   }
 
   Future<UserModel> signInWithEmail({
@@ -20,10 +41,7 @@ class AuthRepository {
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
       '/auth/login',
-      data: {
-        'email': email,
-        'password': password,
-      },
+      data: {'email': email, 'password': password},
     );
 
     final authData = _unwrap(response.data);
@@ -47,14 +65,11 @@ class AuthRepository {
     return _fetchCurrentUser();
   }
 
-  Future<({UserModel user, bool isNewUser, String? ssoToken})> signInWithGoogleIdToken({
-    required String idToken,
-  }) async {
+  Future<({UserModel user, bool isNewUser, String? ssoToken})>
+  signInWithGoogleIdToken({required String idToken}) async {
     final response = await _api.post<Map<String, dynamic>>(
       '/auth/google',
-      data: {
-        'id_token': idToken,
-      },
+      data: {'id_token': idToken},
     );
 
     final authData = _unwrap(response.data);
@@ -84,14 +99,11 @@ class AuthRepository {
     );
   }
 
-  Future<({UserModel user, bool isNewUser, String? ssoToken})> signInWithGoogleAccessToken({
-    required String accessToken,
-  }) async {
+  Future<({UserModel user, bool isNewUser, String? ssoToken})>
+  signInWithGoogleAccessToken({required String accessToken}) async {
     final response = await _api.post<Map<String, dynamic>>(
       '/auth/google',
-      data: {
-        'access_token': accessToken,
-      },
+      data: {'access_token': accessToken},
     );
 
     final authData = _unwrap(response.data);
@@ -153,10 +165,7 @@ class AuthRepository {
     }
 
     if (profilePatch.isNotEmpty) {
-      await _api.patch<Map<String, dynamic>>(
-        '/users/me',
-        data: profilePatch,
-      );
+      await _api.patch<Map<String, dynamic>>('/users/me', data: profilePatch);
     }
 
     return _fetchCurrentUser();
@@ -198,12 +207,25 @@ class AuthRepository {
       // Ignore network failures during logout and clear local tokens anyway.
     }
     await TokenStorage.clearTokens();
+    await LocalStorage.remove(_authBox, _cachedUserKey);
   }
 
   Future<UserModel> _fetchCurrentUser() async {
     final response = await _api.get<Map<String, dynamic>>('/users/me');
     final data = _unwrap(response.data);
-    return UserModel.fromApi(data);
+    final user = UserModel.fromApi(data);
+    await LocalStorage.put<Map<String, dynamic>>(
+      _authBox,
+      _cachedUserKey,
+      user.toJson(),
+    );
+    return user;
+  }
+
+  bool _isOfflineError(DioException error) {
+    return error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout;
   }
 
   Map<String, dynamic> _unwrap(Map<String, dynamic>? body) {

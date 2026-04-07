@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/database/local_storage.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../auth/controller/auth_controller.dart';
@@ -21,6 +22,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isLoadingGameOptions = true;
   bool _isSavingGameOptions = false;
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
+  static const String _scoreModeBox = 'settings';
+  static const String _scoreModeLocalKey = 'score_mode';
+  static const String _scoreModePendingSyncKey = 'score_mode_pending_sync';
   static const String _manualScoreMode = 'MANUAL';
   static const String _dartboardScoreMode = 'DARTBOARD';
   static const String _tempoScoreMode = 'TEMPO';
@@ -39,6 +43,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadGameOptions() async {
+    final local = await LocalStorage.get<String>(
+      _scoreModeBox,
+      _scoreModeLocalKey,
+    );
+    if (local != null && local.trim().isNotEmpty && mounted) {
+      final localMode = local.trim().toUpperCase();
+      setState(() {
+        _scoreMode = _isSupportedScoreMode(localMode)
+            ? localMode
+            : _manualScoreMode;
+      });
+    }
+
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.get<Map<String, dynamic>>(
@@ -61,12 +78,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             : _manualScoreMode;
         _isLoadingGameOptions = false;
       });
+      await LocalStorage.put<String>(
+        _scoreModeBox,
+        _scoreModeLocalKey,
+        _scoreMode,
+      );
+      await LocalStorage.remove(_scoreModeBox, _scoreModePendingSyncKey);
     } catch (_) {
       if (!mounted) {
         return;
       }
       setState(() {
-        _scoreMode = _manualScoreMode;
+        _scoreMode = (local != null && local.trim().isNotEmpty)
+            ? local.trim().toUpperCase()
+            : _manualScoreMode;
         _isLoadingGameOptions = false;
       });
     }
@@ -82,6 +107,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _scoreMode = nextMode;
       _isSavingGameOptions = true;
     });
+    await LocalStorage.put<String>(_scoreModeBox, _scoreModeLocalKey, nextMode);
 
     try {
       final api = ref.read(apiClientProvider);
@@ -89,16 +115,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         '/users/me/settings',
         data: {'key': _scoreModeSettingKey, 'value': nextMode},
       );
+      await LocalStorage.remove(_scoreModeBox, _scoreModePendingSyncKey);
     } catch (_) {
+      await LocalStorage.put<String>(
+        _scoreModeBox,
+        _scoreModePendingSyncKey,
+        '1',
+      );
       if (mounted) {
-        setState(() {
-          _scoreMode = previous;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Impossible de sauvegarder les options de jeu.'),
+            content: Text(
+              'Options sauvegardees localement, synchronisation differee.',
+            ),
           ),
         );
+      }
+      if (mounted && previous != nextMode) {
+        setState(() => _scoreMode = nextMode);
       }
     } finally {
       if (mounted) {

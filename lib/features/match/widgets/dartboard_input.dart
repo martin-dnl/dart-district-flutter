@@ -42,6 +42,7 @@ class DartboardInput extends StatefulWidget {
     super.key,
     required this.maxScore,
     required this.onSubmitVisit,
+    this.remainingScore,
     this.fillAvailableHeight = false,
     this.submitEachDartInstantly = false,
     this.displayDartLabels,
@@ -53,6 +54,7 @@ class DartboardInput extends StatefulWidget {
   });
 
   final int maxScore;
+  final int? remainingScore;
   final ValueChanged<DartboardVisit> onSubmitVisit;
   final bool fillAvailableHeight;
   final bool submitEachDartInstantly;
@@ -122,7 +124,17 @@ class _DartboardInputState extends State<DartboardInput> {
   static const Color _markerBlue = Color(0xFF3CA9FF);
 
   int get _total => _darts.fold<int>(0, (sum, hit) => sum + hit.score);
-  bool get _canSubmit => _darts.length == 3;
+  bool get _canSubmit {
+    if (_darts.length == 3) {
+      return true;
+    }
+    final remaining = widget.remainingScore;
+    if (remaining == null) {
+      return false;
+    }
+    return _darts.isNotEmpty && _total >= remaining;
+  }
+
   int get _doubleAttempts =>
       _darts.where((hit) => hit.ring == DartRing.double).length;
 
@@ -395,13 +407,12 @@ class _DartboardInputState extends State<DartboardInput> {
     }
 
     setState(() {
-      final miss =
-        const DartHit(
-          normalizedPosition: Offset.zero,
-          score: 0,
-          label: '-',
-          ring: DartRing.singleOuter,
-        );
+      final miss = const DartHit(
+        normalizedPosition: Offset.zero,
+        score: 0,
+        label: '-',
+        ring: DartRing.singleOuter,
+      );
       _darts.add(miss);
       if (widget.submitEachDartInstantly) {
         widget.onSubmitVisit(
@@ -503,47 +514,77 @@ class _DartboardInputState extends State<DartboardInput> {
   Widget _buildDartsHeader() {
     return SizedBox(
       width: double.infinity,
-      height: 42,
-      child: Row(
-        children: List<Widget>.generate(3, (index) {
-          final currentDartIndex = widget.submitEachDartInstantly &&
-                  widget.displayCurrentDartIndex != null
-              ? widget.displayCurrentDartIndex!.clamp(0, 2)
-              : _darts.length;
-          final isCurrent = index == currentDartIndex && index < 3;
-          final valueColor = isCurrent
-              ? const Color(0xFFF4CF38)
-              : AppColors.textPrimary;
+      child: Column(
+        children: [
+          SizedBox(
+            height: 42,
+            child: Row(
+              children: List<Widget>.generate(3, (index) {
+                final currentDartIndex =
+                    widget.submitEachDartInstantly &&
+                        widget.displayCurrentDartIndex != null
+                    ? widget.displayCurrentDartIndex!.clamp(0, 2)
+                    : _darts.length;
+                final isCurrent = index == currentDartIndex && index < 3;
+                final valueColor = isCurrent
+                    ? const Color(0xFFF4CF38)
+                    : AppColors.textPrimary;
 
-          return Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text(
-                  _dartLabel(index),
-                  style: TextStyle(
-                    color: valueColor,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    height: 1.0,
+                return Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Text(
+                        _dartLabel(index),
+                        style: TextStyle(
+                          color: valueColor,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          height: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'DART ${index + 1}',
+                        style: TextStyle(
+                          color: isCurrent
+                              ? const Color(0xFFF4CF38)
+                              : AppColors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  'DART ${index + 1}',
-                  style: TextStyle(
-                    color: isCurrent
-                        ? const Color(0xFFF4CF38)
-                        : AppColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
+                );
+              }),
             ),
-          );
-        }),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Text(
+                'TOTAL $_total',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
+              const Spacer(),
+              if (widget.remainingScore != null)
+                Text(
+                  'RESTANT ${widget.remainingScore}',
+                  style: const TextStyle(
+                    color: AppColors.textHint,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -580,7 +621,9 @@ class _DartboardInputState extends State<DartboardInput> {
                     GestureRecognizerFactoryWithHandlers<
                       LongPressGestureRecognizer
                     >(
-                      () => LongPressGestureRecognizer(duration: _longPressDuration),
+                      () => LongPressGestureRecognizer(
+                        duration: _longPressDuration,
+                      ),
                       (LongPressGestureRecognizer instance) {
                         instance
                           ..onLongPressStart = _onLongPressStart
@@ -597,76 +640,73 @@ class _DartboardInputState extends State<DartboardInput> {
                     ),
               },
               child: SizedBox.expand(
-                child:
-              Transform(
-                transform: _buildZoomMatrix(),
-                child: CustomPaint(
-                  painter: _DartboardPainter(
-                    boardRect: boardRect,
-                    highlightedHit: _previewHit,
-                    dartMarkers: _darts,
-                    playableRatio: _playableRatio,
-                    rInnerBull: _rInnerBull,
-                    rOuterBull: _rOuterBull,
-                    rTripleInner: _rTripleInner,
-                    rTripleOuter: _rTripleOuter,
-                    rDoubleInner: _rDoubleInner,
-                    boardOuterBlack: _boardOuterBlack,
-                    blackSegment: _blackSegment,
-                    beigeSegment: _beigeSegment,
-                    ringRed: _ringRed,
-                    ringGreen: _ringGreen,
-                    wireWhite: _wireWhite,
-                    markerBlue: _markerBlue,
-                    sectorOrder: _sectorOrder,
-                    ringColorResolver: widget.ringColorResolver,
-                    ringLabelResolver: widget.ringLabelResolver,
-                    outerBullColor: widget.outerBullColor,
-                    innerBullColor: widget.innerBullColor,
+                child: Transform(
+                  transform: _buildZoomMatrix(),
+                  child: CustomPaint(
+                    painter: _DartboardPainter(
+                      boardRect: boardRect,
+                      highlightedHit: _previewHit,
+                      dartMarkers: _darts,
+                      playableRatio: _playableRatio,
+                      rInnerBull: _rInnerBull,
+                      rOuterBull: _rOuterBull,
+                      rTripleInner: _rTripleInner,
+                      rTripleOuter: _rTripleOuter,
+                      rDoubleInner: _rDoubleInner,
+                      boardOuterBlack: _boardOuterBlack,
+                      blackSegment: _blackSegment,
+                      beigeSegment: _beigeSegment,
+                      ringRed: _ringRed,
+                      ringGreen: _ringGreen,
+                      wireWhite: _wireWhite,
+                      markerBlue: _markerBlue,
+                      sectorOrder: _sectorOrder,
+                      ringColorResolver: widget.ringColorResolver,
+                      ringLabelResolver: widget.ringLabelResolver,
+                      outerBullColor: widget.outerBullColor,
+                      innerBullColor: widget.innerBullColor,
+                    ),
                   ),
                 ),
-              ),
               ),
             ),
 
             if (!_isAiming) ...<Widget>[
-                Positioned(
-                  left: squareRect.left + buttonMargin,
-                  top: squareRect.top + buttonMargin,
-                  child: _roundActionButton(
-                    icon: Icons.undo_rounded,
-                    onTap: _darts.isEmpty ? null : _undoLastDart,
-                    size: buttonSize,
-                    backgroundColor: const Color(0xAA232428),
-                    iconColor: Colors.white,
-                  ),
+              Positioned(
+                left: squareRect.left + buttonMargin,
+                top: squareRect.top + buttonMargin,
+                child: _roundActionButton(
+                  icon: Icons.undo_rounded,
+                  onTap: _darts.isEmpty ? null : _undoLastDart,
+                  size: buttonSize,
+                  backgroundColor: const Color(0xAA232428),
+                  iconColor: Colors.white,
                 ),
-                Positioned(
-                  left: squareRect.left + buttonMargin,
-                  bottom:
-                      viewportSize.height - squareRect.bottom + buttonMargin,
-                  child: _roundActionButton(
-                    icon: Icons.close_rounded,
-                    onTap: _darts.length >= 3 ? null : _addMiss,
-                    size: buttonSize,
-                    backgroundColor: const Color(0xCC3D3E42),
-                    iconColor: Colors.white,
-                  ),
+              ),
+              Positioned(
+                left: squareRect.left + buttonMargin,
+                bottom: viewportSize.height - squareRect.bottom + buttonMargin,
+                child: _roundActionButton(
+                  icon: Icons.close_rounded,
+                  onTap: _darts.length >= 3 ? null : _addMiss,
+                  size: buttonSize,
+                  backgroundColor: const Color(0xCC3D3E42),
+                  iconColor: Colors.white,
                 ),
-                Positioned(
-                  right: viewportSize.width - squareRect.right + buttonMargin,
-                  bottom:
-                      viewportSize.height - squareRect.bottom + buttonMargin,
-                  child: widget.submitEachDartInstantly
-                      ? const SizedBox.shrink()
-                      : _roundActionButton(
-                          icon: Icons.check_rounded,
-                          onTap: _canSubmit ? _submitVisit : null,
-                          size: buttonSize,
-                          backgroundColor: AppColors.primary,
-                          iconColor: Colors.white,
-                        ),
-                ),
+              ),
+              Positioned(
+                right: viewportSize.width - squareRect.right + buttonMargin,
+                bottom: viewportSize.height - squareRect.bottom + buttonMargin,
+                child: widget.submitEachDartInstantly
+                    ? const SizedBox.shrink()
+                    : _roundActionButton(
+                        icon: Icons.check_rounded,
+                        onTap: _canSubmit ? _submitVisit : null,
+                        size: buttonSize,
+                        backgroundColor: AppColors.primary,
+                        iconColor: Colors.white,
+                      ),
+              ),
             ],
 
             if (_isAiming)
@@ -825,7 +865,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rOuterBull,
         outerRatio: rTripleInner,
-        fill: ringColorResolver?.call(number, DartRing.singleInner) ??
+        fill:
+            ringColorResolver?.call(number, DartRing.singleInner) ??
             (i.isEven ? beigeSegment : blackSegment),
         highlighted: _isHighlighted(number, DartRing.singleInner),
       );
@@ -837,7 +878,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rTripleInner,
         outerRatio: rTripleOuter,
-        fill: ringColorResolver?.call(number, DartRing.triple) ??
+        fill:
+            ringColorResolver?.call(number, DartRing.triple) ??
             (i.isEven ? ringGreen : ringRed),
         highlighted: _isHighlighted(number, DartRing.triple),
       );
@@ -849,7 +891,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rTripleOuter,
         outerRatio: rDoubleInner,
-        fill: ringColorResolver?.call(number, DartRing.singleOuter) ??
+        fill:
+            ringColorResolver?.call(number, DartRing.singleOuter) ??
             (i.isEven ? blackSegment : beigeSegment),
         highlighted: _isHighlighted(number, DartRing.singleOuter),
       );
@@ -861,7 +904,8 @@ class _DartboardPainter extends CustomPainter {
         sweep: sectorSweep,
         innerRatio: rDoubleInner,
         outerRatio: 1.0,
-        fill: ringColorResolver?.call(number, DartRing.double) ??
+        fill:
+            ringColorResolver?.call(number, DartRing.double) ??
             (i.isEven ? ringRed : ringGreen),
         highlighted: _isHighlighted(number, DartRing.double),
       );

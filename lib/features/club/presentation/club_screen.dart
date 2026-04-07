@@ -254,6 +254,7 @@ class _ClubDiscoveryScreen extends ConsumerStatefulWidget {
 class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLocating = false;
+  bool _usingNearbyFilter = false;
 
   @override
   void initState() {
@@ -271,6 +272,9 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         await clubSearchNotifier.loadInitial();
+        if (mounted) {
+          setState(() => _usingNearbyFilter = false);
+        }
         return;
       }
 
@@ -282,6 +286,9 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         await clubSearchNotifier.loadInitial();
+        if (mounted) {
+          setState(() => _usingNearbyFilter = false);
+        }
         return;
       }
 
@@ -293,12 +300,18 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
       );
 
       await clubSearchNotifier.searchNearby(
-            position.latitude,
-            position.longitude,
-            limit: 10,
-          );
+        position.latitude,
+        position.longitude,
+        limit: 10,
+      );
+      if (mounted) {
+        setState(() => _usingNearbyFilter = true);
+      }
     } catch (_) {
       await clubSearchNotifier.loadInitial();
+      if (mounted) {
+        setState(() => _usingNearbyFilter = false);
+      }
     }
   }
 
@@ -336,11 +349,35 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
       await ref
           .read(clubSearchControllerProvider.notifier)
           .searchNearby(position.latitude, position.longitude);
+      if (mounted) {
+        setState(() => _usingNearbyFilter = true);
+      }
     } finally {
       if (mounted) {
         setState(() => _isLocating = false);
       }
     }
+  }
+
+  Future<void> _onRefresh() async {
+    if (_isLocating) {
+      return;
+    }
+
+    final query = _searchController.text.trim();
+    if (_usingNearbyFilter) {
+      await _searchNearby();
+      return;
+    }
+
+    if (query.isNotEmpty) {
+      await ref
+          .read(clubSearchControllerProvider.notifier)
+          .searchByTextNow(query);
+      return;
+    }
+
+    await ref.read(clubSearchControllerProvider.notifier).loadInitial();
   }
 
   @override
@@ -366,42 +403,61 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              TextField(
-                controller: _searchController,
-                onChanged: (value) => ref
-                    .read(clubSearchControllerProvider.notifier)
-                    .searchByText(value),
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Rechercher un club par nom ou ville...',
-                  hintStyle: const TextStyle(color: AppColors.textHint),
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: AppColors.textHint,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() => _usingNearbyFilter = false);
+                        ref
+                            .read(clubSearchControllerProvider.notifier)
+                            .searchByText(value);
+                      },
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un club par nom ou ville...',
+                        hintStyle: const TextStyle(color: AppColors.textHint),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: AppColors.textHint,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.card.withValues(alpha: 0.8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppColors.stroke),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppColors.stroke),
+                        ),
+                      ),
+                    ),
                   ),
-                  filled: true,
-                  fillColor: AppColors.card.withValues(alpha: 0.8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.stroke),
+                  const SizedBox(width: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.stroke),
+                    ),
+                    child: IconButton(
+                      onPressed: _isLocating ? null : _searchNearby,
+                      icon: _isLocating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.my_location_rounded,
+                              color: AppColors.primary,
+                            ),
+                      tooltip: 'Clubs à proximité',
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.stroke),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _isLocating ? null : _searchNearby,
-                icon: _isLocating
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.my_location_rounded),
-                label: const Text('Clubs à proximité'),
+                ],
               ),
               if (canCreateClub) ...[
                 const SizedBox(height: 10),
@@ -416,16 +472,21 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
               ],
               const SizedBox(height: 16),
               Expanded(
-                child: _ClubSearchResults(
-                  state: searchState,
-                  canCreateClub: canCreateClub,
-                  onCreateClub: () => context.push(AppRoutes.clubCreate),
-                  onReset: () {
-                    _searchController.clear();
-                    ref.read(clubSearchControllerProvider.notifier).clear();
-                  },
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: _onRefresh,
+                  child: _ClubSearchResults(
+                    state: searchState,
+                    canCreateClub: canCreateClub,
+                    onCreateClub: () => context.push(AppRoutes.clubCreate),
+                    onReset: () {
+                      _searchController.clear();
+                      setState(() => _usingNearbyFilter = false);
+                      ref.read(clubSearchControllerProvider.notifier).clear();
+                    },
+                  ),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -450,49 +511,70 @@ class _ClubSearchResults extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 140),
+          Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        ],
       );
     }
 
     if (state.error != null) {
-      return Center(
-        child: Text(
-          state.error!,
-          style: const TextStyle(color: AppColors.error),
-          textAlign: TextAlign.center,
-        ),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Text(
+              state.error!,
+              style: const TextStyle(color: AppColors.error),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       );
     }
 
-
     if (state.results.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.travel_explore_rounded,
-              size: 56,
-              color: AppColors.textHint,
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.travel_explore_rounded,
+                  size: 56,
+                  color: AppColors.textHint,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Recherchez un club',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: onReset,
+                  child: const Text('Réinitialiser'),
+                ),
+                if (canCreateClub) ...[
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: onCreateClub,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Créer un club'),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Recherchez un club',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
-            ),
-            const SizedBox(height: 10),
-            TextButton(onPressed: onReset, child: const Text('Réinitialiser')),
-            if (canCreateClub) ...[
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: onCreateClub,
-                icon: const Icon(Icons.add),
-                label: const Text('Créer un club'),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       );
     }
 

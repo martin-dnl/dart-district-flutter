@@ -9,10 +9,11 @@ import { MatchesService } from './matches.service';
 import { MatchesController } from './matches.controller';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { StatsModule } from '../stats/stats.module';
+import { Territory } from '../territories/entities/territory.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Match, MatchPlayer, Set, Leg, Throw]),
+    TypeOrmModule.forFeature([Match, MatchPlayer, Set, Leg, Throw, Territory]),
     RealtimeModule,
     StatsModule,
   ],

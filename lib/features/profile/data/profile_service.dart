@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
@@ -45,6 +46,7 @@ class ProfileService {
     final formData = FormData.fromMap({
       'avatar': await MultipartFile.fromFile(
         imageFile.path,
+        filename: p.basename(imageFile.path),
         contentType: contentType,
       ),
     });

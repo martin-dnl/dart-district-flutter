@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/database/local_storage.dart';
 import '../../../core/network/api_providers.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../../home/controller/recent_ranked_matches_provider.dart';
@@ -33,6 +34,9 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   bool _didShowEndDialog = false;
   final Set<int> _animatedPlayerIndexes = <int>{};
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
+  static const String _scoreModeBox = 'settings';
+  static const String _scoreModeLocalKey = 'score_mode';
+  static const String _scoreModePendingSyncKey = 'score_mode_pending_sync';
   static const String _manualScoreMode = 'MANUAL';
   static const String _dartboardScoreMode = 'DARTBOARD';
   static const String _tempoScoreMode = 'TEMPO';
@@ -59,7 +63,21 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
   }
 
   Future<void> _loadScoreMode() async {
+    final local = await LocalStorage.get<String>(
+      _scoreModeBox,
+      _scoreModeLocalKey,
+    );
+    if (mounted && local != null && local.trim().isNotEmpty) {
+      setState(() {
+        _scoreMode = local.trim();
+      });
+    }
+
     try {
+      final pendingSync = await LocalStorage.get<String>(
+        _scoreModeBox,
+        _scoreModePendingSyncKey,
+      );
       final api = ref.read(apiClientProvider);
       final response = await api.get<Map<String, dynamic>>(
         '/users/me/settings',
@@ -76,13 +94,28 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
       setState(() {
         _scoreMode = value.isEmpty ? _manualScoreMode : value;
       });
+      await LocalStorage.put<String>(
+        _scoreModeBox,
+        _scoreModeLocalKey,
+        _scoreMode,
+      );
+      if (pendingSync == '1' &&
+          local != null &&
+          local.trim().isNotEmpty &&
+          local.trim() != _scoreMode) {
+        await _updateScoreMode(local.trim());
+      } else {
+        await LocalStorage.remove(_scoreModeBox, _scoreModePendingSyncKey);
+      }
     } catch (_) {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _scoreMode = _manualScoreMode;
-      });
+      if (local == null || local.trim().isEmpty) {
+        setState(() {
+          _scoreMode = _manualScoreMode;
+        });
+      }
     }
   }
 
@@ -94,6 +127,11 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         _scoreMode = normalized;
       });
     }
+    await LocalStorage.put<String>(
+      _scoreModeBox,
+      _scoreModeLocalKey,
+      normalized,
+    );
 
     try {
       final api = ref.read(apiClientProvider);
@@ -101,16 +139,26 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         '/users/me/settings',
         data: {'key': _scoreModeSettingKey, 'value': normalized},
       );
+      await LocalStorage.remove(_scoreModeBox, _scoreModePendingSyncKey);
     } catch (_) {
+      await LocalStorage.put<String>(
+        _scoreModeBox,
+        _scoreModePendingSyncKey,
+        '1',
+      );
       if (mounted) {
-        setState(() {
-          _scoreMode = previous;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Impossible de sauvegarder le mode de saisie.'),
+            content: Text(
+              'Mode sauvegarde localement, synchronisation differée.',
+            ),
           ),
         );
+      }
+      if (previous != normalized && mounted) {
+        setState(() {
+          _scoreMode = normalized;
+        });
       }
     }
   }
@@ -598,31 +646,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     final shouldOpenReport = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'Match termine',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: const Text(
-          'Consulter le rapport de match ? ',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Plus tard'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
-            ),
-            child: const Text('Voir le rapport'),
-          ),
-        ],
-      ),
+      builder: (ctx) => _MatchEndResultDialog(matchId: match.id),
     );
 
     if (!mounted) {
@@ -776,6 +800,9 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                                   maxScore: match
                                       .players[match.currentPlayerIndex]
                                       .score,
+                                  remainingScore: match
+                                      .players[match.currentPlayerIndex]
+                                      .score,
                                   fillAvailableHeight: true,
                                   onSubmitVisit: (visit) {
                                     _submitScore(
@@ -799,8 +826,12 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                             else if (_scoreMode == _tempoScoreMode)
                               SizedBox.expand(
                                 child: TempoScoreInput(
-                                  maxScore:
-                                      match.players[match.currentPlayerIndex].score,
+                                  maxScore: match
+                                      .players[match.currentPlayerIndex]
+                                      .score,
+                                  remainingScore: match
+                                      .players[match.currentPlayerIndex]
+                                      .score,
                                   fillAvailableHeight: true,
                                   zones: const [
                                     1,
@@ -875,6 +906,209 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MatchResultSummary {
+  const _MatchResultSummary({
+    required this.isWinner,
+    required this.eloBefore,
+    required this.eloAfter,
+    required this.eloDelta,
+    required this.territoryPointsGained,
+    required this.territoryName,
+    required this.isRanked,
+    required this.isTerritorial,
+  });
+
+  final bool isWinner;
+  final int eloBefore;
+  final int eloAfter;
+  final int eloDelta;
+  final int territoryPointsGained;
+  final String? territoryName;
+  final bool isRanked;
+  final bool isTerritorial;
+
+  factory _MatchResultSummary.fromJson(Map<String, dynamic> json) {
+    int asInt(dynamic value) {
+      if (value is num) {
+        return value.toInt();
+      }
+      if (value is String) {
+        return int.tryParse(value) ?? 0;
+      }
+      return 0;
+    }
+
+    return _MatchResultSummary(
+      isWinner: json['is_winner'] == true,
+      eloBefore: asInt(json['elo_before']),
+      eloAfter: asInt(json['elo_after']),
+      eloDelta: asInt(json['elo_delta']),
+      territoryPointsGained: asInt(json['territory_points_gained']),
+      territoryName: json['territory_name']?.toString(),
+      isRanked: json['is_ranked'] == true,
+      isTerritorial: json['is_territorial'] == true,
+    );
+  }
+}
+
+class _MatchEndResultDialog extends ConsumerWidget {
+  const _MatchEndResultDialog({required this.matchId});
+
+  final String matchId;
+
+  Future<_MatchResultSummary?> _loadSummary(WidgetRef ref) async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get<Map<String, dynamic>>(
+        '/matches/$matchId/result-summary',
+      );
+      final raw = response.data ?? const <String, dynamic>{};
+      final data = raw['data'] is Map<String, dynamic>
+          ? raw['data'] as Map<String, dynamic>
+          : raw;
+      return _MatchResultSummary.fromJson(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: const Text(
+        'Match termine',
+        style: TextStyle(color: AppColors.textPrimary),
+      ),
+      content: FutureBuilder<_MatchResultSummary?>(
+        future: _loadSummary(ref),
+        builder: (context, snapshot) {
+          final summary = snapshot.data;
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SizedBox(
+              height: 80,
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            );
+          }
+
+          if (summary == null) {
+            return const Text(
+              'Consulter le rapport de match ? ',
+              style: TextStyle(color: AppColors.textSecondary),
+            );
+          }
+
+          final eloColor = summary.eloDelta > 0
+              ? AppColors.primary
+              : (summary.eloDelta < 0
+                    ? Colors.redAccent
+                    : AppColors.textSecondary);
+
+          return SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary.isWinner ? 'Victoire' : 'Defaite',
+                  style: TextStyle(
+                    color: summary.isWinner
+                        ? AppColors.primary
+                        : Colors.redAccent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (summary.isRanked) ...[
+                  const Text(
+                    'ELO',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TweenAnimationBuilder<int>(
+                    tween: IntTween(
+                      begin: summary.eloBefore,
+                      end: summary.eloAfter,
+                    ),
+                    duration: const Duration(milliseconds: 1400),
+                    builder: (context, value, child) {
+                      return Text(
+                        '$value',
+                        style: TextStyle(
+                          color: eloColor,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      );
+                    },
+                  ),
+                  Text(
+                    '${summary.eloDelta >= 0 ? '+' : ''}${summary.eloDelta}',
+                    style: TextStyle(
+                      color: eloColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (summary.isRanked &&
+                    summary.isTerritorial &&
+                    summary.territoryPointsGained > 0) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Points club${summary.territoryName == null ? '' : ' - ${summary.territoryName}'}',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TweenAnimationBuilder<int>(
+                    tween: IntTween(
+                      begin: 0,
+                      end: summary.territoryPointsGained,
+                    ),
+                    duration: const Duration(milliseconds: 1000),
+                    builder: (context, value, child) {
+                      return Text(
+                        '+$value',
+                        style: const TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Plus tard'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.background,
+          ),
+          child: const Text('Voir le rapport'),
+        ),
+      ],
     );
   }
 }

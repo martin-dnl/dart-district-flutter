@@ -135,6 +135,14 @@ export class MatchesController {
     return this.matchesService.getMatchReport(id);
   }
 
+  @Get(':id/result-summary')
+  resultSummary(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.matchesService.getResultSummary(id, req.user.id);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.matchesService.findById(id);

@@ -9,6 +9,7 @@ import { Throw } from '../matches/entities/throw.entity';
 import { Match } from '../matches/entities/match.entity';
 import { ClubMember } from '../clubs/entities/club-member.entity';
 import { ClubTerritoryPoints } from '../clubs/entities/club-territory-points.entity';
+import { Territory } from '../territories/entities/territory.entity';
 
 const K_FACTOR = 32;
 
@@ -24,7 +25,14 @@ export class StatsService {
     private readonly clubMemberRepo: Repository<ClubMember>,
     @InjectRepository(ClubTerritoryPoints)
     private readonly ctpRepo: Repository<ClubTerritoryPoints>,
+    @InjectRepository(Territory)
+    private readonly territoryRepo: Repository<Territory>,
   ) {}
+
+  private readonly territoryControlMinPoints = Math.max(
+    1,
+    Number(process.env.TERRITORY_CONTROL_MIN_POINTS ?? 200),
+  );
 
   /* ── Player Stats ── */
 
@@ -208,6 +216,7 @@ export class StatsService {
     const pointsToAdd = Math.max(0, Math.floor(params.eloDelta ?? 0));
 
     if (pointsToAdd <= 0) {
+      await this.recalculateTerritoryControl(codeIris);
       return null;
     }
 
@@ -227,7 +236,53 @@ export class StatsService {
     }
 
     association.points += pointsToAdd;
-    return this.ctpRepo.save(association);
+    const saved = await this.ctpRepo.save(association);
+    await this.recalculateTerritoryControl(codeIris);
+    return saved;
+  }
+
+  private async recalculateTerritoryControl(codeIris: string) {
+    const territory = await this.territoryRepo.findOne({
+      where: { code_iris: codeIris },
+    });
+    if (!territory) {
+      return;
+    }
+
+    const rows = await this.ctpRepo.find({
+      where: { code_iris: codeIris },
+      order: { points: 'DESC' },
+    });
+
+    final eligible = rows.filter(
+      (row) => row.points >= this.territoryControlMinPoints,
+    );
+
+    if (eligible.isEmpty) {
+      territory.owner_club_id = null;
+      territory.status = 'available';
+      territory.conquered_at = null;
+      await this.territoryRepo.save(territory);
+      return;
+    }
+
+    const leader = eligible.first;
+    const second = eligible.length > 1 ? eligible[1] : null;
+    const isTie = second != null && second.points === leader.points;
+
+    if (isTie) {
+      territory.status = 'conflict';
+      await this.territoryRepo.save(territory);
+      return;
+    }
+
+    const ownerChanged = territory.owner_club_id !== leader.club_id;
+    territory.owner_club_id = leader.club_id;
+    territory.status = 'conquered';
+    if (ownerChanged) {
+      territory.conquered_at = new Date();
+    }
+    await this.territoryRepo.save(territory);
   }
 
   async getDartboardPeriods(userId: string) {

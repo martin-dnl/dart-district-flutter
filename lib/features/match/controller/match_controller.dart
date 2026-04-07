@@ -62,8 +62,41 @@ class MatchController extends StateNotifier<MatchModel> {
     final players = List<PlayerMatch>.from(state.players);
     final currentPlayer = players[state.currentPlayerIndex];
     final newScore = currentPlayer.score - score;
+    final bustOnDoubleOne = newScore == 1 && _isDoubleOutMode();
+
+    if (bustOnDoubleOne) {
+      final roundHistory = [
+        ...state.roundHistory,
+        RoundScore(
+          playerIndex: state.currentPlayerIndex,
+          round: state.currentRound,
+          darts: const [0],
+          total: 0,
+          isBust: true,
+          dartPositions: dartPositions ?? const [],
+        ),
+      ];
+      _applyTurnAdvance(players: players, roundHistory: roundHistory);
+      return;
+    }
 
     if (newScore < 0) {
+      final roundHistory = [
+        ...state.roundHistory,
+        RoundScore(
+          playerIndex: state.currentPlayerIndex,
+          round: state.currentRound,
+          darts: const [0],
+          total: 0,
+          isBust: true,
+          dartPositions: dartPositions ?? const [],
+        ),
+      ];
+      _applyTurnAdvance(players: players, roundHistory: roundHistory);
+      return;
+    }
+
+    if (newScore == 0 && !_isCheckoutAllowed(dartPositions, doublesAttempted)) {
       final roundHistory = [
         ...state.roundHistory,
         RoundScore(
@@ -296,6 +329,38 @@ class MatchController extends StateNotifier<MatchModel> {
   bool _isDoubleOutMode() {
     final normalized = state.finishType.toLowerCase();
     return normalized == 'doubleout' || normalized == 'double_out';
+  }
+
+  bool _isMasterOutMode() {
+    final normalized = state.finishType.toLowerCase();
+    return normalized == 'masterout' || normalized == 'master_out';
+  }
+
+  bool _isCheckoutAllowed(
+    List<DartPosition>? dartPositions,
+    int? doublesAttempted,
+  ) {
+    if (_isDoubleOutMode()) {
+      final lastLabel = dartPositions == null || dartPositions.isEmpty
+          ? null
+          : dartPositions.last.label?.toUpperCase();
+      if (lastLabel != null && lastLabel.isNotEmpty) {
+        return lastLabel.startsWith('D');
+      }
+      return (doublesAttempted ?? 0) > 0;
+    }
+
+    if (_isMasterOutMode()) {
+      final lastLabel = dartPositions == null || dartPositions.isEmpty
+          ? null
+          : dartPositions.last.label?.toUpperCase();
+      if (lastLabel != null && lastLabel.isNotEmpty) {
+        return lastLabel.startsWith('D') || lastLabel.startsWith('T');
+      }
+      return true;
+    }
+
+    return true;
   }
 
   double _computePlayerAverage(int playerIndex, List<RoundScore> history) {

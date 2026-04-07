@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/network/api_providers.dart';
+import '../../auth/controller/auth_controller.dart';
 import '../models/club_model.dart';
 import '../widgets/member_list_tile.dart';
 
@@ -24,6 +25,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
   String? _error;
   ClubModel? _club;
   List<Map<String, dynamic>> _tournaments = const [];
+  bool _isMutatingMembership = false;
 
   double? _toDouble(dynamic value) {
     if (value is num) return value.toDouble();
@@ -88,9 +90,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
       final payload = clubResponse.data;
       final clubData = payload is Map
           ? ((payload['data'] is Map)
-              ? (payload['data'] as Map)
-                  .map((k, v) => MapEntry(k.toString(), v))
-              : payload.map((k, v) => MapEntry(k.toString(), v)))
+                ? (payload['data'] as Map).map(
+                    (k, v) => MapEntry(k.toString(), v),
+                  )
+                : payload.map((k, v) => MapEntry(k.toString(), v)))
           : <String, dynamic>{};
 
       if (clubData.isEmpty) {
@@ -170,6 +173,124 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
     await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _joinClub() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || user.isGuest || _isMutatingMembership) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Rejoindre le club'),
+        content: Text('Voulez-vous rejoindre ${_club?.name ?? 'ce club'} ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _isMutatingMembership = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.post<Map<String, dynamic>>(
+        '/clubs/${widget.id}/members',
+        data: {'user_id': user.id, 'role': 'player'},
+      );
+      await ref.read(authControllerProvider.notifier).refreshCurrentUser();
+      await _load();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Club rejoint avec succes.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de rejoindre ce club.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isMutatingMembership = false);
+      }
+    }
+  }
+
+  Future<void> _leaveClub() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || _isMutatingMembership) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Quitter le club'),
+        content: Text(
+          'Voulez-vous vraiment quitter ${_club?.name ?? 'ce club'} ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Quitter'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _isMutatingMembership = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.delete<Map<String, dynamic>>(
+        '/clubs/${widget.id}/members/${user.id}',
+      );
+      await ref.read(authControllerProvider.notifier).refreshCurrentUser();
+      await _load();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vous avez quitte le club.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de quitter ce club.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isMutatingMembership = false);
+      }
+    }
+  }
+
   List<ClubMember> _sortedMembers() {
     final members = [...?_club?.members];
     int rankForRole(String role) {
@@ -215,6 +336,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
     }
 
     final club = _club!;
+    final currentUser = ref.watch(currentUserProvider);
     final address = [
       club.address,
       club.postalCode,
@@ -222,10 +344,57 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
       club.country,
     ].whereType<String>().where((value) => value.isNotEmpty).join(', ');
     final members = _sortedMembers();
+    ClubMember? currentMember;
+    for (final member in members) {
+      if (member.id == currentUser?.id) {
+        currentMember = member;
+        break;
+      }
+    }
+    final isGuest = currentUser?.isGuest ?? true;
+    final hasNoClub = (currentUser?.clubId ?? '').isEmpty;
+    final isMemberOfThisClub =
+        currentUser != null && currentUser.clubId == club.id;
+    final isPresident =
+        (currentMember?.role.toLowerCase() ?? '') == 'president';
+    final canJoin = !isGuest && hasNoClub;
+    final canLeave = isMemberOfThisClub && !isPresident;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Club')),
+      appBar: AppBar(
+        title: const Text('Club'),
+        actions: [
+          if (canLeave)
+            IconButton(
+              onPressed: _isMutatingMembership ? null : _leaveClub,
+              icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+              tooltip: 'Quitter le club',
+            ),
+        ],
+      ),
+      bottomNavigationBar: canJoin
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isMutatingMembership ? null : _joinClub,
+                    icon: _isMutatingMembership
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.group_add_rounded),
+                    label: const Text('Rejoindre ce club'),
+                  ),
+                ),
+              ),
+            )
+          : null,
       body: Column(
         children: [
           Container(
@@ -269,7 +438,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
                   spacing: 10,
                   runSpacing: 8,
                   children: [
-                    _chip(Icons.track_changes, '${club.dartBoardsCount} cibles'),
+                    _chip(
+                      Icons.track_changes,
+                      '${club.dartBoardsCount} cibles',
+                    ),
                     _chip(Icons.emoji_events, 'Rang #${club.rank}'),
                     _chip(Icons.map, '${club.zonesControlled} zones'),
                     _chip(Icons.people_alt, '${club.memberCount} membres'),
@@ -308,11 +480,19 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final tournament = _tournaments[index];
-                          final name = (tournament['name'] ?? 'Tournoi').toString();
-                          final mode = (tournament['mode'] ?? tournament['format'] ?? '-').toString();
-                          final status = (tournament['status'] ?? '-').toString();
+                          final name = (tournament['name'] ?? 'Tournoi')
+                              .toString();
+                          final mode =
+                              (tournament['mode'] ??
+                                      tournament['format'] ??
+                                      '-')
+                                  .toString();
+                          final status = (tournament['status'] ?? '-')
+                              .toString();
                           final participants =
-                              (tournament['participants_count'] as num?)?.toInt() ?? 0;
+                              (tournament['participants_count'] as num?)
+                                  ?.toInt() ??
+                              0;
 
                           return Container(
                             padding: const EdgeInsets.all(12),

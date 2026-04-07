@@ -71,7 +71,8 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
             ? contacts.selectedFriend
             : null);
 
-    if (_isSpecialMode && (_isRanked || _isTerritorial || _territoryClub != null)) {
+    if (_isSpecialMode &&
+        (_isRanked || _isTerritorial || _territoryClub != null)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
@@ -395,6 +396,14 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                     },
                     onPlus: () => setState(() => _setsToWin++),
                   ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Format: premier a $_setsToWin set(s) (FT$_setsToWin)',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                 ],
                 const Text(
@@ -478,7 +487,8 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
         return true;
       case GameStartOption.inviteFriend:
       case GameStartOption.scanQr:
-        return selectedOpponent != null && (!_isTerritorial || _territoryClub != null);
+        return selectedOpponent != null &&
+            (!_isTerritorial || _territoryClub != null);
     }
   }
 
@@ -585,7 +595,9 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
 
     if (_startOption == GameStartOption.guest) {
       if (_isCricketMode) {
-        ref.read(cricketMatchControllerProvider.notifier).setupMatch(
+        ref
+            .read(cricketMatchControllerProvider.notifier)
+            .setupMatch(
               playerNames: [currentUserName, opponentName],
               setsToWin: _setsToWin,
               legsPerSet: _legsPerSet,
@@ -598,7 +610,9 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
       }
 
       if (_isChasseurMode) {
-        ref.read(chasseurMatchControllerProvider.notifier).setupMatch(
+        ref
+            .read(chasseurMatchControllerProvider.notifier)
+            .setupMatch(
               playerNames: [currentUserName, opponentName],
               startingPlayerIndex: _startingPlayerIndex,
             );
@@ -647,9 +661,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
 
       if (currentUser.clubId != null &&
           currentUser.clubId == selectedOpponent.clubId) {
-        _showTerritoryError(
-          'Les deux joueurs appartiennent au meme club.',
-        );
+        _showTerritoryError('Les deux joueurs appartiennent au meme club.');
         return;
       }
 

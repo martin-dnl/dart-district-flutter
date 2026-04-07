@@ -22,6 +22,7 @@ import '../widgets/dart_input.dart';
 import '../widgets/dartboard_input.dart';
 import '../widgets/tempo_zone_input.dart';
 import '../widgets/round_details.dart';
+import '../widgets/match_end_modal.dart';
 
 class MatchLiveScreen extends ConsumerStatefulWidget {
   const MatchLiveScreen({super.key});
@@ -646,7 +647,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     final shouldOpenReport = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _MatchEndResultDialog(matchId: match.id),
+      builder: (ctx) => MatchEndResultDialog(matchId: match.id),
     );
 
     if (!mounted) {
@@ -710,7 +711,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          '${match.mode} / ${match.setsToWin} Sets / ${match.legsPerSet} Legs',
+          '${match.mode} / FT${match.setsToWin} sets / BO${match.legsPerSet} legs',
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -906,209 +907,6 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MatchResultSummary {
-  const _MatchResultSummary({
-    required this.isWinner,
-    required this.eloBefore,
-    required this.eloAfter,
-    required this.eloDelta,
-    required this.territoryPointsGained,
-    required this.territoryName,
-    required this.isRanked,
-    required this.isTerritorial,
-  });
-
-  final bool isWinner;
-  final int eloBefore;
-  final int eloAfter;
-  final int eloDelta;
-  final int territoryPointsGained;
-  final String? territoryName;
-  final bool isRanked;
-  final bool isTerritorial;
-
-  factory _MatchResultSummary.fromJson(Map<String, dynamic> json) {
-    int asInt(dynamic value) {
-      if (value is num) {
-        return value.toInt();
-      }
-      if (value is String) {
-        return int.tryParse(value) ?? 0;
-      }
-      return 0;
-    }
-
-    return _MatchResultSummary(
-      isWinner: json['is_winner'] == true,
-      eloBefore: asInt(json['elo_before']),
-      eloAfter: asInt(json['elo_after']),
-      eloDelta: asInt(json['elo_delta']),
-      territoryPointsGained: asInt(json['territory_points_gained']),
-      territoryName: json['territory_name']?.toString(),
-      isRanked: json['is_ranked'] == true,
-      isTerritorial: json['is_territorial'] == true,
-    );
-  }
-}
-
-class _MatchEndResultDialog extends ConsumerWidget {
-  const _MatchEndResultDialog({required this.matchId});
-
-  final String matchId;
-
-  Future<_MatchResultSummary?> _loadSummary(WidgetRef ref) async {
-    try {
-      final api = ref.read(apiClientProvider);
-      final response = await api.get<Map<String, dynamic>>(
-        '/matches/$matchId/result-summary',
-      );
-      final raw = response.data ?? const <String, dynamic>{};
-      final data = raw['data'] is Map<String, dynamic>
-          ? raw['data'] as Map<String, dynamic>
-          : raw;
-      return _MatchResultSummary.fromJson(data);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text(
-        'Match termine',
-        style: TextStyle(color: AppColors.textPrimary),
-      ),
-      content: FutureBuilder<_MatchResultSummary?>(
-        future: _loadSummary(ref),
-        builder: (context, snapshot) {
-          final summary = snapshot.data;
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const SizedBox(
-              height: 80,
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            );
-          }
-
-          if (summary == null) {
-            return const Text(
-              'Consulter le rapport de match ? ',
-              style: TextStyle(color: AppColors.textSecondary),
-            );
-          }
-
-          final eloColor = summary.eloDelta > 0
-              ? AppColors.primary
-              : (summary.eloDelta < 0
-                    ? Colors.redAccent
-                    : AppColors.textSecondary);
-
-          return SizedBox(
-            width: 320,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  summary.isWinner ? 'Victoire' : 'Defaite',
-                  style: TextStyle(
-                    color: summary.isWinner
-                        ? AppColors.primary
-                        : Colors.redAccent,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (summary.isRanked) ...[
-                  const Text(
-                    'ELO',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  TweenAnimationBuilder<int>(
-                    tween: IntTween(
-                      begin: summary.eloBefore,
-                      end: summary.eloAfter,
-                    ),
-                    duration: const Duration(milliseconds: 1400),
-                    builder: (context, value, child) {
-                      return Text(
-                        '$value',
-                        style: TextStyle(
-                          color: eloColor,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      );
-                    },
-                  ),
-                  Text(
-                    '${summary.eloDelta >= 0 ? '+' : ''}${summary.eloDelta}',
-                    style: TextStyle(
-                      color: eloColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-                if (summary.isRanked &&
-                    summary.isTerritorial &&
-                    summary.territoryPointsGained > 0) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Points club${summary.territoryName == null ? '' : ' - ${summary.territoryName}'}',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  TweenAnimationBuilder<int>(
-                    tween: IntTween(
-                      begin: 0,
-                      end: summary.territoryPointsGained,
-                    ),
-                    duration: const Duration(milliseconds: 1000),
-                    builder: (context, value, child) {
-                      return Text(
-                        '+$value',
-                        style: const TextStyle(
-                          color: AppColors.accent,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Plus tard'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.background,
-          ),
-          child: const Text('Voir le rapport'),
-        ),
-      ],
     );
   }
 }

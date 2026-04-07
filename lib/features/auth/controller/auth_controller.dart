@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../../core/config/app_constants.dart';
 import '../../../core/database/local_storage.dart';
@@ -61,8 +62,11 @@ class AuthController extends StateNotifier<AuthState> {
     _unauthorizedSub = ApiClient.unauthorizedStream.listen((_) {
       state = const AuthState(status: AuthStatus.unauthenticated);
     });
-    _syncTicker = Timer.periodic(const Duration(seconds: 20), (_) {
-      _syncPendingSettingsSilently();
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((event) {
+      final hasNetwork = event.any((item) => item != ConnectivityResult.none);
+      if (hasNetwork) {
+        _syncPendingSettingsSilently();
+      }
     });
     restoreSession();
   }
@@ -70,7 +74,7 @@ class AuthController extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   final ApiClient _apiClient;
   StreamSubscription<void>? _unauthorizedSub;
-  Timer? _syncTicker;
+  StreamSubscription<dynamic>? _connectivitySub;
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _settingsBox = 'settings';
   static const String _scoreModeLocalKey = 'score_mode';
@@ -598,7 +602,7 @@ class AuthController extends StateNotifier<AuthState> {
   @override
   void dispose() {
     _unauthorizedSub?.cancel();
-    _syncTicker?.cancel();
+    _connectivitySub?.cancel();
     super.dispose();
   }
 }

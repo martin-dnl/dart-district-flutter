@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -50,12 +51,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) async {
-        await _loadVisitorProfileIfNeeded();
-        await _refreshProfileData();
-      },
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadVisitorProfileIfNeeded();
+      await _refreshProfileData();
+    });
   }
 
   @override
@@ -143,11 +142,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    final picked = await _imagePicker.pickImage(
-      source: source,
-      maxWidth: 1200,
-      imageQuality: 88,
-    );
+    XFile? picked;
+    try {
+      picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        imageQuality: 88,
+      );
+    } on PlatformException catch (error) {
+      // Some Android devices report picker cancel as an exception.
+      final code = error.code.toLowerCase();
+      final message = (error.message ?? '').toLowerCase();
+      if (code.contains('cancel') || message.contains('cancel')) {
+        return;
+      }
+      rethrow;
+    }
 
     if (picked == null || !mounted) {
       return;
@@ -329,303 +339,310 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-              // Profile header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          if (isOwnProfile && !(currentUser?.isGuest ?? false))
-                            IconButton(
-                              onPressed: _showMyQrCode,
-                              icon: const Icon(
-                                Icons.qr_code_2,
-                                color: AppColors.textSecondary,
-                              ),
-                            )
-                          else
-                            const SizedBox(width: 48),
-                          const Spacer(),
-                          if (isOwnProfile)
-                            IconButton(
-                              onPressed: () => context.push(AppRoutes.settings),
-                              icon: const Icon(
-                                Icons.settings_outlined,
-                                color: AppColors.textSecondary,
-                              ),
-                            )
-                          else ...[
-                            if (!_isFriend)
+                // Profile header
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            if (isOwnProfile &&
+                                !(currentUser?.isGuest ?? false))
+                              IconButton(
+                                onPressed: _showMyQrCode,
+                                icon: const Icon(
+                                  Icons.qr_code_2,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            else
+                              const SizedBox(width: 48),
+                            const Spacer(),
+                            if (isOwnProfile)
+                              IconButton(
+                                onPressed: () =>
+                                    context.push(AppRoutes.settings),
+                                icon: const Icon(
+                                  Icons.settings_outlined,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            else ...[
+                              if (!_isFriend)
+                                IconButton(
+                                  onPressed:
+                                      _isBlocked || _isMutatingVisitorAction
+                                      ? null
+                                      : () => _handleVisitorBlock(user!),
+                                  icon: const Icon(
+                                    Icons.block,
+                                    color: AppColors.error,
+                                  ),
+                                  tooltip: 'Bloquer',
+                                ),
                               IconButton(
                                 onPressed:
                                     _isBlocked || _isMutatingVisitorAction
                                     ? null
-                                    : () => _handleVisitorBlock(user!),
-                                icon: const Icon(
-                                  Icons.block,
-                                  color: AppColors.error,
+                                    : () => _handleVisitorFriendAction(user!),
+                                icon: Icon(
+                                  _isFriend
+                                      ? Icons.person_remove
+                                      : Icons.person_add,
+                                  color: _isFriend
+                                      ? AppColors.error
+                                      : AppColors.primary,
                                 ),
-                                tooltip: 'Bloquer',
+                                tooltip: _isFriend
+                                    ? 'Retirer ami'
+                                    : (_hasPendingRequest
+                                          ? 'Demande envoyee'
+                                          : 'Ajouter ami'),
                               ),
-                            IconButton(
-                              onPressed: _isBlocked || _isMutatingVisitorAction
-                                  ? null
-                                  : () => _handleVisitorFriendAction(user!),
-                              icon: Icon(
-                                _isFriend
-                                    ? Icons.person_remove
-                                    : Icons.person_add,
-                                color: _isFriend
-                                    ? AppColors.error
-                                    : AppColors.primary,
-                              ),
-                              tooltip: _isFriend
-                                  ? 'Retirer ami'
-                                  : (_hasPendingRequest
-                                        ? 'Demande envoyee'
-                                        : 'Ajouter ami'),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
+                        ),
 
-                      GestureDetector(
-                        onTap: isOwnProfile ? _changeAvatar : null,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            PlayerAvatar(
-                              name: user?.username ?? 'Joueur',
-                              imageUrl: user?.avatarUrl,
-                              size: 90,
-                              showBorder: true,
-                            ),
-                            if (isOwnProfile)
-                              Positioned(
-                                right: -2,
-                                bottom: -2,
-                                child: Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppColors.surface,
-                                    border: Border.all(
-                                      color: AppColors.stroke,
-                                      width: 1.2,
+                        GestureDetector(
+                          onTap: isOwnProfile ? _changeAvatar : null,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              PlayerAvatar(
+                                name: user?.username ?? 'Joueur',
+                                imageUrl: user?.avatarUrl,
+                                size: 90,
+                                showBorder: true,
+                              ),
+                              if (isOwnProfile)
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppColors.surface,
+                                      border: Border.all(
+                                        color: AppColors.stroke,
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.photo_camera,
+                                      size: 15,
+                                      color: AppColors.primary,
                                     ),
                                   ),
-                                  child: const Icon(
-                                    Icons.photo_camera,
-                                    size: 15,
-                                    color: AppColors.primary,
-                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
+                        const SizedBox(height: 14),
 
-                      // Username
-                      Text(
-                        user?.username ?? 'Joueur',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isOwnProfile ? (user?.email ?? '') : '',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      if (user?.clubName != null) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
+                        // Username
+                        Text(
+                          user?.username ?? 'Joueur',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
                           ),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isOwnProfile ? (user?.email ?? '') : '',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
                           ),
-                          child: Text(
-                            user!.clubName!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.secondary,
+                        ),
+                        if (user?.clubName != null) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
                             ),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withValues(
+                                alpha: 0.15,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              user!.clubName!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Stats cards
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: StatCard(
+                            label: 'ELO',
+                            value: '${user?.elo ?? 1000}',
+                            icon: Icons.trending_up,
+                            valueColor: AppColors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatCard(
+                            label: 'Victoires',
+                            value: '${user?.stats.matchesWon ?? 0}',
+                            icon: Icons.emoji_events,
+                            valueColor: AppColors.success,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatCard(
+                            label: 'Defaites',
+                            value: '$losses',
+                            icon: Icons.close,
+                            valueColor: AppColors.error,
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-              ),
-
-              // Stats cards
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: StatCard(
-                          label: 'ELO',
-                          value: '${user?.elo ?? 1000}',
-                          icon: Icons.trending_up,
-                          valueColor: AppColors.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: StatCard(
-                          label: 'Victoires',
-                          value: '${user?.stats.matchesWon ?? 0}',
-                          icon: Icons.emoji_events,
-                          valueColor: AppColors.success,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: StatCard(
-                          label: 'Defaites',
-                          value: '$losses',
-                          icon: Icons.close,
-                          valueColor: AppColors.error,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: StatCard(
-                          label: 'Moyenne',
-                          value:
-                              user?.stats.averageScore.toStringAsFixed(1) ??
-                              '0',
-                          icon: Icons.analytics,
-                          valueColor: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: StatCard(
-                          label: 'Checkout',
-                          value:
-                              '${user?.stats.checkoutRate.toStringAsFixed(0) ?? 0}%',
-                          icon: Icons.check_circle,
-                          valueColor: AppColors.secondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: StatCard(
-                          label: '180s',
-                          value: '${user?.stats.highest180s ?? 0}',
-                          icon: Icons.stars,
-                          valueColor: AppColors.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: StatCard(
-                          label: '140+',
-                          value: '${user?.stats.count140Plus ?? 0}',
-                          icon: Icons.local_fire_department,
-                          valueColor: AppColors.warning,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: StatCard(
-                          label: '100+',
-                          value: '${user?.stats.count100Plus ?? 0}',
-                          icon: Icons.bolt,
-                          valueColor: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 12)),
-              SliverToBoxAdapter(
-                child: PrecisionSection(userId: isOwnProfile ? null : user?.id),
-              ),
-
-              if (isOwnProfile)
-                const SliverToBoxAdapter(
-                  child: SectionHeader(title: 'Progression ELO'),
-                ),
-              if (isOwnProfile)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: EloChart(eloHistory: profileState.eloHistory),
-                  ),
-                ),
-
-              if (isOwnProfile)
-                SliverToBoxAdapter(
-                  child: SectionHeader(
-                    title: 'Badges',
-                    actionText: 'Voir tout',
-                    onAction: () => context.push(AppRoutes.badges),
-                  ),
-                ),
-              if (isOwnProfile)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: BadgeGrid(
-                      badges: profileState.badges,
-                      maxDisplay: 4,
                     ),
                   ),
                 ),
-
-              if (isOwnProfile)
-                const SliverToBoxAdapter(
-                  child: SectionHeader(title: 'Historique des matchs'),
-                ),
-              if (isOwnProfile)
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: MatchHistoryList(
-                      matches: recentMatches,
-                      onMatchTap: (matchId) =>
-                          context.push('/match/$matchId/report'),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: StatCard(
+                            label: 'Moyenne',
+                            value:
+                                user?.stats.averageScore.toStringAsFixed(1) ??
+                                '0',
+                            icon: Icons.analytics,
+                            valueColor: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatCard(
+                            label: 'Checkout',
+                            value:
+                                '${user?.stats.checkoutRate.toStringAsFixed(0) ?? 0}%',
+                            icon: Icons.check_circle,
+                            valueColor: AppColors.secondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: StatCard(
+                            label: '180s',
+                            value: '${user?.stats.highest180s ?? 0}',
+                            icon: Icons.stars,
+                            valueColor: AppColors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatCard(
+                            label: '140+',
+                            value: '${user?.stats.count140Plus ?? 0}',
+                            icon: Icons.local_fire_department,
+                            valueColor: AppColors.warning,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatCard(
+                            label: '100+',
+                            value: '${user?.stats.count100Plus ?? 0}',
+                            icon: Icons.bolt,
+                            valueColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                SliverToBoxAdapter(
+                  child: PrecisionSection(
+                    userId: isOwnProfile ? null : user?.id,
+                  ),
+                ),
+
+                if (isOwnProfile)
+                  const SliverToBoxAdapter(
+                    child: SectionHeader(title: 'Progression ELO'),
+                  ),
+                if (isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: EloChart(eloHistory: profileState.eloHistory),
+                    ),
+                  ),
+
+                if (isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: SectionHeader(
+                      title: 'Badges',
+                      actionText: 'Voir tout',
+                      onAction: () => context.push(AppRoutes.badges),
+                    ),
+                  ),
+                if (isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: BadgeGrid(
+                        badges: profileState.badges,
+                        maxDisplay: 4,
+                      ),
+                    ),
+                  ),
+
+                if (isOwnProfile)
+                  const SliverToBoxAdapter(
+                    child: SectionHeader(title: 'Historique des matchs'),
+                  ),
+                if (isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: MatchHistoryList(
+                        matches: recentMatches,
+                        onMatchTap: (matchId) =>
+                            context.push('/match/$matchId/report'),
+                      ),
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
             ),
           ),

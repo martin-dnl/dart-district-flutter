@@ -254,11 +254,11 @@ export class StatsService {
       order: { points: 'DESC' },
     });
 
-    final eligible = rows.filter(
+    const eligible = rows.filter(
       (row) => row.points >= this.territoryControlMinPoints,
     );
 
-    if (eligible.isEmpty) {
+    if (eligible.length === 0) {
       territory.owner_club_id = null;
       territory.status = 'available';
       territory.conquered_at = null;
@@ -266,7 +266,7 @@ export class StatsService {
       return;
     }
 
-    const leader = eligible.first;
+    const leader = eligible[0];
     const second = eligible.length > 1 ? eligible[1] : null;
     const isTie = second != null && second.points === leader.points;
 

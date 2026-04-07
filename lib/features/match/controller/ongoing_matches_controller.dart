@@ -106,11 +106,7 @@ class OngoingMatchesController extends StateNotifier<OngoingMatchesState> {
     final matchIndex = state.matches.indexWhere((m) => m.id == updatedMatch.id);
     if (matchIndex >= 0) {
       final updated = [...state.matches];
-      if (updatedMatch.status == MatchStatus.inProgress) {
-        updated[matchIndex] = updatedMatch;
-      } else {
-        updated.removeAt(matchIndex);
-      }
+      updated[matchIndex] = updatedMatch;
       state = state.copyWith(matches: updated);
     }
 
@@ -141,13 +137,21 @@ class OngoingMatchesController extends StateNotifier<OngoingMatchesState> {
       final alreadyTracked = state.matches.any((m) => m.id == updatedMatch.id);
       state = state.copyWith(
         matches:
-            updatedMatch.status == MatchStatus.inProgress &&
-                updatedMatch.invitationStatus == InvitationStatus.accepted &&
+            updatedMatch.invitationStatus == InvitationStatus.accepted &&
                 !alreadyTracked
             ? [...state.matches, updatedMatch]
             : state.matches,
         lastInvitationResponse: updatedMatch,
       );
+      return;
+    }
+
+    final isParticipant =
+        updatedMatch.inviterId == currentUserId ||
+        updatedMatch.inviteeId == currentUserId;
+    final alreadyTracked = state.matches.any((m) => m.id == updatedMatch.id);
+    if (isParticipant && !alreadyTracked) {
+      state = state.copyWith(matches: [...state.matches, updatedMatch]);
     }
   }
 

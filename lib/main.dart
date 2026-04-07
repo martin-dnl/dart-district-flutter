@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +10,36 @@ import 'core/database/local_storage.dart';
 import 'core/version/version_gate.dart';
 import 'features/match/widgets/match_invitation_overlay.dart';
 
+bool _isBenignMapCancellation(Object error, StackTrace stackTrace) {
+  final errorText = error.toString().toLowerCase();
+  final stackText = stackTrace.toString().toLowerCase();
+
+  final isCancelled = errorText.contains('cancelled');
+  final fromVectorTiles =
+      stackText.contains('vector_map_tiles') ||
+      stackText.contains('executor_lib/src/isolate_executor.dart') ||
+      stackText.contains('executor_lib/src/pool_executor.dart');
+
+  return isCancelled && fromVectorTiles;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final stack = details.stack ?? StackTrace.current;
+    if (_isBenignMapCancellation(details.exception, stack)) {
+      return;
+    }
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    if (_isBenignMapCancellation(error, stackTrace)) {
+      return true;
+    }
+    return false;
+  };
 
   // Lock portrait orientation
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);

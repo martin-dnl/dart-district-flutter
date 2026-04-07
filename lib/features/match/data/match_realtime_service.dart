@@ -30,16 +30,33 @@ class MatchRealtimeService {
       return;
     }
 
+    if (_socket != null && _connectedUserId == userId) {
+      return;
+    }
+
+    _socket?.dispose();
+    _socket = null;
+
     _connectedUserId = userId;
-    final baseUri = Uri.parse(AppConstants.apiBaseUrl);
+    final wsUri = Uri.parse(AppConstants.wsBaseUrl);
+    final socketScheme = wsUri.scheme == 'wss'
+        ? 'https'
+        : (wsUri.scheme == 'ws' ? 'http' : wsUri.scheme);
     final origin =
-        '${baseUri.scheme}://${baseUri.host}${baseUri.hasPort ? ':${baseUri.port}' : ''}';
+        '$socketScheme://${wsUri.host}${wsUri.hasPort ? ':${wsUri.port}' : ''}';
+    final wsBasePath = wsUri.path.isEmpty || wsUri.path == '/'
+        ? '/ws'
+        : wsUri.path;
+    final namespace = '$wsBasePath/system';
 
     _socket = io.io(
-      '$origin/ws/system',
+      '$origin$namespace',
       io.OptionBuilder()
-          .setTransports(['websocket'])
+          .setTransports(['websocket', 'polling'])
           .setPath('/socket.io')
+          .setReconnectionAttempts(999)
+          .setReconnectionDelay(1500)
+          .setTimeout(10000)
           .enableAutoConnect()
           .build(),
     );
@@ -51,6 +68,11 @@ class MatchRealtimeService {
     });
 
     _socket?.onDisconnect((_) {
+      _isConnected = false;
+      _connectionStreamController.add(false);
+    });
+
+    _socket?.onConnectError((_) {
       _isConnected = false;
       _connectionStreamController.add(false);
     });
@@ -74,6 +96,8 @@ class MatchRealtimeService {
       final match = _matchFromSocket(data);
       _scoreUpdateStreamController.add(match);
     });
+
+    _socket?.connect();
   }
 
   void sendScore({
@@ -166,6 +190,11 @@ class MatchRealtimeService {
       setsToWin: (data['sets_to_win'] as num?)?.toInt() ?? 1,
       legsPerSet: (data['legs_per_set'] as num?)?.toInt() ?? 3,
       finishType: (data['finish_type'] ?? 'doubleOut').toString(),
+      isRanked: (data['is_ranked'] as bool?) ?? true,
+      isTerritorial: (data['is_territorial'] as bool?) ?? false,
+      territoryClubId: (data['territory_club_id'] as String?),
+      territoryCodeIris: (data['territory_code_iris'] as String?),
+      abandonedByIndex: (data['abandoned_by_index'] as num?)?.toInt(),
     );
   }
 
@@ -176,6 +205,8 @@ class MatchRealtimeService {
       case 'inProgress':
       case 'in_progress':
         return MatchStatus.inProgress;
+      case 'completed':
+      case 'cancelled':
       case 'finished':
         return MatchStatus.finished;
       default:

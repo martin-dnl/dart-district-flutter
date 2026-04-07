@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_colors.dart';
 import '../../core/config/app_routes.dart';
+import '../../core/network/connectivity_status.dart';
 import '../../features/auth/controller/auth_controller.dart';
 import '../../features/contacts/controller/contacts_controller.dart';
 import '../../features/match/controller/ongoing_matches_controller.dart';
@@ -50,7 +51,13 @@ class AppScaffold extends ConsumerWidget {
     final location = GoRouterState.of(context).uri.path;
     final user = ref.watch(currentUserProvider);
     final unreadContacts = ref.watch(contactsUnreadCountProvider);
-    final ongoingMatchCount = ref.watch(ongoingMatchesControllerProvider).matches.length;
+    final ongoingMatchCount = ref
+        .watch(ongoingMatchesControllerProvider)
+        .matches
+        .length;
+    final isOffline = ref
+        .watch(isOfflineProvider)
+        .maybeWhen(data: (value) => value, orElse: () => false);
     final showPageHeader = _shouldShowPageHeader(location);
     final pageTitle = _pageTitle(location);
 
@@ -117,6 +124,43 @@ class AppScaffold extends ConsumerWidget {
                 ),
               ),
             Expanded(child: child),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              height: isOffline ? 34 : 0,
+              curve: Curves.easeOutCubic,
+              width: double.infinity,
+              child: isOffline
+                  ? Container(
+                      margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.55),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            color: AppColors.warning,
+                            size: 15,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Mode hors ligne',
+                            style: TextStyle(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),

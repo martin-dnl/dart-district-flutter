@@ -4,6 +4,8 @@ class UserModel {
   final String? email;
   final String? avatarUrl;
   final int elo;
+  final int conquestScore;
+  final String preferredLanguage;
   final String? clubId;
   final String? clubName;
   final bool isAdmin;
@@ -16,6 +18,8 @@ class UserModel {
     this.email,
     this.avatarUrl,
     this.elo = 1000,
+    this.conquestScore = 0,
+    this.preferredLanguage = 'fr-FR',
     this.clubId,
     this.clubName,
     this.isAdmin = false,
@@ -48,6 +52,8 @@ class UserModel {
       email: json['email'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
       elo: json['elo'] as int? ?? 1000,
+      conquestScore: json['conquestScore'] as int? ?? 0,
+      preferredLanguage: (json['preferredLanguage'] ?? 'fr-FR').toString(),
       clubId: json['clubId'] as String?,
       clubName: json['clubName'] as String?,
       isAdmin: json['isAdmin'] as bool? ?? false,
@@ -72,6 +78,8 @@ class UserModel {
       email: json['email'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       elo: (json['elo'] as num?)?.toInt() ?? 1000,
+      conquestScore: (json['conquest_score'] as num?)?.toInt() ?? 0,
+      preferredLanguage: (json['preferred_language'] ?? 'fr-FR').toString(),
       clubId: club?['id'] as String?,
       clubName: club?['name'] as String?,
       isAdmin: json['is_admin'] as bool? ?? false,
@@ -88,6 +96,8 @@ class UserModel {
     'email': email,
     'avatarUrl': avatarUrl,
     'elo': elo,
+    'conquestScore': conquestScore,
+    'preferredLanguage': preferredLanguage,
     'clubId': clubId,
     'clubName': clubName,
     'isAdmin': isAdmin,

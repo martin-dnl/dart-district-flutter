@@ -53,6 +53,11 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     return normalized == 'doubleout' || normalized == 'double_out';
   }
 
+  bool _isMasterOut(String finishType) {
+    final normalized = finishType.toLowerCase();
+    return normalized == 'masterout' || normalized == 'master_out';
+  }
+
   bool _isX01Mode(String mode) {
     return mode == '301' || mode == '501' || mode == '701';
   }
@@ -289,9 +294,10 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
         remainingAfterThrow >= 0 && score > 0 && score <= currentPlayer.score;
     int? doublesAttempted = forcedDoublesAttempted;
 
-    final isDoubleOutCheckout =
-        _isDoubleOut(match.finishType) && score == currentPlayer.score;
-    if (isDoubleOutCheckout && doublesAttempted == null) {
+    final isCheckoutWithAttempts =
+        (_isDoubleOut(match.finishType) || _isMasterOut(match.finishType)) &&
+        score == currentPlayer.score;
+    if (isCheckoutWithAttempts && doublesAttempted == null) {
       doublesAttempted = await _askDoubleAttempts();
       if (doublesAttempted == null) {
         return;
@@ -643,6 +649,9 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     _didShowEndDialog = true;
 
     await _refreshPostMatchState();
+    if (!mounted) {
+      return;
+    }
 
     final shouldOpenReport = await showDialog<bool>(
       context: context,
@@ -932,6 +941,11 @@ class _X01GuidelineTabState extends State<_X01GuidelineTab> {
     return normalized == 'doubleout' || normalized == 'double_out';
   }
 
+  bool get _isMasterOut {
+    final normalized = widget.match.finishType.toLowerCase();
+    return normalized == 'masterout' || normalized == 'master_out';
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = widget.match.players[widget.currentPlayerIndex];
@@ -943,8 +957,8 @@ class _X01GuidelineTabState extends State<_X01GuidelineTab> {
       hint = 'Leg termine.';
     } else if (score > 170) {
       hint = 'Pas de finish direct, posez-vous pour un checkout.';
-    } else if (_isDoubleOut && score == 1) {
-      hint = 'Impossible en double-out a 1 restant.';
+    } else if ((_isDoubleOut || _isMasterOut) && score == 1) {
+      hint = 'Impossible en finish double/master-out a 1 restant.';
     } else if (checkout != null) {
       hint = 'Checkout recommande: $checkout';
     } else {

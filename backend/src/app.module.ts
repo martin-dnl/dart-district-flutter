@@ -18,6 +18,7 @@ import { QrModule } from './modules/qr/qr.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { AppVersionModule } from './modules/app_version/app-version.module';
 import { BadgesModule } from './modules/badges/badges.module';
+import { I18nModule } from './modules/i18n/i18n.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { BadgesModule } from './modules/badges/badges.module';
     ContactsModule,
     AppVersionModule,
     BadgesModule,
+    I18nModule,
   ],
   providers: [
     {

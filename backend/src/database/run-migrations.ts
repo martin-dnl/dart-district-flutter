@@ -50,7 +50,13 @@ async function resolveMigrationFiles(sqlDir: string): Promise<string[]> {
     return explicitFiles.map((file) => path.resolve(sqlDir, file));
   }
 
-  return [path.resolve(sqlDir, '006_iris_territories_refactor.sql')];
+  const entries = await readdir(sqlDir, { withFileTypes: true });
+  const migrationFiles = entries
+    .filter((entry) => entry.isFile() && /^\d{3}_.+\.sql$/i.test(entry.name))
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b, 'en'));
+
+  return migrationFiles.map((file) => path.resolve(sqlDir, file));
 }
 
 async function main() {

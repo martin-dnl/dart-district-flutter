@@ -47,6 +47,35 @@ class Scoreboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (players.length > 2) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: players.asMap().entries.map((entry) {
+            final index = entry.key;
+            final player = entry.value;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: index < players.length - 1 ? 6 : 0,
+                ),
+                child: ScoreDisplay(
+                  playerName: player.name,
+                  score: player.score,
+                  animateScoreChange: animatedPlayerIndexes.contains(index),
+                  isActive: currentPlayerIndex == index,
+                  legsWon: player.legsWon,
+                  setsWon: player.setsWon,
+                  averageText: null,
+                  checkoutText: _checkoutFor(player),
+                ),
+              ),
+            );
+          }).toList(growable: false),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(

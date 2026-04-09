@@ -182,14 +182,101 @@ export class StatsService {
     });
   }
 
+  async eloHistoryByPeriod(
+    userId: string,
+    mode: 'week' | 'month' | 'year' = 'week',
+    offset = 0,
+  ) {
+    const safeOffset = Math.max(0, Math.floor(offset));
+    const now = new Date();
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const fallbackElo = user?.elo ?? 1000;
+
+    if (mode === 'year') {
+      const anchorMonth = new Date(now.getFullYear(), now.getMonth() - safeOffset * 12, 1);
+      const start = new Date(anchorMonth.getFullYear(), anchorMonth.getMonth() - 12, 1);
+      const end = new Date(anchorMonth.getFullYear(), anchorMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      const rows = await this.eloRepo
+        .createQueryBuilder('e')
+        .select(['e.elo_after', 'e.created_at'])
+        .where('e.user_id = :userId', { userId })
+        .andWhere('e.created_at <= :end', { end })
+        .orderBy('e.created_at', 'ASC')
+        .getMany();
+
+      let cursor = 0;
+      let currentElo = fallbackElo;
+      const points: Array<{ date: string; elo: number }> = [];
+
+      for (let i = 0; i <= 12; i++) {
+        const monthStart = new Date(start.getFullYear(), start.getMonth() + i, 1);
+        const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23, 59, 59, 999);
+        while (cursor < rows.length && rows[cursor].created_at <= monthEnd) {
+          currentElo = rows[cursor].elo_after;
+          cursor += 1;
+        }
+        points.push({
+          date: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`,
+          elo: currentElo,
+        });
+      }
+
+      const periodLabel = `${String(start.getMonth() + 1).padStart(2, '0')}/${start.getFullYear()} - ${String(anchorMonth.getMonth() + 1).padStart(2, '0')}/${anchorMonth.getFullYear()}`;
+
+      return {
+        mode,
+        offset: safeOffset,
+        period_label: periodLabel,
+        points,
+      };
+    }
+
+    const days = mode === 'week' ? 7 : 30;
+    const anchor = new Date(now.getFullYear(), now.getMonth(), now.getDate() - safeOffset * days, 23, 59, 59, 999);
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - (days - 1), 0, 0, 0, 0);
+
+    const rows = await this.eloRepo
+      .createQueryBuilder('e')
+      .select(['e.elo_after', 'e.created_at'])
+      .where('e.user_id = :userId', { userId })
+      .andWhere('e.created_at <= :anchor', { anchor })
+      .orderBy('e.created_at', 'ASC')
+      .getMany();
+
+    let cursor = 0;
+    let currentElo = fallbackElo;
+    const points: Array<{ date: string; elo: number }> = [];
+
+    for (let i = 0; i < days; i++) {
+      const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
+      while (cursor < rows.length && rows[cursor].created_at <= dayEnd) {
+        currentElo = rows[cursor].elo_after;
+        cursor += 1;
+      }
+      points.push({
+        date: `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`,
+        elo: currentElo,
+      });
+    }
+
+    const periodLabel = `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')}/${start.getFullYear()} - ${String(anchor.getDate()).padStart(2, '0')}/${String(anchor.getMonth() + 1).padStart(2, '0')}/${anchor.getFullYear()}`;
+
+    return {
+      mode,
+      offset: safeOffset,
+      period_label: periodLabel,
+      points,
+    };
+  }
+
   async processTerritoryPoints(params: {
     matchId: string;
     winnerId: string;
     loserId: string;
     eloDelta?: number;
   }) {
-    void params.loserId;
-
     const match = await this.matchRepo.findOne({
       where: { id: params.matchId },
     });
@@ -207,7 +294,24 @@ export class StatsService {
       order: { joined_at: 'ASC' },
     });
 
+    const loserMembership = await this.clubMemberRepo.findOne({
+      where: {
+        user_id: params.loserId,
+        is_active: true,
+      },
+      relations: ['club'],
+      order: { joined_at: 'ASC' },
+    });
+
     if (!winnerMembership) {
+      return null;
+    }
+
+    if (
+      loserMembership != null &&
+      loserMembership.club?.id != null &&
+      loserMembership.club.id === winnerMembership.club.id
+    ) {
       return null;
     }
 
@@ -237,6 +341,14 @@ export class StatsService {
 
     association.points += pointsToAdd;
     const saved = await this.ctpRepo.save(association);
+
+    await this.userRepo
+      .createQueryBuilder()
+      .update(User)
+      .set({ conquest_score: () => `conquest_score + ${pointsToAdd}` })
+      .where('id = :winnerId', { winnerId: params.winnerId })
+      .execute();
+
     await this.recalculateTerritoryControl(codeIris);
     return saved;
   }

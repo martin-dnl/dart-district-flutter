@@ -25,11 +25,15 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
     int startingPlayerIndex = 0,
   }) {
     final normalizedNames = playerNames.length >= 2
-        ? playerNames.take(2).toList(growable: false)
+        ? playerNames.take(4).toList(growable: false)
         : <String>[
             playerNames.isNotEmpty ? playerNames.first : 'Joueur 1',
             'Joueur 2',
           ];
+    final safeStartIndex = startingPlayerIndex.clamp(
+      0,
+      normalizedNames.length - 1,
+    );
 
     _history.clear();
     state = CricketMatchState(
@@ -40,8 +44,8 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
       setsToWin: setsToWin,
       legsPerSet: legsPerSet,
       status: MatchStatus.inProgress,
-      currentPlayerIndex: startingPlayerIndex.clamp(0, 1),
-      startingPlayerIndex: startingPlayerIndex.clamp(0, 1),
+      currentPlayerIndex: safeStartIndex,
+      startingPlayerIndex: safeStartIndex,
     );
   }
 
@@ -99,9 +103,10 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
 
     final players = List<CricketPlayerState>.from(state.players);
     final currentIndex = state.currentPlayerIndex;
-    final opponentIndex = currentIndex == 0 ? 1 : 0;
     var currentPlayer = players[currentIndex];
-    var opponent = players[opponentIndex];
+    final opponentIndexes = List<int>.generate(players.length, (i) => i)
+      .where((i) => i != currentIndex)
+      .toList(growable: false);
 
     final zoneValue = _zoneValue(zone);
     var hitsApplied = 0;
@@ -117,16 +122,26 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
         ..[zoneValue] = (currentHits + multiplier).clamp(0, 6);
       currentPlayer = currentPlayer.copyWith(hits: updatedHits);
 
-      if (touchesAfterClose > 0 && !opponent.isClosed(zoneValue)) {
-        pointsInflicted = touchesAfterClose * zoneValue;
-        opponent = opponent.copyWith(score: opponent.score + pointsInflicted);
+      if (touchesAfterClose > 0) {
+        var totalInflicted = 0;
+        for (final opponentIndex in opponentIndexes) {
+          final opponent = players[opponentIndex];
+          if (opponent.isClosed(zoneValue)) {
+            continue;
+          }
+          final inflicted = touchesAfterClose * zoneValue;
+          totalInflicted += inflicted;
+          players[opponentIndex] = opponent.copyWith(
+            score: opponent.score + inflicted,
+          );
+        }
+        pointsInflicted = totalInflicted;
       }
     } else {
       zone = -1;
     }
 
     players[currentIndex] = currentPlayer;
-    players[opponentIndex] = opponent;
 
     final nextTurnDarts = [
       ...state.currentTurnDarts,
@@ -156,13 +171,13 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
       ),
     ];
 
-    if (_isLegWinner(players, currentIndex, opponentIndex)) {
+    if (_isLegWinner(players, currentIndex)) {
       _handleLegWin(players, currentIndex, roundHistory);
       return;
     }
 
     final nextStarter = state.startingPlayerIndex;
-    final nextPlayer = currentIndex == 0 ? 1 : 0;
+    final nextPlayer = (currentIndex + 1) % players.length;
     final nextRound = nextPlayer == nextStarter
         ? state.currentRound + 1
         : state.currentRound;
@@ -203,7 +218,16 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
       return;
     }
 
-    final winnerIndex = abandoningPlayerIndex == 0 ? 1 : 0;
+    final winnerIndex = List<int>.generate(state.players.length, (i) => i)
+        .where((i) => i != abandoningPlayerIndex)
+        .fold<int>(-1, (best, index) {
+          if (best < 0) {
+            return index;
+          }
+          return state.players[index].score < state.players[best].score
+              ? index
+              : best;
+        });
     final players = List<CricketPlayerState>.from(state.players);
     if (winnerIndex >= 0 && winnerIndex < players.length) {
       players[winnerIndex] = players[winnerIndex].copyWith(setsWon: state.setsToWin);
@@ -216,10 +240,14 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
     );
   }
 
-  bool _isLegWinner(List<CricketPlayerState> players, int currentIndex, int opponentIndex) {
+  bool _isLegWinner(List<CricketPlayerState> players, int currentIndex) {
     final player = players[currentIndex];
-    final opponent = players[opponentIndex];
-    return player.allClosed && player.score <= opponent.score;
+    final hasBestScore = players
+        .asMap()
+        .entries
+        .where((entry) => entry.key != currentIndex)
+        .every((entry) => player.score <= entry.value.score);
+    return player.allClosed && hasBestScore;
   }
 
   void _handleLegWin(
@@ -261,7 +289,7 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
         return;
       }
 
-      final nextStarter = state.startingPlayerIndex == 0 ? 1 : 0;
+      final nextStarter = (state.startingPlayerIndex + 1) % updatedPlayers.length;
       state = state.copyWith(
         players: _resetLegState(updatedPlayers),
         roundHistory: roundHistory,
@@ -276,7 +304,7 @@ class CricketMatchController extends StateNotifier<CricketMatchState> {
       return;
     }
 
-    final nextStarter = state.startingPlayerIndex == 0 ? 1 : 0;
+    final nextStarter = (state.startingPlayerIndex + 1) % updatedPlayers.length;
     state = state.copyWith(
       players: _resetLegState(updatedPlayers),
       roundHistory: roundHistory,

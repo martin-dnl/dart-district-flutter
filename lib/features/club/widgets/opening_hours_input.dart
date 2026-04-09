@@ -157,7 +157,8 @@ class _OpeningHoursInputState extends State<OpeningHoursInput> {
                     ),
                     Switch.adaptive(
                       value: value.enabled,
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
+                      activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                       onChanged: (enabled) {
                         setState(() {
                           _values[day.key] = enabled

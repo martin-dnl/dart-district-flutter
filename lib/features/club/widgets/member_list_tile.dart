@@ -96,14 +96,24 @@ class MemberListTile extends StatelessWidget {
             ),
           ),
 
-          // Challenge button
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.sports_esports,
-              color: AppColors.primary,
-              size: 22,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${member.conquestScore}',
+                style: const TextStyle(
+                  color: AppColors.accent,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.emoji_events_outlined,
+                color: AppColors.accent,
+                size: 20,
+              ),
+            ],
           ),
         ],
       ),

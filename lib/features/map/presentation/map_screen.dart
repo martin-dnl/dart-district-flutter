@@ -96,9 +96,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _shouldReevaluateZones(fm.MapCamera position) {
     final center = position.center;
     final zoom = position.zoom;
-    if (center == null || zoom == null) {
-      return false;
-    }
 
     final lastCenter = _lastZoneEvalCenter;
     final lastZoom = _lastZoneEvalZoom;
@@ -1562,44 +1559,6 @@ class _LegendItem extends StatelessWidget {
           style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
         ),
       ],
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({
-    required this.count,
-    required this.label,
-    required this.color,
-  });
-
-  final int count;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: '$count ',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-          TextSpan(
-            text: label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.normal,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

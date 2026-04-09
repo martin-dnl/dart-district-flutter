@@ -108,6 +108,7 @@ class ClubMember {
   final String username;
   final String? avatarUrl;
   final int elo;
+  final int conquestScore;
   final String role;
 
   const ClubMember({
@@ -115,6 +116,7 @@ class ClubMember {
     required this.username,
     this.avatarUrl,
     this.elo = 1000,
+    this.conquestScore = 0,
     this.role = 'member',
   });
 
@@ -124,6 +126,7 @@ class ClubMember {
       username: json['username'] as String,
       avatarUrl: json['avatarUrl'] as String?,
       elo: json['elo'] as int? ?? 1000,
+      conquestScore: json['conquestScore'] as int? ?? 0,
       role: json['role'] as String? ?? 'member',
     );
   }
@@ -140,6 +143,10 @@ class ClubMember {
           (user?['elo'] as num?)?.toInt() ??
           (json['elo'] as num?)?.toInt() ??
           1000,
+      conquestScore:
+          (user?['conquest_score'] as num?)?.toInt() ??
+          (json['conquest_score'] as num?)?.toInt() ??
+          0,
       role: (json['role'] ?? 'player').toString(),
     );
   }

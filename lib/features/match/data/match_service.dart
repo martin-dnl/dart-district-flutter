@@ -22,22 +22,27 @@ class MatchService {
     String? territoryCodeIris,
   }) async {
     try {
+      final payload = <String, dynamic>{
+        'invitee_id': inviteeId,
+        'mode': mode,
+        'starting_score': startingScore,
+        'player_names': playerNames,
+        'sets_to_win': setsToWin,
+        'legs_per_set': legsPerSet,
+        'finish_type': finishType,
+        'is_ranked': isRanked,
+        'is_territorial': isTerritorial,
+      };
+      if (territoryClubId != null) {
+        payload['territory_club_id'] = territoryClubId;
+      }
+      if (territoryCodeIris != null) {
+        payload['territory_code_iris'] = territoryCodeIris;
+      }
+
       final response = await _api.post(
         '/matches/invitation',
-        data: {
-          'invitee_id': inviteeId,
-          'mode': mode,
-          'starting_score': startingScore,
-          'player_names': playerNames,
-          'sets_to_win': setsToWin,
-          'legs_per_set': legsPerSet,
-          'finish_type': finishType,
-          'is_ranked': isRanked,
-          'is_territorial': isTerritorial,
-          if (territoryClubId != null) 'territory_club_id': territoryClubId,
-          if (territoryCodeIris != null)
-            'territory_code_iris': territoryCodeIris,
-        },
+        data: payload,
       );
 
       return matchFromJson(response.data['data']);

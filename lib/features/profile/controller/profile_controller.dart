@@ -5,18 +5,61 @@ import '../../../shared/models/match_history_summary.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../data/profile_service.dart';
 
+enum EloPeriodMode { week, month, year }
+
+class EloPeriodPoint {
+  const EloPeriodPoint({required this.label, required this.elo});
+
+  final String label;
+  final int elo;
+}
+
 class ProfileState {
   final List<MatchHistorySummary> matchHistory;
   final List<int> eloHistory;
+  final List<EloPeriodPoint> eloPoints;
+  final EloPeriodMode eloMode;
+  final int eloOffset;
+  final String eloPeriodLabel;
+  final bool isEloLoading;
   final List<AchievementBadge> badges;
   final bool isLoading;
 
   const ProfileState({
     this.matchHistory = const [],
     this.eloHistory = const [],
+    this.eloPoints = const [],
+    this.eloMode = EloPeriodMode.week,
+    this.eloOffset = 0,
+    this.eloPeriodLabel = '',
+    this.isEloLoading = false,
     this.badges = const [],
     this.isLoading = false,
   });
+
+  ProfileState copyWith({
+    List<MatchHistorySummary>? matchHistory,
+    List<int>? eloHistory,
+    List<EloPeriodPoint>? eloPoints,
+    EloPeriodMode? eloMode,
+    int? eloOffset,
+    String? eloPeriodLabel,
+    bool? isEloLoading,
+    List<AchievementBadge>? badges,
+    bool? isLoading,
+  }) {
+    return ProfileState(
+      matchHistory: matchHistory ?? this.matchHistory,
+      eloHistory: eloHistory ?? this.eloHistory,
+      eloPoints: eloPoints ?? this.eloPoints,
+      eloMode: eloMode ?? this.eloMode,
+      eloOffset: eloOffset ?? this.eloOffset,
+      eloPeriodLabel: eloPeriodLabel ?? this.eloPeriodLabel,
+      isEloLoading: isEloLoading ?? this.isEloLoading,
+      badges: badges ?? this.badges,
+      isLoading: isLoading ?? this.isLoading,
+    );
+  }
 }
 
 class AchievementBadge {
@@ -50,8 +93,22 @@ class ProfileController extends StateNotifier<ProfileState> {
     await _loadProfile();
   }
 
+  Future<void> setEloMode(EloPeriodMode mode) async {
+    state = state.copyWith(eloMode: mode, eloOffset: 0);
+    await _loadEloPeriod();
+  }
+
+  Future<void> shiftEloPeriod(int delta) async {
+    final nextOffset = (state.eloOffset + delta).clamp(0, 120);
+    if (nextOffset == state.eloOffset) {
+      return;
+    }
+    state = state.copyWith(eloOffset: nextOffset);
+    await _loadEloPeriod();
+  }
+
   Future<void> _loadProfile() async {
-    state = const ProfileState(isLoading: true);
+    state = state.copyWith(isLoading: true);
 
     try {
       final api = _ref.read(apiClientProvider);
@@ -59,9 +116,11 @@ class ProfileController extends StateNotifier<ProfileState> {
       final currentUserId = _ref.read(currentUserProvider)?.id ?? '';
 
       final statsResponse = await api.get<Map<String, dynamic>>('/stats/me');
-      final eloResponse = await api.get<Map<String, dynamic>>(
-        '/stats/me/elo-history?limit=20',
-      );
+      final eloResponse = await api.get<Map<String, dynamic>>('/stats/me/elo-history',
+          queryParameters: {
+            'mode': state.eloMode.name,
+            'offset': state.eloOffset,
+          });
       final matchesResponse = await api.get<Map<String, dynamic>>(
         '/matches/me',
         queryParameters: const {'limit': '20', 'status': 'completed'},
@@ -71,16 +130,20 @@ class ProfileController extends StateNotifier<ProfileState> {
           statsResponse.data?['data'] as Map<String, dynamic>? ??
           const <String, dynamic>{};
 
-      final eloData =
-          (eloResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
-              .whereType<Map<String, dynamic>>()
-              .toList();
-      final eloHistory = eloData
-          .map((entry) => (entry['elo_after'] as num?)?.toInt() ?? 0)
-          .where((value) => value > 0)
-          .toList()
-          .reversed
-          .toList();
+      final eloPayload =
+          (eloResponse.data?['data'] as Map<String, dynamic>?) ??
+          eloResponse.data ??
+          const <String, dynamic>{};
+      final eloPoints = (eloPayload['points'] as List<dynamic>? ?? <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (entry) => EloPeriodPoint(
+              label: (entry['date'] ?? '').toString(),
+              elo: (entry['elo'] as num?)?.toInt() ?? 0,
+            ),
+          )
+          .where((point) => point.elo > 0)
+          .toList(growable: false);
 
       final matchesData =
           (matchesResponse.data?['data'] as List<dynamic>? ?? <dynamic>[])
@@ -101,14 +164,54 @@ class ProfileController extends StateNotifier<ProfileState> {
         earnedBadges = const <AchievementBadge>[];
       }
 
-      state = ProfileState(
+      state = state.copyWith(
         isLoading: false,
-        eloHistory: eloHistory,
+        isEloLoading: false,
+        eloPoints: eloPoints,
+        eloHistory: eloPoints.map((point) => point.elo).toList(growable: false),
+        eloPeriodLabel: (eloPayload['period_label'] ?? '').toString(),
         matchHistory: history,
         badges: _buildBadges(statsData, earnedBadges),
       );
     } catch (_) {
-      state = const ProfileState(isLoading: false);
+      state = state.copyWith(isLoading: false, isEloLoading: false);
+    }
+  }
+
+  Future<void> _loadEloPeriod() async {
+    state = state.copyWith(isEloLoading: true);
+    try {
+      final api = _ref.read(apiClientProvider);
+      final response = await api.get<Map<String, dynamic>>(
+        '/stats/me/elo-history',
+        queryParameters: {
+          'mode': state.eloMode.name,
+          'offset': state.eloOffset,
+        },
+      );
+      final payload =
+          (response.data?['data'] as Map<String, dynamic>?) ??
+          response.data ??
+          const <String, dynamic>{};
+      final points = (payload['points'] as List<dynamic>? ?? <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (entry) => EloPeriodPoint(
+              label: (entry['date'] ?? '').toString(),
+              elo: (entry['elo'] as num?)?.toInt() ?? 0,
+            ),
+          )
+          .where((point) => point.elo > 0)
+          .toList(growable: false);
+
+      state = state.copyWith(
+        isEloLoading: false,
+        eloPoints: points,
+        eloHistory: points.map((point) => point.elo).toList(growable: false),
+        eloPeriodLabel: (payload['period_label'] ?? '').toString(),
+      );
+    } catch (_) {
+      state = state.copyWith(isEloLoading: false);
     }
   }
 

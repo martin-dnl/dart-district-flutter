@@ -24,7 +24,15 @@ export class StatsController {
   }
 
   @Get('me/elo-history')
-  myEloHistory(@Req() req: { user: { id: string } }, @Query('limit') limit?: number) {
+  myEloHistory(
+    @Req() req: { user: { id: string } },
+    @Query('limit') limit?: number,
+    @Query('mode') mode?: 'week' | 'month' | 'year',
+    @Query('offset') offset?: number,
+  ) {
+    if (mode) {
+      return this.statsService.eloHistoryByPeriod(req.user.id, mode, offset);
+    }
     return this.statsService.eloHistory(req.user.id, limit);
   }
 
@@ -53,7 +61,15 @@ export class StatsController {
   }
 
   @Get(':userId/elo-history')
-  userEloHistory(@Param('userId', ParseUUIDPipe) userId: string, @Query('limit') limit?: number) {
+  userEloHistory(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query('limit') limit?: number,
+    @Query('mode') mode?: 'week' | 'month' | 'year',
+    @Query('offset') offset?: number,
+  ) {
+    if (mode) {
+      return this.statsService.eloHistoryByPeriod(userId, mode, offset);
+    }
     return this.statsService.eloHistory(userId, limit);
   }
 

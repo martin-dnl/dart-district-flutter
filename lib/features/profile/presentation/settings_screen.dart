@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/dart_sense_service.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/database/local_storage.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
@@ -21,6 +23,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isDeletingAccount = false;
   bool _isLoadingGameOptions = true;
   bool _isSavingGameOptions = false;
+  bool _isLoadingLanguage = true;
+  bool _isSavingLanguage = false;
+  bool _isLoadingDartSense = true;
+  bool _isSavingDartSense = false;
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _scoreModeBox = 'settings';
   static const String _scoreModeLocalKey = 'score_mode';
@@ -29,6 +35,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const String _dartboardScoreMode = 'DARTBOARD';
   static const String _tempoScoreMode = 'TEMPO';
   String _scoreMode = _manualScoreMode;
+  List<LanguageOption> _languages = const <LanguageOption>[];
+  String _languageCode = 'fr-FR';
+  DartSenseMode _dartSenseMode = DartSenseMode.off;
 
   bool _isSupportedScoreMode(String value) {
     return value == _manualScoreMode ||
@@ -40,6 +49,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _loadGameOptions();
+    _loadLanguageOptions();
+    _loadDartSenseMode();
   }
 
   Future<void> _loadGameOptions() async {
@@ -139,6 +150,109 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _isSavingGameOptions = false);
       }
     }
+  }
+
+  Future<void> _loadLanguageOptions() async {
+    final service = TranslationService(ref.read(apiClientProvider));
+    final localCode = await service.getPreferredLanguage();
+    if (mounted) {
+      setState(() => _languageCode = localCode);
+    }
+
+    try {
+      final languages = await service.getAvailableLanguages();
+      if (!mounted) {
+        return;
+      }
+
+      final hasCurrent = languages.any((entry) => entry.code == _languageCode);
+      setState(() {
+        _languages = languages;
+        _languageCode = hasCurrent
+            ? _languageCode
+            : (languages.isNotEmpty ? languages.first.code : 'fr-FR');
+        _isLoadingLanguage = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _languages = const <LanguageOption>[
+          LanguageOption(code: 'fr-FR', name: 'Francais', isDefault: true),
+          LanguageOption(code: 'en-US', name: 'English'),
+        ];
+        _isLoadingLanguage = false;
+      });
+    }
+  }
+
+  Future<void> _saveLanguage(String languageCode) async {
+    final code = languageCode.trim();
+    if (code.isEmpty) {
+      return;
+    }
+
+    final previous = _languageCode;
+    setState(() {
+      _languageCode = code;
+      _isSavingLanguage = true;
+    });
+
+    try {
+      final service = TranslationService(ref.read(apiClientProvider));
+      await service.setPreferredLanguage(code);
+      await ref.read(authControllerProvider.notifier).refreshCurrentUser();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Langue mise a jour.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _languageCode = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de mettre a jour la langue.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingLanguage = false);
+      }
+    }
+  }
+
+  Future<void> _loadDartSenseMode() async {
+    final service = DartSenseService(ref.read(apiClientProvider));
+    final mode = await service.loadMode();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _dartSenseMode = mode;
+      _isLoadingDartSense = false;
+    });
+  }
+
+  Future<void> _saveDartSenseMode(DartSenseMode mode) async {
+    setState(() {
+      _dartSenseMode = mode;
+      _isSavingDartSense = true;
+    });
+
+    final service = DartSenseService(ref.read(apiClientProvider));
+    await service.saveMode(mode);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isSavingDartSense = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Option Dart Sense enregistree.')),
+    );
   }
 
   Future<void> _confirmAndSignOut() async {
@@ -267,6 +381,92 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             return;
                           }
                           _saveScoreMode(value);
+                        },
+                ),
+              const SizedBox(height: 12),
+              const Divider(color: AppColors.stroke),
+              const SizedBox(height: 8),
+              const Text(
+                'Language',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (_isLoadingLanguage)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: LinearProgressIndicator(minHeight: 2),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: _languageCode,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Application language',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _languages
+                      .map(
+                        (lang) => DropdownMenuItem<String>(
+                          value: lang.code,
+                          child: Text(lang.name),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: _isSavingLanguage
+                      ? null
+                      : (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          _saveLanguage(value);
+                        },
+                ),
+              const SizedBox(height: 12),
+              const Divider(color: AppColors.stroke),
+              const SizedBox(height: 8),
+              const Text(
+                'Dart Sense',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (_isLoadingDartSense)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: LinearProgressIndicator(minHeight: 2),
+                )
+              else
+                DropdownButtonFormField<DartSenseMode>(
+                  initialValue: _dartSenseMode,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Coach assistant',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: DartSenseMode.off,
+                      child: Text('OFF'),
+                    ),
+                    DropdownMenuItem(
+                      value: DartSenseMode.on,
+                      child: Text('ON'),
+                    ),
+                  ],
+                  onChanged: _isSavingDartSense
+                      ? null
+                      : (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          _saveDartSenseMode(value);
                         },
                 ),
               const SizedBox(height: 12),

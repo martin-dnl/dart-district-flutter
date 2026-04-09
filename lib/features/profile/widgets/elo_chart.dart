@@ -3,124 +3,294 @@ import 'package:flutter/material.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../shared/widgets/glass_card.dart';
+import '../controller/profile_controller.dart';
 
 class EloChart extends StatelessWidget {
-  final List<int> eloHistory;
+  const EloChart({
+    super.key,
+    required this.points,
+    required this.mode,
+    required this.periodLabel,
+    required this.offset,
+    required this.isLoading,
+    required this.onModeChanged,
+    required this.onShiftOffset,
+  });
 
-  const EloChart({super.key, required this.eloHistory});
+  final List<EloPeriodPoint> points;
+  final EloPeriodMode mode;
+  final String periodLabel;
+  final int offset;
+  final bool isLoading;
+  final ValueChanged<EloPeriodMode> onModeChanged;
+  final ValueChanged<int> onShiftOffset;
+
+  String _modeLabel(EloPeriodMode value) {
+    switch (value) {
+      case EloPeriodMode.week:
+        return 'Semaine';
+      case EloPeriodMode.month:
+        return 'Mois';
+      case EloPeriodMode.year:
+        return 'Annee';
+    }
+  }
+
+  String _compactLabel(String isoLike) {
+    if (mode == EloPeriodMode.year && isoLike.length >= 7) {
+      return isoLike.substring(2);
+    }
+    if (isoLike.length >= 10) {
+      return '${isoLike.substring(8, 10)}/${isoLike.substring(5, 7)}';
+    }
+    return isoLike;
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (eloHistory.isEmpty) {
+    if (isLoading) {
       return const GlassCard(
         child: SizedBox(
-          height: 150,
-          child: Center(
-            child: Text(
-              'Pas encore de données',
-              style: TextStyle(color: AppColors.textHint),
-            ),
+          height: 190,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (points.isEmpty) {
+      return GlassCard(
+        child: SizedBox(
+          height: 190,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _ChartToolbar(
+                mode: mode,
+                offset: offset,
+                periodLabel: periodLabel,
+                onModeChanged: onModeChanged,
+                onShiftOffset: onShiftOffset,
+                modeLabelBuilder: _modeLabel,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Pas encore de donnees',
+                style: TextStyle(color: AppColors.textHint),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    final spots = eloHistory
+    final values = points.map((point) => point.elo).toList(growable: false);
+    final spots = values
         .asMap()
         .entries
         .map((e) => FlSpot(e.key.toDouble(), e.value.toDouble()))
         .toList();
 
-    final minY = (eloHistory.reduce((a, b) => a < b ? a : b) - 50).toDouble();
-    final maxY = (eloHistory.reduce((a, b) => a > b ? a : b) + 50).toDouble();
+    final minY = (values.reduce((a, b) => a < b ? a : b) - 40).toDouble();
+    final maxY = (values.reduce((a, b) => a > b ? a : b) + 40).toDouble();
 
     return GlassCard(
-      padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(8, 12, 16, 8),
       child: SizedBox(
-        height: 180,
-        child: LineChart(
-          LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: 50,
-              getDrawingHorizontalLine: (value) => FlLine(
-                color: AppColors.surfaceLight,
-                strokeWidth: 0.5,
-              ),
+        height: 220,
+        child: Column(
+          children: [
+            _ChartToolbar(
+              mode: mode,
+              offset: offset,
+              periodLabel: periodLabel,
+              onModeChanged: onModeChanged,
+              onShiftOffset: onShiftOffset,
+              modeLabelBuilder: _modeLabel,
             ),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 44,
-                  getTitlesWidget: (value, meta) => Text(
-                    '${value.toInt()}',
-                    style: const TextStyle(
-                      color: AppColors.textHint,
-                      fontSize: 10,
+            const SizedBox(height: 8),
+            Expanded(
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: 40,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: AppColors.surfaceLight,
+                      strokeWidth: 0.5,
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 44,
+                        getTitlesWidget: (value, meta) => Text(
+                          '${value.toInt()}',
+                          style: const TextStyle(
+                            color: AppColors.textHint,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 26,
+                        interval: (values.length / 4).clamp(1, values.length).toDouble(),
+                        getTitlesWidget: (value, meta) {
+                          final index = value.round();
+                          if (index < 0 || index >= points.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return Text(
+                            _compactLabel(points[index].label),
+                            style: const TextStyle(
+                              color: AppColors.textHint,
+                              fontSize: 10,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: (values.length - 1).toDouble(),
+                  minY: minY,
+                  maxY: maxY,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      curveSmoothness: 0.3,
+                      color: AppColors.primary,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) {
+                          return FlDotCirclePainter(
+                            radius: index == values.length - 1 ? 5 : 3,
+                            color: index == values.length - 1
+                                ? AppColors.primary
+                                : AppColors.primary.withValues(alpha: 0.5),
+                            strokeWidth: 0,
+                          );
+                        },
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ],
+                  lineTouchData: LineTouchData(
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (touchedSpots) =>
+                          touchedSpots.map((spot) {
+                        final index = spot.x.round();
+                        final label =
+                            index >= 0 && index < points.length ? points[index].label : '';
+                        return LineTooltipItem(
+                          'ELO ${spot.y.toInt()}\n$label',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ),
               ),
-              bottomTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChartToolbar extends StatelessWidget {
+  const _ChartToolbar({
+    required this.mode,
+    required this.offset,
+    required this.periodLabel,
+    required this.onModeChanged,
+    required this.onShiftOffset,
+    required this.modeLabelBuilder,
+  });
+
+  final EloPeriodMode mode;
+  final int offset;
+  final String periodLabel;
+  final ValueChanged<EloPeriodMode> onModeChanged;
+  final ValueChanged<int> onShiftOffset;
+  final String Function(EloPeriodMode) modeLabelBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SegmentedButton<EloPeriodMode>(
+                segments: EloPeriodMode.values
+                    .map(
+                      (value) => ButtonSegment<EloPeriodMode>(
+                        value: value,
+                        label: Text(modeLabelBuilder(value)),
+                      ),
+                    )
+                    .toList(growable: false),
+                selected: <EloPeriodMode>{mode},
+                showSelectedIcon: false,
+                onSelectionChanged: (selection) {
+                  final selected = selection.first;
+                  if (selected == mode) {
+                    return;
+                  }
+                  onModeChanged(selected);
+                },
               ),
             ),
-            borderData: FlBorderData(show: false),
-            minX: 0,
-            maxX: (eloHistory.length - 1).toDouble(),
-            minY: minY,
-            maxY: maxY,
-            lineBarsData: [
-              LineChartBarData(
-                spots: spots,
-                isCurved: true,
-                curveSmoothness: 0.3,
-                color: AppColors.primary,
-                barWidth: 3,
-                isStrokeCapRound: true,
-                dotData: FlDotData(
-                  show: true,
-                  getDotPainter: (spot, percent, barData, index) {
-                    return FlDotCirclePainter(
-                      radius: index == eloHistory.length - 1 ? 5 : 3,
-                      color: index == eloHistory.length - 1
-                          ? AppColors.primary
-                          : AppColors.primary.withValues(alpha: 0.5),
-                      strokeWidth: 0,
-                    );
-                  },
-                ),
-                belowBarData: BarAreaData(
-                  show: true,
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                ),
-              ),
-            ],
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipItems: (spots) => spots.map((spot) {
-                  return LineTooltipItem(
-                    'ELO ${spot.y.toInt()}',
-                    const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  );
-                }).toList(),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: () => onShiftOffset(offset + 1),
+              icon: const Icon(Icons.chevron_left),
+              tooltip: 'Periode precedente',
+            ),
+            IconButton(
+              onPressed: offset > 0 ? () => onShiftOffset(offset - 1) : null,
+              icon: const Icon(Icons.chevron_right),
+              tooltip: 'Periode suivante',
+            ),
+          ],
+        ),
+        if (periodLabel.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              periodLabel,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
             ),
           ),
-        ),
-      ),
+      ],
     );
   }
 }

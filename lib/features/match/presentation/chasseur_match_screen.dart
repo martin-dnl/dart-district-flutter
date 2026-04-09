@@ -104,19 +104,44 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                children: List<Widget>.generate(state.players.length, (index) {
-                  final player = state.players[index];
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: index == state.players.length - 1 ? 0 : 8),
-                    child: _PlayerCard(
-                      player: player,
-                      isActive: state.currentPlayerIndex == index &&
-                          state.status == MatchStatus.inProgress,
+              child: state.players.length > 2
+                  ? GridView.builder(
+                      itemCount: state.players.length,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 1.8,
+                          ),
+                      itemBuilder: (context, index) {
+                        final player = state.players[index];
+                        return _PlayerCard(
+                          player: player,
+                          isActive: state.currentPlayerIndex == index &&
+                              state.status == MatchStatus.inProgress,
+                        );
+                      },
+                    )
+                  : Column(
+                      children: List<Widget>.generate(state.players.length, (
+                        index,
+                      ) {
+                        final player = state.players[index];
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: index == state.players.length - 1 ? 0 : 8,
+                          ),
+                          child: _PlayerCard(
+                            player: player,
+                            isActive: state.currentPlayerIndex == index &&
+                                state.status == MatchStatus.inProgress,
+                          ),
+                        );
+                      }),
                     ),
-                  );
-                }),
-              ),
             ),
             const SizedBox(height: 10),
             Padding(
@@ -263,19 +288,7 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
   }
 
   bool _canSelectTempoZone(ChasseurMatchState state, int zone) {
-    final normalizedZone = zone == 50 ? 25 : zone;
-    final ownerIndex = state.players.indexWhere(
-      (p) => p.zone == normalizedZone && !p.isEliminated,
-    );
-    final current = state.players[state.currentPlayerIndex];
-
-    if (ownerIndex == -1) {
-      return true;
-    }
-    if (ownerIndex == state.currentPlayerIndex) {
-      return true;
-    }
-    return current.isHunter;
+    return true;
   }
 
   bool _isChasseurTargetSector(ChasseurMatchState state, int sector) {

@@ -32,6 +32,9 @@ export class User {
   @Column({ type: 'int', default: 1000 })
   elo: number;
 
+  @Column({ type: 'int', default: 0 })
+  conquest_score: number;
+
   @Column({ type: 'boolean', default: false })
   is_guest: boolean;
 
@@ -49,6 +52,9 @@ export class User {
 
   @Column({ type: 'varchar', length: 20, default: 'intermediate' })
   level: string;
+
+  @Column({ type: 'varchar', length: 10, default: 'fr-FR' })
+  preferred_language: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   city: string | null;

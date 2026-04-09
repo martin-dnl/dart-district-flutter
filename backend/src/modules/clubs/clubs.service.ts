@@ -161,6 +161,19 @@ export class ClubsService {
     });
   }
 
+  async getTerritoryPointsTotal(clubId: string) {
+    const row = await this.ctpRepo
+      .createQueryBuilder('ctp')
+      .select('COALESCE(SUM(ctp.points), 0)', 'total')
+      .where('ctp.club_id = :clubId', { clubId })
+      .getRawOne<{ total: string | number }>();
+
+    return {
+      club_id: clubId,
+      points: Number(row?.total ?? 0),
+    };
+  }
+
   async findById(id: string) {
     const club = await this.clubRepo.findOne({
       where: { id },

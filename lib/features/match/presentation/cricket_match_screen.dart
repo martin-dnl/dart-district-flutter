@@ -499,8 +499,6 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
 
   Future<void> _showEndDialog(CricketMatchState state) async {
     final winner = state.winnerIndex != null ? state.players[state.winnerIndex!] : null;
-    final p1Closed = cricketZones.where((z) => state.players[0].isClosed(z)).length;
-    final p2Closed = cricketZones.where((z) => state.players[1].isClosed(z)).length;
     final recent = state.roundHistory.reversed.take(4).toList(growable: false);
 
     await showDialog<void>(
@@ -526,15 +524,13 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  '${state.players[0].name}: $p1Closed/7 zones fermees - ${state.players[0].score} pts',
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${state.players[1].name}: $p2Closed/7 zones fermees - ${state.players[1].score} pts',
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
-                ),
+                for (var i = 0; i < state.players.length; i++) ...[
+                  Text(
+                    '${state.players[i].name}: ${cricketZones.where((z) => state.players[i].isClosed(z)).length}/7 zones fermees - ${state.players[i].score} pts',
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                  ),
+                  if (i < state.players.length - 1) const SizedBox(height: 4),
+                ],
                 if (recent.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   const Text(
@@ -588,18 +584,30 @@ class _CricketScoreboard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.surfaceLight),
       ),
-      child: Row(
-        children: [
-          _PlayerPanel(
-            player: state.players[0],
-            isActive: state.currentPlayerIndex == 0 && state.status == MatchStatus.inProgress,
-          ),
-          const SizedBox(width: 10),
-          _PlayerPanel(
-            player: state.players[1],
-            isActive: state.currentPlayerIndex == 1 && state.status == MatchStatus.inProgress,
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 8.0;
+          final columns = state.players.length <= 2 ? 2 : 2;
+          final tileWidth =
+              (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              for (var i = 0; i < state.players.length; i++)
+                SizedBox(
+                  width: tileWidth,
+                  child: _PlayerPanel(
+                    player: state.players[i],
+                    isActive:
+                        state.currentPlayerIndex == i &&
+                        state.status == MatchStatus.inProgress,
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -613,48 +621,125 @@ class _PlayerPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.primary.withValues(alpha: 0.14) : AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isActive ? AppColors.primary : AppColors.surfaceLight,
-            width: isActive ? 1.4 : 0.8,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              player.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${player.score}',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              'Legs ${player.legsWon} • Sets ${player.setsWon}',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isActive ? AppColors.primary.withValues(alpha: 0.14) : AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isActive ? AppColors.primary : AppColors.surfaceLight,
+          width: isActive ? 1.4 : 0.8,
         ),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            player.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${player.score}',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            'Legs ${player.legsWon} • Sets ${player.setsWon}',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CricketGrid extends StatelessWidget {
+  const _CricketGrid({
+    required this.state,
+    required this.onTapZone,
+  });
+
+  final CricketMatchState state;
+  final ValueChanged<int> onTapZone;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 8.0;
+        final columns = state.players.length <= 2 ? 2 : 2;
+        final cellWidth = (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+
+        return ListView.separated(
+          itemCount: cricketZones.length,
+          separatorBuilder: (_, index) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final zone = cricketZones[index];
+            final closedByAll = state.players.every((p) => p.isClosed(zone));
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.surfaceLight),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    zone == 25 ? 'BULL' : 'Zone $zone',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: [
+                      for (var playerIndex = 0;
+                          playerIndex < state.players.length;
+                          playerIndex++)
+                        SizedBox(
+                          width: cellWidth,
+                          child: _CricketCell(
+                            hits: state.players[playerIndex].hits[zone] ?? 0,
+                            active:
+                                state.currentPlayerIndex == playerIndex &&
+                                state.status == MatchStatus.inProgress,
+                            scoringOpen:
+                                state.players[playerIndex].isClosed(zone) &&
+                                state.players
+                                    .asMap()
+                                    .entries
+                                    .where((entry) => entry.key != playerIndex)
+                                    .any((entry) => !entry.value.isClosed(zone)),
+                            fullyClosed: closedByAll,
+                            onTap: () => onTapZone(zone),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -694,109 +779,6 @@ class _TurnIndicator extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _CricketGrid extends StatelessWidget {
-  const _CricketGrid({
-    required this.state,
-    required this.onTapZone,
-  });
-
-  final CricketMatchState state;
-  final ValueChanged<int> onTapZone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const _GridHeader(),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ListView.separated(
-            itemCount: cricketZones.length,
-            separatorBuilder: (_, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final zone = cricketZones[index];
-              return Row(
-                children: [
-                  Expanded(
-                    child: _CricketCell(
-                      hits: state.players[0].hits[zone] ?? 0,
-                      active: state.currentPlayerIndex == 0 && state.status == MatchStatus.inProgress,
-                      scoringOpen: state.players[0].isClosed(zone) && !state.players[1].isClosed(zone),
-                      fullyClosed: state.players[0].isClosed(zone) && state.players[1].isClosed(zone),
-                      onTap: () => onTapZone(zone),
-                    ),
-                  ),
-                  Container(
-                    width: 74,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.surfaceLight),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      zone == 25 ? 'BULL' : '$zone',
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: _CricketCell(
-                      hits: state.players[1].hits[zone] ?? 0,
-                      active: state.currentPlayerIndex == 1 && state.status == MatchStatus.inProgress,
-                      scoringOpen: state.players[1].isClosed(zone) && !state.players[0].isClosed(zone),
-                      fullyClosed: state.players[1].isClosed(zone) && state.players[0].isClosed(zone),
-                      onTap: () => onTapZone(zone),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GridHeader extends StatelessWidget {
-  const _GridHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: Text(
-            'Joueur 1',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
-          ),
-        ),
-        SizedBox(
-          width: 74,
-          child: Text(
-            'Zone',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            'Joueur 2',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
     );
   }
 }

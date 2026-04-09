@@ -112,7 +112,7 @@ class MatchController extends StateNotifier<MatchModel> {
       return;
     }
 
-    if (newScore == 0 && _isDoubleOutMode()) {
+    if (newScore == 0 && (_isDoubleOutMode() || _isMasterOutMode())) {
       if (doublesAttempted == null ||
           doublesAttempted < 0 ||
           doublesAttempted > 3) {
@@ -133,7 +133,8 @@ class MatchController extends StateNotifier<MatchModel> {
         round: state.currentRound,
         darts: [score],
         total: score,
-        doublesAttempted: (newScore == 0 && _isDoubleOutMode())
+        doublesAttempted:
+          (newScore == 0 && (_isDoubleOutMode() || _isMasterOutMode()))
             ? (doublesAttempted ?? 0)
             : 0,
         dartPositions: dartPositions ?? const [],

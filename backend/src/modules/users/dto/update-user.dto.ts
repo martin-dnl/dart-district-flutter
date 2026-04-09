@@ -28,4 +28,8 @@ export class UpdateUserDto {
   @IsString()
   @IsOptional()
   region?: string;
+
+  @IsString()
+  @IsOptional()
+  preferred_language?: string;
 }

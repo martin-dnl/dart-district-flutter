@@ -279,6 +279,7 @@ export class MatchesService {
       1;
 
     const isDoubleOut = match.finish === 'double_out';
+    const isMasterOut = match.finish === 'master_out';
     const isBust = remaining < 0;
     const isCheckout = remaining == 0 && !isBust;
 
@@ -293,11 +294,11 @@ export class MatchesService {
       recordedRemaining = activeLeg.starting_score - thrownTotal;
     }
 
-    if (isCheckout && isDoubleOut) {
+    if (isCheckout && (isDoubleOut || isMasterOut)) {
       doublesAttempted = body.doubles_attempted ?? 0;
       if (doublesAttempted < 1 || doublesAttempted > 3) {
         throw new BadRequestException(
-          'doubles_attempted must be between 1 and 3 for double_out checkout',
+          'doubles_attempted must be between 1 and 3 for checkout',
         );
       }
       // Keep under throws.segment varchar(10)

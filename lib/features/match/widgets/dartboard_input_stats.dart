@@ -65,7 +65,7 @@ class DartboardInputStats extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: Container(
-                color: const Color(0xFF0E1014),
+                color: Colors.transparent,
                 child: filteredHits.isEmpty
                     ? Center(
                         child: Padding(
@@ -120,10 +120,10 @@ class _HeatLegend extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               gradient: const LinearGradient(
                 colors: [
-                  Color(0xFF4CD7A5),
-                  Color(0xFFF2D95C),
+                  AppColors.info,
                   Color(0xFFF59A4A),
-                  Color(0xFFE14B4B),
+                  Color(0xFFFF8C00),
+                  AppColors.error,
                 ],
               ),
             ),
@@ -409,26 +409,26 @@ class _DartboardHeatmapPainter extends CustomPainter {
   Color _heatColor(double t) {
     if (t < 0.34) {
       return Color.lerp(
-            const Color(0xFF4CD7A5),
-            const Color(0xFFF2D95C),
-            t / 0.34,
-          ) ??
-          const Color(0xFFF2D95C);
-    }
-    if (t < 0.68) {
-      return Color.lerp(
-            const Color(0xFFF2D95C),
+            AppColors.info,
             const Color(0xFFF59A4A),
-            (t - 0.34) / 0.34,
+            t / 0.34,
           ) ??
           const Color(0xFFF59A4A);
     }
+    if (t < 0.68) {
+      return Color.lerp(
+            const Color(0xFFF59A4A),
+            const Color(0xFFFF8C00),
+            (t - 0.34) / 0.34,
+          ) ??
+          const Color(0xFFFF8C00);
+    }
     return Color.lerp(
-          const Color(0xFFF59A4A),
-          const Color(0xFFE14B4B),
+          const Color(0xFFFF8C00),
+          AppColors.error,
           (t - 0.68) / 0.32,
         ) ??
-        const Color(0xFFE14B4B);
+        AppColors.error;
   }
 
   void _drawNumbers(

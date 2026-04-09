@@ -276,7 +276,8 @@ class _TournamentCreateScreenState
                       style: TextStyle(color: AppColors.textPrimary),
                     ),
                     value: _isRanked,
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
+                    activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                     onChanged: _isTerritorial
                         ? null
                         : (value) {
@@ -292,7 +293,8 @@ class _TournamentCreateScreenState
                       style: TextStyle(color: AppColors.textPrimary),
                     ),
                     value: _isTerritorial,
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
+                    activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
                     onChanged: (value) {
                       setState(() {
                         _isTerritorial = value;

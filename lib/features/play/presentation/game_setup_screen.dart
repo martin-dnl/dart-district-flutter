@@ -38,6 +38,8 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   ContactModel? _selectedOpponent;
   ClubModel? _territoryClub;
   bool _isLaunchingScan = false;
+  final List<TextEditingController> _localGuestControllers =
+      <TextEditingController>[TextEditingController()];
 
   bool get _isSpecialMode =>
       widget.gameMode.toLowerCase() == 'cricket' ||
@@ -45,6 +47,22 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
 
   bool get _isCricketMode => widget.gameMode.toLowerCase() == 'cricket';
   bool get _isChasseurMode => widget.gameMode.toLowerCase() == 'chasseur';
+
+  List<String> _localGuestNames() {
+    return _localGuestControllers
+        .map((controller) => controller.text.trim())
+        .where((name) => name.isNotEmpty)
+        .take(3)
+        .toList(growable: false);
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _localGuestControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +105,18 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
 
     final canStart = _canStartMatch(selectedOpponent);
     final opponentLabel = selectedOpponent?.username ?? 'Adversaire';
+    final localNames = _localGuestNames();
+    final startingPlayers = _startOption == GameStartOption.guest
+        ? <String>[currentUserName, ...localNames]
+        : <String>[currentUserName, opponentLabel];
+    if (_startingPlayerIndex >= startingPlayers.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _startingPlayerIndex = 0);
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -203,6 +233,78 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                 if (selectedOpponent != null) ...[
                   const SizedBox(height: 10),
                   _SelectedFriendInfo(friendName: selectedOpponent.username),
+                ],
+                if (_startOption == GameStartOption.guest) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Joueurs locaux invites',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...List<Widget>.generate(_localGuestControllers.length, (
+                    index,
+                  ) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _localGuestControllers[index],
+                              onChanged: (_) => setState(() {}),
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Invite ${index + 1}',
+                                filled: true,
+                                fillColor: AppColors.surface,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.stroke,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_localGuestControllers.length > 1)
+                            IconButton(
+                              onPressed: () {
+                                final removed = _localGuestControllers.removeAt(
+                                  index,
+                                );
+                                removed.dispose();
+                                setState(() {
+                                  _startingPlayerIndex = 0;
+                                });
+                              },
+                              icon: const Icon(
+                                Icons.close,
+                                color: AppColors.error,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
+                  if (_localGuestControllers.length < 3)
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _localGuestControllers.add(TextEditingController());
+                        });
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Ajouter un joueur'),
+                    ),
                 ],
                 if (!isGuest && !_isSpecialMode) ...[
                   const SizedBox(height: 24),
@@ -418,13 +520,13 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<int>(
-                    segments: [
-                      ButtonSegment<int>(
-                        value: 0,
-                        label: Text(currentUserName),
+                    segments: List<ButtonSegment<int>>.generate(
+                      startingPlayers.length,
+                      (index) => ButtonSegment<int>(
+                        value: index,
+                        label: Text(startingPlayers[index]),
                       ),
-                      ButtonSegment<int>(value: 1, label: Text(opponentLabel)),
-                    ],
+                    ),
                     selected: {_startingPlayerIndex},
                     onSelectionChanged: (values) {
                       setState(() {
@@ -484,7 +586,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   bool _canStartMatch(ContactModel? selectedOpponent) {
     switch (_startOption) {
       case GameStartOption.guest:
-        return true;
+        return _localGuestNames().isNotEmpty;
       case GameStartOption.inviteFriend:
       case GameStartOption.scanQr:
         return selectedOpponent != null &&
@@ -591,14 +693,15 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     notifier.setSetsToWin(_setsToWin);
 
     final currentUserName = authState.user?.username ?? 'Joueur 1';
-    final opponentName = selectedOpponent?.username ?? 'Invite';
+    final localNames = _localGuestNames();
+    final localPlayers = <String>[currentUserName, ...localNames];
 
     if (_startOption == GameStartOption.guest) {
       if (_isCricketMode) {
         ref
             .read(cricketMatchControllerProvider.notifier)
             .setupMatch(
-              playerNames: [currentUserName, opponentName],
+              playerNames: localPlayers,
               setsToWin: _setsToWin,
               legsPerSet: _legsPerSet,
               startingPlayerIndex: _startingPlayerIndex,
@@ -613,7 +716,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
         ref
             .read(chasseurMatchControllerProvider.notifier)
             .setupMatch(
-              playerNames: [currentUserName, opponentName],
+              playerNames: localPlayers,
               startingPlayerIndex: _startingPlayerIndex,
             );
         if (mounted) {
@@ -632,7 +735,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
             finishType: _finishApiLabel(_finishType),
             startingPlayerIndex: _startingPlayerIndex,
             isRanked: false,
-            playerNames: [currentUserName, 'Invite'],
+            playerNames: localPlayers,
           );
 
       if (mounted) {

@@ -604,7 +604,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: EloChart(eloHistory: profileState.eloHistory),
+                      child: EloChart(
+                        points: profileState.eloPoints,
+                        mode: profileState.eloMode,
+                        periodLabel: profileState.eloPeriodLabel,
+                        offset: profileState.eloOffset,
+                        isLoading: profileState.isEloLoading,
+                        onModeChanged: (mode) => ref
+                            .read(profileControllerProvider.notifier)
+                            .setEloMode(mode),
+                        onShiftOffset: (offset) => ref
+                            .read(profileControllerProvider.notifier)
+                            .shiftEloPeriod(offset - profileState.eloOffset),
+                      ),
                     ),
                   ),
 

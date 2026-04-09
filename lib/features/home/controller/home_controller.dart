@@ -103,6 +103,7 @@ class HomeController extends StateNotifier<HomeState> {
 
       final clubId = club?['id'] as String?;
       Map<String, dynamic> clubData = const <String, dynamic>{};
+      var conquestPointsTotal = 0;
       if (clubId != null && clubId.isNotEmpty) {
         final clubResponse = await api.get<Map<String, dynamic>>(
           '/clubs/$clubId',
@@ -110,6 +111,20 @@ class HomeController extends StateNotifier<HomeState> {
         clubData =
             clubResponse.data?['data'] as Map<String, dynamic>? ??
             const <String, dynamic>{};
+
+        try {
+          final pointsResponse = await api.get<Map<String, dynamic>>(
+            '/clubs/$clubId/territory-points-total',
+          );
+          final payload =
+              pointsResponse.data?['data'] as Map<String, dynamic>? ??
+              pointsResponse.data ??
+              const <String, dynamic>{};
+          conquestPointsTotal = (payload['points'] as num?)?.toInt() ?? 0;
+        } catch (_) {
+          conquestPointsTotal =
+              (clubData['conquest_points'] as num?)?.toInt() ?? 0;
+        }
       }
 
       final territoriesResponse = await api.get<Map<String, dynamic>>(
@@ -161,7 +176,7 @@ class HomeController extends StateNotifier<HomeState> {
         clubName: (clubData['name'] ?? club?['name'] ?? 'Mon Club').toString(),
         location: (clubData['city'] ?? meData['city'] ?? 'Inconnue').toString(),
         territoriesControlled: owned,
-        conquestPoints: (clubData['conquest_points'] as num?)?.toInt() ?? 0,
+        conquestPoints: conquestPointsTotal,
         clubRank: (clubData['rank'] as num?)?.toInt() ?? 0,
         pendingMatch: pending.isNotEmpty
             ? 'Match en attente de validation'

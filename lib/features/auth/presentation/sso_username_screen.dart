@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../controller/auth_controller.dart';
 
@@ -18,11 +19,51 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
   final _usernameCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
+  bool _isLoadingLanguages = true;
+  String _languageCode = 'fr-FR';
+  List<LanguageOption> _languages = const <LanguageOption>[
+    LanguageOption(code: 'fr-FR', name: 'Francais', isDefault: true),
+    LanguageOption(code: 'en-US', name: 'English'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguages();
+  }
 
   @override
   void dispose() {
     _usernameCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLanguages() async {
+    final service = TranslationService(ref.read(apiClientProvider));
+    final preferred = await service.getPreferredLanguage();
+
+    try {
+      final languages = await service.getAvailableLanguages();
+      if (!mounted) {
+        return;
+      }
+      final hasPreferred = languages.any((entry) => entry.code == preferred);
+      setState(() {
+        _languages = languages;
+        _languageCode = hasPreferred
+            ? preferred
+            : (languages.isNotEmpty ? languages.first.code : 'fr-FR');
+        _isLoadingLanguages = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _languageCode = preferred;
+        _isLoadingLanguages = false;
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -37,7 +78,10 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
       final api = ref.read(apiClientProvider);
       await api.patch<Map<String, dynamic>>(
         '/users/me',
-        data: {'username': _usernameCtrl.text.trim()},
+        data: {
+          'username': _usernameCtrl.text.trim(),
+          'preferred_language': _languageCode,
+        },
       );
       await ref.read(authControllerProvider.notifier).confirmUsernameSetup();
     } catch (_) {
@@ -133,6 +177,58 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 16),
+                  if (_isLoadingLanguages)
+                    const LinearProgressIndicator(minHeight: 2)
+                  else
+                    DropdownButtonFormField<String>(
+                      initialValue: _languageCode,
+                      isExpanded: true,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'Langue',
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: AppColors.stroke,
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        labelStyle: const TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      dropdownColor: AppColors.surface,
+                      items: _languages
+                          .map(
+                            (lang) => DropdownMenuItem<String>(
+                              value: lang.code,
+                              child: Text(lang.name),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _loading
+                          ? null
+                          : (value) {
+                              if (value == null) {
+                                return;
+                              }
+                              setState(() => _languageCode = value);
+                            },
+                    ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text(

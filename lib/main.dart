@@ -3,7 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import 'core/config/translation_service.dart';
 import 'core/config/app_routes.dart';
 import 'core/config/app_theme.dart';
 import 'core/database/local_storage.dart';
@@ -54,6 +56,9 @@ void main() async {
 
   // Init local storage
   await LocalStorage.init();
+
+  final preferredLanguage = await TranslationService.restorePreferredLanguage();
+  Intl.defaultLocale = preferredLanguage;
 
   runApp(const ProviderScope(child: DartDistrictApp()));
 }

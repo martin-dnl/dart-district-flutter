@@ -167,6 +167,11 @@ export class ClubsController {
     return this.clubsService.findById(id);
   }
 
+  @Get(':id/territory-points-total')
+  territoryPointsTotal(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clubsService.getTerritoryPointsTotal(id);
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Patch(':id')

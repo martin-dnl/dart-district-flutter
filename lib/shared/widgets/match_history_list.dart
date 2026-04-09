@@ -9,21 +9,31 @@ class MatchHistoryList extends StatelessWidget {
   const MatchHistoryList({
     super.key,
     required this.matches,
+    this.maxItems,
     this.showLoadMore = false,
     this.onLoadMore,
+    this.showViewAll = false,
+    this.onViewAll,
     this.onMatchTap,
   });
 
   final List<MatchHistorySummary> matches;
+  final int? maxItems;
   final bool showLoadMore;
   final VoidCallback? onLoadMore;
+  final bool showViewAll;
+  final VoidCallback? onViewAll;
   final ValueChanged<String>? onMatchTap;
 
   @override
   Widget build(BuildContext context) {
+    final visibleMatches = maxItems == null
+        ? matches
+        : matches.take(maxItems!).toList(growable: false);
+
     return Column(
       children: [
-        ...matches.map(
+        ...visibleMatches.map(
           (match) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: InkWell(
@@ -114,6 +124,14 @@ class MatchHistoryList extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onLoadMore,
               child: const Text('Voir plus'),
+            ),
+          ),
+        if (showViewAll && onViewAll != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: TextButton(
+              onPressed: onViewAll,
+              child: const Text('Voir tout'),
             ),
           ),
       ],

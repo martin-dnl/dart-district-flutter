@@ -38,6 +38,8 @@ export class UsersController {
         email: null,
         avatar_url: null,
         elo: 1000,
+        conquest_score: 0,
+        preferred_language: 'fr-FR',
         is_admin: false,
         created_at: new Date().toISOString(),
         stats: {
@@ -79,8 +81,12 @@ export class UsersController {
   }
 
   @Get('search')
-  search(@Query('q') q: string, @Query('limit') limit?: number) {
-    return this.usersService.search(q, limit);
+  search(
+    @Req() req: { user: { id: string } },
+    @Query('q') q: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.usersService.search(q, limit, req.user.id);
   }
 
   @Get(':id')

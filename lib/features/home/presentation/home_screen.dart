@@ -24,6 +24,11 @@ class HomeScreen extends ConsumerWidget {
     final homeState = ref.watch(homeControllerProvider);
     final recentRankedMatches = ref.watch(recentRankedMatchesProvider);
     final activeTournaments = ref.watch(myActiveTournamentsProvider);
+    final showTournamentsSection = activeTournaments.maybeWhen(
+      data: (items) => items.isNotEmpty,
+      loading: () => true,
+      orElse: () => false,
+    );
 
     return Scaffold(
       body: Container(
@@ -44,150 +49,160 @@ class HomeScreen extends ConsumerWidget {
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  child: _HomeHeader(
-                    username: user?.username ?? 'Joueur',
-                    clubName: user?.clubName,
-                    avatarUrl: user?.avatarUrl,
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: _HomeHeader(
+                      username: user?.username ?? 'Joueur',
+                      clubName: user?.clubName,
+                      avatarUrl: user?.avatarUrl,
+                    ),
                   ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _MetricCard(
-                          icon: Icons.location_city,
-                          title: 'Territoires controles',
-                          value: '${homeState.territoriesControlled}',
-                          subtitle: 'Carte live',
-                          accent: AppColors.secondary,
-                          onTap: () => context.go(AppRoutes.map),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.location_city,
+                            title: 'Territoires controles',
+                            value: '${homeState.territoriesControlled}',
+                            subtitle: 'Carte live',
+                            accent: AppColors.secondary,
+                            onTap: () => context.go(AppRoutes.map),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.emoji_events,
+                            title: 'Points de conquete',
+                            value: '${user?.conquestScore ?? 0}',
+                            subtitle: 'Rang #${homeState.clubRank}',
+                            accent: AppColors.accent,
+                            onTap: () {
+                              final clubId = user?.clubId;
+                              if (clubId != null && clubId.isNotEmpty) {
+                                context.push(
+                                  AppRoutes.clubDetail.replaceFirst(
+                                    ':id',
+                                    clubId,
+                                  ),
+                                );
+                                return;
+                              }
+                              context.go(AppRoutes.club);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _QuickActions(
+                      isGuest: user?.isGuest ?? false,
+                      onOpenMap: () => context.go(AppRoutes.map),
+                      onLaunchMatch: () => context.go(AppRoutes.play),
+                      onCreateTournament: () =>
+                          context.push(AppRoutes.tournamentCreate),
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _SectionTitle(
+                      title: 'Dernieres parties',
+                      action: 'Voir l\'historique',
+                      onActionTap: () => context.push(AppRoutes.matchHistory),
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: recentRankedMatches.when(
+                      data: (matches) => _RecentFormCard(matches: matches),
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MetricCard(
-                          icon: Icons.emoji_events,
-                          title: 'Points de conquete',
-                          value: '${homeState.conquestPoints}',
-                          subtitle: 'Rang #${homeState.clubRank}',
-                          accent: AppColors.accent,
-                          onTap: () => context.go(AppRoutes.club),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 18)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _SectionTitle(
-                    title: 'Forme Recente',
-                    action: 'Voir l\'historique',
-                    onActionTap: () => context.push(AppRoutes.matchHistory),
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: recentRankedMatches.when(
-                    data: (matches) => _RecentFormCard(matches: matches),
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(),
+                      error: (_, _) => _RecentFormCard(
+                        matches: const <MatchHistorySummary>[],
                       ),
                     ),
-                    error: (_, _) =>
-                        _RecentFormCard(matches: const <MatchHistorySummary>[]),
                   ),
                 ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 18)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _QuickActions(
-                    isGuest: user?.isGuest ?? false,
-                    onOpenMap: () => context.go(AppRoutes.map),
-                    onLaunchMatch: () => context.go(AppRoutes.play),
-                    onCreateTournament: () =>
-                        context.push(AppRoutes.tournamentCreate),
+                if (showTournamentsSection)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _SectionTitle(
+                        title: 'Prochains Tournois',
+                        action: 'Voir tout',
+                        onActionTap: () => context.go(AppRoutes.tournaments),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 18)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _SectionTitle(
-                    title: 'Prochains Tournois',
-                    action: 'Voir tout',
-                    onActionTap: () => context.go(AppRoutes.tournaments),
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: activeTournaments.when(
-                    data: (tournaments) {
-                      if (tournaments.isEmpty) {
-                        return _TournamentPlaceholder(
+                if (showTournamentsSection)
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                if (showTournamentsSection)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: activeTournaments.when(
+                        data: (tournaments) {
+                          if (tournaments.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          final tournament = tournaments.first;
+                          return TournamentTile(
+                            type: (tournament['is_territorial'] == true)
+                                ? 'Territorial'
+                                : 'Local',
+                            name: (tournament['name'] ?? 'Tournoi en cours')
+                                .toString(),
+                            scheduleLabel:
+                                (tournament['scheduled_at_label'] ?? 'En cours')
+                                    .toString(),
+                            slotsLabel:
+                                '${(tournament['enrolled_players'] ?? 0).toString()}/${(tournament['max_players'] ?? 0).toString()}',
+                            onTap: () {
+                              final id = tournament['id']?.toString();
+                              if (id != null && id.isNotEmpty) {
+                                context.push('/tournaments/$id');
+                                return;
+                              }
+                              context.go(AppRoutes.tournaments);
+                            },
+                          );
+                        },
+                        loading: () => const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        error: (_, _) => _TournamentPlaceholder(
                           type: homeState.tournamentType,
                           title: homeState.tournamentTitle,
                           countdown: homeState.tournamentCountdown,
                           slots: homeState.tournamentSlots,
-                        );
-                      }
-                      final tournament = tournaments.first;
-                      return TournamentTile(
-                        type: (tournament['is_territorial'] == true)
-                            ? 'Territorial'
-                            : 'Local',
-                        name: (tournament['name'] ?? 'Tournoi en cours')
-                            .toString(),
-                        scheduleLabel:
-                            (tournament['scheduled_at_label'] ?? 'En cours')
-                                .toString(),
-                        slotsLabel:
-                            '${(tournament['enrolled_players'] ?? 0).toString()}/${(tournament['max_players'] ?? 0).toString()}',
-                        onTap: () {
-                          final id = tournament['id']?.toString();
-                          if (id != null && id.isNotEmpty) {
-                            context.push('/tournaments/$id');
-                            return;
-                          }
-                          context.go(AppRoutes.tournaments);
-                        },
-                      );
-                    },
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(),
+                        ),
                       ),
                     ),
-                    error: (_, _) => _TournamentPlaceholder(
-                      type: homeState.tournamentType,
-                      title: homeState.tournamentTitle,
-                      countdown: homeState.tournamentCountdown,
-                      slots: homeState.tournamentSlots,
-                    ),
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
               ],
             ),
           ),

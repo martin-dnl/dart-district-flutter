@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  dart-sense:
+    build: .
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+    environment:
+      - MODEL_PATH=/app/app/models/dart_sense.pt

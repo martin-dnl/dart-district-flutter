@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/database/local_storage.dart';
 import '../../../core/network/api_providers.dart';
 import '../../auth/controller/auth_controller.dart';
@@ -240,7 +241,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Annuler'),
+                  child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
                 ),
               ),
             ],
@@ -388,11 +389,18 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                         return;
                       }
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('ID de la partie copie.')),
+                        SnackBar(
+                          content: Text(
+                            t(
+                              'SCREEN.MATCH.LIVE.MATCH_ID_COPIED',
+                              fallback: 'ID de la partie copie.',
+                            ),
+                          ),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.copy_rounded),
-                    tooltip: 'Copier ID',
+                    tooltip: t('SCREEN.MATCH.LIVE.COPY_ID', fallback: 'Copier ID'),
                   ),
                 ],
               ),
@@ -434,8 +442,11 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Parametres partie',
+                  Text(
+                    t(
+                      'SCREEN.MATCH.LIVE.MATCH_SETTINGS',
+                      fallback: 'Parametres partie',
+                    ),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -445,8 +456,11 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: localMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Mode de saisie',
+                    decoration: InputDecoration(
+                      labelText: t(
+                        'SCREEN.MATCH.LIVE.INPUT_MODE',
+                        fallback: 'Mode de saisie',
+                      ),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
@@ -479,7 +493,9 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                       Icons.qr_code_2,
                       color: AppColors.primary,
                     ),
-                    title: const Text('QR spectateur'),
+                    title: Text(
+                      t('SCREEN.MATCH.LIVE.SPECTATOR_QR', fallback: 'QR spectateur'),
+                    ),
                     onTap: () => Navigator.pop(ctx, 'spectate'),
                   ),
                   ListTile(
@@ -488,7 +504,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                       Icons.undo,
                       color: AppColors.textSecondary,
                     ),
-                    title: const Text('Retour arriere'),
+                    title: Text(t('SCREEN.MATCH.LIVE.UNDO', fallback: 'Retour arriere')),
                     onTap: () => Navigator.pop(ctx, 'undo'),
                   ),
                   ListTile(
@@ -497,7 +513,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                       Icons.flag_outlined,
                       color: AppColors.warning,
                     ),
-                    title: const Text('Abandonner'),
+                    title: Text(t('SCREEN.MATCH.LIVE.SURRENDER', fallback: 'Abandonner')),
                     onTap: () => Navigator.pop(ctx, 'abandon'),
                   ),
                   const SizedBox(height: 8),
@@ -505,7 +521,7 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(ctx, 'save:$localMode'),
-                      child: const Text('Appliquer'),
+                      child: Text(t('COMMON.APPLY', fallback: 'Appliquer')),
                     ),
                   ),
                 ],
@@ -590,23 +606,26 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text(
-          'Annuler le dernier coup ?',
+        title: Text(
+          t('SCREEN.MATCH.LIVE.UNDO_LAST_THROW', fallback: 'Annuler le dernier coup ?'),
           style: TextStyle(color: AppColors.textPrimary),
         ),
-        content: const Text(
-          'Cette action retirera la derniere fleche de la partie.',
+        content: Text(
+          t(
+            'SCREEN.MATCH.LIVE.UNDO_LAST_THROW_HINT',
+            fallback: 'Cette action retirera la derniere fleche de la partie.',
+          ),
           style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Non'),
+            child: Text(t('COMMON.NO', fallback: 'Non')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Oui, annuler',
+            child: Text(
+              t('SCREEN.MATCH.LIVE.YES_UNDO', fallback: 'Oui, annuler'),
               style: TextStyle(color: AppColors.error),
             ),
           ),
@@ -729,26 +748,32 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
               context: context,
               builder: (ctx) => AlertDialog(
                 backgroundColor: AppColors.surface,
-                title: const Text(
-                  'Quitter la partie ?',
+                title: Text(
+                  t(
+                    'SCREEN.MATCH.LIVE.QUIT_MATCH_QUESTION',
+                    fallback: 'Quitter la partie ?',
+                  ),
                   style: TextStyle(color: AppColors.textPrimary),
                 ),
-                content: const Text(
-                  'La partie en cours sera perdue.',
+                content: Text(
+                  t(
+                    'SCREEN.MATCH.LIVE.QUIT_MATCH_LOSE_PROGRESS',
+                    fallback: 'La partie en cours sera perdue.',
+                  ),
                   style: TextStyle(color: AppColors.textSecondary),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Continuer'),
+                    child: Text(t('COMMON.CONTINUE', fallback: 'Continuer')),
                   ),
                   TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
                       context.pop();
                     },
-                    child: const Text(
-                      'Quitter',
+                    child: Text(
+                      t('SCREEN.MATCH.LIVE.QUIT', fallback: 'Quitter'),
                       style: TextStyle(color: AppColors.error),
                     ),
                   ),
@@ -761,7 +786,10 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
           IconButton(
             onPressed: _openMatchSettings,
             icon: const Icon(Icons.settings, color: AppColors.textSecondary),
-            tooltip: 'Parametres partie',
+            tooltip: t(
+              'SCREEN.MATCH.LIVE.MATCH_SETTINGS',
+              fallback: 'Parametres partie',
+            ),
           ),
         ],
       ),
@@ -782,13 +810,20 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                   length: 2,
                   child: Column(
                     children: [
-                      const TabBar(
+                      TabBar(
                         labelColor: AppColors.primary,
                         unselectedLabelColor: AppColors.textSecondary,
                         indicatorColor: AppColors.primary,
                         tabs: [
-                          Tab(text: 'Saisie score'),
-                          Tab(text: 'Guideline'),
+                          Tab(
+                            text: t(
+                              'SCREEN.MATCH.LIVE.SCORE_INPUT',
+                              fallback: 'Saisie score',
+                            ),
+                          ),
+                          Tab(
+                            text: t('SCREEN.MATCH.LIVE.GUIDE', fallback: 'Guideline'),
+                          ),
                         ],
                       ),
                       Expanded(
@@ -1137,7 +1172,12 @@ class _AbandonSheetState extends State<_AbandonSheet> {
                 onPressed: _selectedIndex == null
                     ? null
                     : () => Navigator.pop(context, _selectedIndex),
-                child: const Text('Confirmer l\'abandon'),
+                child: Text(
+                  t(
+                    'SCREEN.MATCH.LIVE.CONFIRM_SURRENDER',
+                    fallback: 'Confirmer l\'abandon',
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -1145,7 +1185,7 @@ class _AbandonSheetState extends State<_AbandonSheet> {
               width: double.infinity,
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler'),
+                child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
               ),
             ),
           ],

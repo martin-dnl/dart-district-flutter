@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/player_avatar.dart';
 import '../../../shared/widgets/section_header.dart';
@@ -37,10 +38,15 @@ class MatchReportScreen extends ConsumerWidget {
       ),
       error: (_, _) => Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Rapport de match')),
-        body: const Center(
+        appBar: AppBar(
+          title: Text(t('SCREEN.MATCH.REPORT.TITLE', fallback: 'Rapport de match')),
+        ),
+        body: Center(
           child: Text(
-            'Impossible de charger le rapport.',
+            t(
+              'SCREEN.MATCH.REPORT.LOAD_ERROR',
+              fallback: 'Impossible de charger le rapport.',
+            ),
             style: TextStyle(color: AppColors.textSecondary),
           ),
         ),
@@ -62,7 +68,7 @@ class _MatchReportView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Rapport de match'),
+        title: Text(t('SCREEN.MATCH.REPORT.TITLE', fallback: 'Rapport de match')),
         backgroundColor: AppColors.background,
       ),
       body: Container(
@@ -118,7 +124,9 @@ class _MatchReportView extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              isP1Winner ? 'VICTOIRE' : 'DEFAITE',
+                              isP1Winner
+                                  ? t('SCREEN.MATCH.REPORT.VICTORY', fallback: 'VICTOIRE')
+                                  : t('SCREEN.MATCH.REPORT.DEFEAT', fallback: 'DEFAITE'),
                               style: TextStyle(
                                 color: isP1Winner
                                     ? AppColors.success
@@ -160,10 +168,10 @@ class _MatchReportView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     child: Text(
-                      'Statistiques',
+                      t('SCREEN.MATCH.REPORT.STATS', fallback: 'Statistiques'),
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 16,
@@ -172,43 +180,49 @@ class _MatchReportView extends StatelessWidget {
                     ),
                   ),
                   _StatRow(
-                    label: 'Moyenne',
+                    label: t('SCREEN.MATCH.REPORT.AVERAGE', fallback: 'Moyenne'),
                     valueP1: data.player1.average.toStringAsFixed(1),
                     valueP2: data.player2.average.toStringAsFixed(1),
                   ),
                   _StatRow(
-                    label: 'Best Leg',
+                    label: t('SCREEN.MATCH.REPORT.BEST_LEG', fallback: 'Best Leg'),
                     valueP1: data.player1.bestLegAvg.toStringAsFixed(1),
                     valueP2: data.player2.bestLegAvg.toStringAsFixed(1),
                   ),
                   _StatRow(
-                    label: 'Checkout %',
+                    label: t('SCREEN.MATCH.REPORT.CHECKOUT_RATE', fallback: 'Checkout %'),
                     valueP1: '${data.player1.checkoutRate.toStringAsFixed(1)}%',
                     valueP2: '${data.player2.checkoutRate.toStringAsFixed(1)}%',
                   ),
                   _StatRow(
-                    label: '180s',
+                    label: t('SCREEN.MATCH.REPORT.SCORE_180', fallback: '180s'),
                     valueP1: '${data.player1.count180}',
                     valueP2: '${data.player2.count180}',
                   ),
                   _StatRow(
-                    label: '140+',
+                    label: t('SCREEN.MATCH.REPORT.SCORE_140_PLUS', fallback: '140+'),
                     valueP1: '${data.player1.count140Plus}',
                     valueP2: '${data.player2.count140Plus}',
                   ),
                   _StatRow(
-                    label: '100+',
+                    label: t('SCREEN.MATCH.REPORT.SCORE_100_PLUS', fallback: '100+'),
                     valueP1: '${data.player1.count100Plus}',
                     valueP2: '${data.player2.count100Plus}',
                   ),
                   _StatRow(
-                    label: 'Doubles tentes',
+                    label: t(
+                      'SCREEN.MATCH.REPORT.DOUBLES_ATTEMPTED',
+                      fallback: 'Doubles tentes',
+                    ),
                     valueP1: '${data.player1.doublesAttempted}',
                     valueP2: '${data.player2.doublesAttempted}',
                     lowerIsBetter: true,
                   ),
                   _StatRow(
-                    label: 'Doubles reussis',
+                    label: t(
+                      'SCREEN.MATCH.REPORT.DOUBLES_HIT',
+                      fallback: 'Doubles reussis',
+                    ),
                     valueP1: '${data.player1.doublesHit}',
                     valueP2: '${data.player2.doublesHit}',
                   ),
@@ -216,10 +230,14 @@ class _MatchReportView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            const SectionHeader(title: 'Precision'),
+            SectionHeader(
+              title: t('SCREEN.MATCH.REPORT.PRECISION', fallback: 'Precision'),
+            ),
             _MatchPrecisionSection(data: data),
             const SizedBox(height: 10),
-            const SectionHeader(title: 'Timeline'),
+            SectionHeader(
+              title: t('SCREEN.MATCH.REPORT.TIMELINE', fallback: 'Timeline'),
+            ),
             GlassCard(
               child: Column(
                 children: data.timeline.map((leg) {
@@ -228,8 +246,8 @@ class _MatchReportView extends StatelessWidget {
                       (leg.winnerIndex == 0
                           ? data.player1.name
                           : data.player2.name);
-                  final text = leg.isAbandonEvent
-                      ? 'Abandon de $winnerName'
+                    final text = leg.isAbandonEvent
+                      ? '${t('SCREEN.MATCH.REPORT.SURRENDER_OF', fallback: 'Abandon de')} $winnerName'
                       : 'Set ${leg.setNumber} - Leg ${leg.legNumber} : $winnerName';
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -259,11 +277,18 @@ class _MatchReportView extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Partage a venir.')),
+                  SnackBar(
+                    content: Text(
+                      t(
+                        'SCREEN.MATCH.REPORT.SHARE_COMING_SOON',
+                        fallback: 'Partage a venir.',
+                      ),
+                    ),
+                  ),
                 );
               },
               icon: const Icon(Icons.share_outlined),
-              label: const Text('Partager'),
+              label: Text(t('COMMON.SHARE', fallback: 'Partager')),
             ),
           ],
         ),
@@ -303,8 +328,12 @@ class _MatchPrecisionSection extends StatelessWidget {
                   ],
                 ),
               const SizedBox(height: 12),
-              const Text(
-                'Seules les flechettes jouees avec une position sur la cible sont affichees.',
+              Text(
+                t(
+                  'SCREEN.MATCH.REPORT.PRECISION_HINT',
+                  fallback:
+                      'Seules les flechettes jouees avec une position sur la cible sont affichees.',
+                ),
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12,
@@ -323,9 +352,11 @@ class _MatchPrecisionSection extends StatelessWidget {
     return DartboardInputStats(
       hits: player.dartPositions,
       title: player.name,
-      subtitle: '${player.dartPositions.length} flechettes positionnees',
+      subtitle:
+          '${player.dartPositions.length} ${t('SCREEN.MATCH.REPORT.DARTS_POSITIONED', fallback: 'flechettes positionnees')}',
       showLegend: false,
-      emptyMessage: 'Aucune flechette positionnee pour ${player.name}.',
+      emptyMessage:
+          '${t('SCREEN.MATCH.REPORT.NO_DART_POSITIONED_FOR', fallback: 'Aucune flechette positionnee pour')} ${player.name}.',
     );
   }
 }

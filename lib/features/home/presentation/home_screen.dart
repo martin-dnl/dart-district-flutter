@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/translation_service.dart';
 import '../../match/controller/ongoing_matches_controller.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../controller/home_controller.dart';
@@ -67,9 +68,15 @@ class HomeScreen extends ConsumerWidget {
                         Expanded(
                           child: _MetricCard(
                             icon: Icons.location_city,
-                            title: 'Territoires controles',
+                            title: t(
+                              'SCREEN.HOME.TERRITORIES_CONTROLLED',
+                              fallback: 'Territoires controles',
+                            ),
                             value: '${homeState.territoriesControlled}',
-                            subtitle: 'Carte live',
+                            subtitle: t(
+                              'SCREEN.HOME.LIVE_MAP',
+                              fallback: 'Carte live',
+                            ),
                             accent: AppColors.secondary,
                             onTap: () => context.go(AppRoutes.map),
                           ),
@@ -78,9 +85,13 @@ class HomeScreen extends ConsumerWidget {
                         Expanded(
                           child: _MetricCard(
                             icon: Icons.emoji_events,
-                            title: 'Points de conquete',
+                            title: t(
+                              'SCREEN.HOME.CONQUEST_POINTS',
+                              fallback: 'Points de conquete',
+                            ),
                             value: '${user?.conquestScore ?? 0}',
-                            subtitle: 'Rang #${homeState.clubRank}',
+                            subtitle:
+                                '${t('SCREEN.HOME.RANK', fallback: 'Rang')} #${homeState.clubRank}',
                             accent: AppColors.accent,
                             onTap: () {
                               final clubId = user?.clubId;
@@ -119,8 +130,14 @@ class HomeScreen extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _SectionTitle(
-                      title: 'Dernieres parties',
-                      action: 'Voir l\'historique',
+                      title: t(
+                        'SCREEN.HOME.LAST_MATCHES',
+                        fallback: 'Dernieres parties',
+                      ),
+                      action: t(
+                        'SCREEN.HOME.VIEW_HISTORY',
+                        fallback: 'Voir l\'historique',
+                      ),
                       onActionTap: () => context.push(AppRoutes.matchHistory),
                     ),
                   ),
@@ -148,8 +165,11 @@ class HomeScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: _SectionTitle(
-                        title: 'Prochains Tournois',
-                        action: 'Voir tout',
+                        title: t(
+                          'SCREEN.HOME.UPCOMING_TOURNAMENTS',
+                          fallback: 'Prochains Tournois',
+                        ),
+                        action: t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout'),
                         onActionTap: () => context.go(AppRoutes.tournaments),
                       ),
                     ),
@@ -168,12 +188,23 @@ class HomeScreen extends ConsumerWidget {
                           final tournament = tournaments.first;
                           return TournamentTile(
                             type: (tournament['is_territorial'] == true)
-                                ? 'Territorial'
-                                : 'Local',
-                            name: (tournament['name'] ?? 'Tournoi en cours')
+                                  ? t(
+                                      'SCREEN.TOURNAMENTS.TYPE_TERRITORIAL',
+                                      fallback: 'Territorial',
+                                    )
+                                  : t('SCREEN.TOURNAMENTS.TYPE_LOCAL', fallback: 'Local'),
+                              name: (tournament['name'] ??
+                                      t(
+                                        'SCREEN.TOURNAMENTS.IN_PROGRESS',
+                                        fallback: 'Tournoi en cours',
+                                      ))
                                 .toString(),
                             scheduleLabel:
-                                (tournament['scheduled_at_label'] ?? 'En cours')
+                                  (tournament['scheduled_at_label'] ??
+                                          t(
+                                            'SCREEN.TOURNAMENTS.IN_PROGRESS_SHORT',
+                                            fallback: 'En cours',
+                                          ))
                                     .toString(),
                             slotsLabel:
                                 '${(tournament['enrolled_players'] ?? 0).toString()}/${(tournament['max_players'] ?? 0).toString()}',
@@ -440,7 +471,7 @@ class _RecentFormCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$winRate% Victoires (${wins}V - ${defeats}D)',
+            '$winRate% ${t('SCREEN.HOME.WINS', fallback: 'Victoires')} (${wins}V - ${defeats}D)',
             style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w800,
@@ -450,7 +481,7 @@ class _RecentFormCard extends StatelessWidget {
           const SizedBox(height: 12),
           if (recent.isEmpty)
             Text(
-              'Aucun match classe termine',
+              t('SCREEN.HOME.NO_RANKED_MATCH', fallback: 'Aucun match classe termine'),
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -482,7 +513,9 @@ class _QuickActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionTitle(title: 'Actions Rapides'),
+        _SectionTitle(
+          title: t('SCREEN.HOME.QUICK_ACTIONS', fallback: 'Actions Rapides'),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -490,7 +523,10 @@ class _QuickActions extends StatelessWidget {
               Expanded(
                 child: _QuickActionTile(
                   icon: Icons.add,
-                  label: 'Creer\nTournoi',
+                  label: t(
+                    'SCREEN.TOURNAMENTS.CREATE',
+                    fallback: 'Creer\nTournoi',
+                  ),
                   onTap: onCreateTournament,
                 ),
               ),
@@ -498,7 +534,7 @@ class _QuickActions extends StatelessWidget {
             Expanded(
               child: _QuickActionTile(
                 icon: Icons.map,
-                label: 'Ouvrir\nCarte',
+                  label: t('SCREEN.HOME.OPEN_MAP', fallback: 'Ouvrir\nCarte'),
                 onTap: onOpenMap,
               ),
             ),
@@ -506,7 +542,7 @@ class _QuickActions extends StatelessWidget {
             Expanded(
               child: _QuickActionTile(
                 icon: Icons.play_arrow_rounded,
-                label: 'Lancer\nMatch',
+                label: t('SCREEN.PLAY.START_MATCH', fallback: 'Lancer\nMatch'),
                 isPrimary: true,
                 onTap: onLaunchMatch,
               ),

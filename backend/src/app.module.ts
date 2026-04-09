@@ -19,6 +19,7 @@ import { ContactsModule } from './modules/contacts/contacts.module';
 import { AppVersionModule } from './modules/app_version/app-version.module';
 import { BadgesModule } from './modules/badges/badges.module';
 import { I18nModule } from './modules/i18n/i18n.module';
+import { DartSenseModule } from './modules/dart_sense/dart-sense.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { I18nModule } from './modules/i18n/i18n.module';
     AppVersionModule,
     BadgesModule,
     I18nModule,
+    DartSenseModule,
   ],
   providers: [
     {

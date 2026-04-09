@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../controller/profile_controller.dart';
 
@@ -28,11 +29,11 @@ class EloChart extends StatelessWidget {
   String _modeLabel(EloPeriodMode value) {
     switch (value) {
       case EloPeriodMode.week:
-        return 'Semaine';
+        return t('SCREEN.PROFILE.WEEK', fallback: 'Semaine');
       case EloPeriodMode.month:
-        return 'Mois';
+        return t('SCREEN.PROFILE.MONTH', fallback: 'Mois');
       case EloPeriodMode.year:
-        return 'Annee';
+        return t('SCREEN.PROFILE.YEAR', fallback: 'Annee');
     }
   }
 
@@ -73,9 +74,9 @@ class EloChart extends StatelessWidget {
                 modeLabelBuilder: _modeLabel,
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Pas encore de donnees',
-                style: TextStyle(color: AppColors.textHint),
+              Text(
+                t('SCREEN.PROFILE.NO_DATA', fallback: 'Pas encore de donnees'),
+                style: const TextStyle(color: AppColors.textHint),
               ),
             ],
           ),
@@ -269,12 +270,18 @@ class _ChartToolbar extends StatelessWidget {
             IconButton(
               onPressed: () => onShiftOffset(offset + 1),
               icon: const Icon(Icons.chevron_left),
-              tooltip: 'Periode precedente',
+              tooltip: t(
+                'SCREEN.PROFILE.PREVIOUS_PERIOD',
+                fallback: 'Periode precedente',
+              ),
             ),
             IconButton(
               onPressed: offset > 0 ? () => onShiftOffset(offset - 1) : null,
               icon: const Icon(Icons.chevron_right),
-              tooltip: 'Periode suivante',
+              tooltip: t(
+                'SCREEN.PROFILE.NEXT_PERIOD',
+                fallback: 'Periode suivante',
+              ),
             ),
           ],
         ),

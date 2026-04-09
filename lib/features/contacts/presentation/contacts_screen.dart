@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/translation_service.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../../play/presentation/qr_scan_screen.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
@@ -75,8 +76,14 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                   Expanded(
                     child: Text(
                       contacts.isConnected
-                          ? 'Connecté'
-                          : 'Hors ligne',
+                          ? t(
+                              'SCREEN.CONTACTS.STATUS_CONNECTED',
+                              fallback: 'Connecte',
+                            )
+                          : t(
+                              'SCREEN.CONTACTS.STATUS_OFFLINE',
+                              fallback: 'Hors ligne',
+                            ),
                       style: GoogleFonts.manrope(
                         color: contacts.isConnected
                             ? AppColors.primary
@@ -90,7 +97,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     onPressed: () => ref
                         .read(contactsControllerProvider.notifier)
                         .refreshContacts(),
-                    tooltip: 'Rafraichir',
+                    tooltip: t('SCREEN.CONTACTS.REFRESH', fallback: 'Rafraichir'),
                     icon: const Icon(
                       Icons.refresh_rounded,
                       color: AppColors.textSecondary,
@@ -150,7 +157,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                         children: [
                           if (contacts.searchResults.isNotEmpty) ...[
-                            _SectionTitle('Resultats de recherche'),
+                            _SectionTitle(
+                              t(
+                                'SCREEN.CONTACTS.SEARCH_RESULTS',
+                                fallback: 'Resultats de recherche',
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             ...contacts.searchResults.map(
                               (c) => Padding(
@@ -171,7 +183,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                             const SizedBox(height: 6),
                           ],
                           if (contacts.incomingRequests.isNotEmpty) ...[
-                            _SectionTitle('Demandes recues'),
+                            _SectionTitle(
+                              t(
+                                'SCREEN.CONTACTS.INCOMING_REQUESTS',
+                                fallback: 'Demandes recues',
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             ...contacts.incomingRequests.map(
                               (request) => Padding(
@@ -197,7 +214,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                             const SizedBox(height: 6),
                           ],
                           if (contacts.outgoingRequests.isNotEmpty) ...[
-                            _SectionTitle('Demandes en attente'),
+                            _SectionTitle(
+                              t(
+                                'SCREEN.CONTACTS.PENDING_REQUESTS',
+                                fallback: 'Demandes en attente',
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             ...contacts.outgoingRequests.map(
                               (request) => Padding(
@@ -213,12 +235,17 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                             ),
                             const SizedBox(height: 6),
                           ],
-                          _SectionTitle('Amis'),
+                          _SectionTitle(
+                            t('SCREEN.CONTACTS.FRIENDS', fallback: 'Amis'),
+                          ),
                           const SizedBox(height: 8),
                           if (contacts.friends.isEmpty)
-                            const _EmptyStateCard(
-                              message:
-                                  'Aucun ami pour le moment. Recherchez un joueur pour commencer.',
+                            _EmptyStateCard(
+                              message: t(
+                                'SCREEN.CONTACTS.EMPTY_FRIENDS',
+                                fallback:
+                                    'Aucun ami pour le moment. Recherchez un joueur pour commencer.',
+                              ),
                             ),
                           ...contacts.friends.map(
                             (friend) => Padding(
@@ -300,7 +327,7 @@ class _SearchBox extends StatelessWidget {
       onChanged: onChanged,
       style: GoogleFonts.manrope(color: AppColors.textPrimary),
       decoration: InputDecoration(
-        hintText: 'Rechercher un joueur',
+        hintText: t('SCREEN.CONTACTS.SEARCH', fallback: 'Rechercher un joueur'),
         hintStyle: GoogleFonts.manrope(color: AppColors.textHint),
         prefixIcon: const Icon(
           Icons.search_rounded,
@@ -323,7 +350,7 @@ class _SearchBox extends StatelessWidget {
                 ),
               IconButton(
                 onPressed: onScanQr,
-                tooltip: 'Scanner QR',
+                tooltip: t('SCREEN.PLAY.SCAN_QR', fallback: 'Scanner QR'),
                 icon: const Icon(
                   Icons.qr_code_scanner,
                   color: AppColors.primary,
@@ -403,7 +430,7 @@ class _SearchResultTile extends StatelessWidget {
           if (canAdd)
             IconButton(
               onPressed: onAdd,
-              tooltip: 'Ajouter',
+              tooltip: t('SCREEN.CONTACTS.ADD', fallback: 'Ajouter'),
               icon: const Icon(
                 Icons.add_box_outlined,
                 color: AppColors.primary,
@@ -450,7 +477,7 @@ class _IncomingRequestTile extends StatelessWidget {
                 child: GestureDetector(
                   onTap: onOpenProfile,
                   child: Text(
-                    '${request.user.username} veut vous ajouter',
+                    '${request.user.username} ${t('SCREEN.CONTACTS.WANTS_TO_ADD', fallback: 'veut vous ajouter')}',
                     style: GoogleFonts.manrope(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
@@ -466,7 +493,7 @@ class _IncomingRequestTile extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: onReject,
-                  child: const Text('Refuser'),
+                  child: Text(t('COMMON.CANCEL', fallback: 'Refuser')),
                 ),
               ),
               const SizedBox(width: 8),
@@ -474,9 +501,13 @@ class _IncomingRequestTile extends StatelessWidget {
                 onPressed: () async {
                   final confirmed = await showConfirmDialog(
                     context: context,
-                    title: 'Bloquer ${request.user.username} ?',
-                    message: 'Cet utilisateur ne pourra plus vous contacter.',
-                    confirmLabel: 'Bloquer',
+                    title:
+                        '${t('SCREEN.CONTACTS.BLOCK', fallback: 'Bloquer')} ${request.user.username} ?',
+                    message: t(
+                      'SCREEN.CONTACTS.BLOCK_CONFIRM',
+                      fallback: 'Cet utilisateur ne pourra plus vous contacter.',
+                    ),
+                    confirmLabel: t('SCREEN.CONTACTS.BLOCK', fallback: 'Bloquer'),
                     confirmColor: AppColors.error,
                   );
                   if (confirmed) {
@@ -484,7 +515,7 @@ class _IncomingRequestTile extends StatelessWidget {
                   }
                 },
                 icon: const Icon(Icons.block, color: AppColors.error, size: 20),
-                tooltip: 'Bloquer',
+                tooltip: t('SCREEN.CONTACTS.BLOCK', fallback: 'Bloquer'),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -494,7 +525,7 @@ class _IncomingRequestTile extends StatelessWidget {
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.background,
                   ),
-                  child: const Text('Accepter'),
+                  child: Text(t('SCREEN.CONTACTS.ACCEPT', fallback: 'Accepter')),
                 ),
               ),
             ],
@@ -538,7 +569,7 @@ class _OutgoingRequestTile extends StatelessWidget {
             ),
           ),
           Text(
-            'Envoyee',
+            t('SCREEN.CONTACTS.SENT', fallback: 'Envoyee'),
             style: GoogleFonts.manrope(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
@@ -617,7 +648,7 @@ class _FriendTile extends StatelessWidget {
               color: AppColors.primary,
               size: 20,
             ),
-            tooltip: 'Defier',
+            tooltip: t('SCREEN.CONTACTS.CHALLENGE', fallback: 'Defier'),
             onPressed: onChallenge,
           ),
           IconButton(
@@ -627,7 +658,7 @@ class _FriendTile extends StatelessWidget {
               color: AppColors.primary,
               size: 22,
             ),
-            tooltip: 'Message',
+            tooltip: t('SCREEN.CONTACTS.MESSAGE', fallback: 'Message'),
           ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../shared/models/match_history_summary.dart';
 import '../../../shared/widgets/match_history_list.dart';
@@ -99,7 +100,10 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
         return;
       }
       setState(() {
-        _error = 'Impossible de charger l\'historique';
+        _error = t(
+          'SCREEN.MATCH.HISTORY.LOAD_ERROR',
+          fallback: 'Impossible de charger l\'historique',
+        );
       });
     } finally {
       if (mounted) {
@@ -115,7 +119,9 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Historique des matchs'),
+        title: Text(
+          t('SCREEN.MATCH.HISTORY.TITLE', fallback: 'Historique des matchs'),
+        ),
         backgroundColor: AppColors.background,
       ),
       body: _isInitialLoading
@@ -148,7 +154,9 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoadingMore ? null : _loadMore,
                         child: Text(
-                          _isLoadingMore ? 'Chargement...' : 'Voir plus',
+                          _isLoadingMore
+                              ? t('COMMON.LOADING', fallback: 'Chargement...')
+                              : t('COMMON.SEE_MORE', fallback: 'Voir plus'),
                         ),
                       ),
                     ),

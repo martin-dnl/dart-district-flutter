@@ -57,7 +57,11 @@ void main() async {
   // Init local storage
   await LocalStorage.init();
 
-  final preferredLanguage = await TranslationService.restorePreferredLanguage();
+  await TranslationService.instance.loadFromLocal();
+  final preferredLanguage =
+      TranslationService.instance.currentLanguage.isNotEmpty
+      ? TranslationService.instance.currentLanguage
+      : await TranslationService.restorePreferredLanguage();
   Intl.defaultLocale = preferredLanguage;
 
   runApp(const ProviderScope(child: DartDistrictApp()));
@@ -70,16 +74,21 @@ class DartDistrictApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    return MaterialApp.router(
-      title: 'Dart District',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      routerConfig: router,
-      builder: (context, child) {
-        return VersionGate(
-          child: MatchInvitationOverlay(
-            child: child ?? const SizedBox.shrink(),
-          ),
+    return ValueListenableBuilder<int>(
+      valueListenable: TranslationService.revision,
+      builder: (context, _, child) {
+        return MaterialApp.router(
+          title: 'Dart District',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.darkTheme,
+          routerConfig: router,
+          builder: (context, child) {
+            return VersionGate(
+              child: MatchInvitationOverlay(
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
         );
       },
     );

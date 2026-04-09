@@ -15,8 +15,10 @@ import 'package:vector_map_tiles_pmtiles/vector_map_tiles_pmtiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../core/network/nominatim_service.dart';
+import '../../auth/controller/auth_controller.dart';
 import '../../club/widgets/club_map_marker.dart';
 import '../../club/widgets/club_map_modal.dart';
 import '../controller/map_controller.dart';
@@ -61,6 +63,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   String? _cachedThemeLayerName;
   int? _cachedTerritoriesHash;
   int? _cachedActiveCodesHash;
+  String? _cachedThemeUserClubId;
   List<fm.Marker>? _cachedClubMarkers;
   int? _cachedClubMarkersHash;
 
@@ -489,6 +492,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     List<TerritoryModel> territories,
     String layerName,
     Set<String> activeCodes,
+    String? userClubId,
   ) {
     final territoriesHash = _hashTerritories(territories);
     final activeCodesHash = _hashCodes(activeCodes);
@@ -497,13 +501,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (_cachedTheme != null &&
         _cachedThemeLayerName == layerName &&
         _cachedTerritoriesHash == territoriesHash &&
-        _cachedActiveCodesHash == activeCodesHash) {
+        _cachedActiveCodesHash == activeCodesHash &&
+        _cachedThemeUserClubId == userClubId) {
       return _cachedTheme!;
     }
-    _cachedTheme = _buildIrisStatusTheme(territories, layerName, activeCodes);
+    _cachedTheme = _buildIrisStatusTheme(
+      territories,
+      layerName,
+      activeCodes,
+      userClubId,
+    );
     _cachedThemeLayerName = layerName;
     _cachedTerritoriesHash = territoriesHash;
     _cachedActiveCodesHash = activeCodesHash;
+    _cachedThemeUserClubId = userClubId;
     return _cachedTheme!;
   }
 
@@ -511,12 +522,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     List<TerritoryModel> territories,
     String layerName,
     Set<String> activeCodes,
+    String? userClubId,
   ) {
-    final conquered = territories
+    final conqueredByMyClub = territories
         .where(
           (t) =>
               activeCodes.contains(t.codeIris) &&
-              t.status == TerritoryStatus.conquered,
+              t.status == TerritoryStatus.conquered &&
+              userClubId != null &&
+              t.ownerClubId == userClubId,
+        )
+        .map((t) => t.codeIris)
+        .toList(growable: false);
+    final conqueredByOthers = territories
+        .where(
+          (t) =>
+              activeCodes.contains(t.codeIris) &&
+              t.status == TerritoryStatus.conquered &&
+              (userClubId == null || t.ownerClubId != userClubId),
         )
         .map((t) => t.codeIris)
         .toList(growable: false);
@@ -577,25 +600,51 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         },
       ]);
 
-      // Conquered = "mine" — yellow-green #c8ff00
-      if (conquered.isNotEmpty) {
+      // Conquered by my club — neon lime
+      if (conqueredByMyClub.isNotEmpty) {
         layers.addAll([
           {
-            'id': 'iris-conquered-fill-$sourceLayer',
+            'id': 'iris-conquered-mine-fill-$sourceLayer',
             'type': 'fill',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(conquered),
+            'filter': _statusFilter(conqueredByMyClub),
             'paint': {'fill-color': '#c8ff00', 'fill-opacity': 0.34},
           },
           {
-            'id': 'iris-conquered-border-$sourceLayer',
+            'id': 'iris-conquered-mine-border-$sourceLayer',
             'type': 'line',
             'source': 'pmtiles',
             'source-layer': sourceLayer,
-            'filter': _statusFilter(conquered),
+            'filter': _statusFilter(conqueredByMyClub),
             'paint': {
               'line-color': '#c8ff00',
+              'line-width': 2.4,
+              'line-opacity': 0.95,
+            },
+          },
+        ]);
+      }
+
+      // Conquered by another club — secondary
+      if (conqueredByOthers.isNotEmpty) {
+        layers.addAll([
+          {
+            'id': 'iris-conquered-others-fill-$sourceLayer',
+            'type': 'fill',
+            'source': 'pmtiles',
+            'source-layer': sourceLayer,
+            'filter': _statusFilter(conqueredByOthers),
+            'paint': {'fill-color': '#6A6FFF', 'fill-opacity': 0.34},
+          },
+          {
+            'id': 'iris-conquered-others-border-$sourceLayer',
+            'type': 'line',
+            'source': 'pmtiles',
+            'source-layer': sourceLayer,
+            'filter': _statusFilter(conqueredByOthers),
+            'paint': {
+              'line-color': '#6A6FFF',
               'line-width': 2.4,
               'line-opacity': 0.95,
             },
@@ -1067,6 +1116,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
+    final userClubId = ref.watch(currentUserProvider)?.clubId;
     final viewportWidthPx = MediaQuery.sizeOf(context).width;
 
     return Scaffold(
@@ -1087,7 +1137,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   const SizedBox(height: 12),
                   OutlinedButton(
                     onPressed: _retryTilesetLoad,
-                    child: const Text('Reessayer'),
+                    child: Text(t('COMMON.RETRY', fallback: 'Reessayer')),
                   ),
                 ],
               ),
@@ -1210,6 +1260,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             mapState.territories,
                             config.layerName,
                             mapState.activeIrisCodes,
+                            userClubId,
                           ),
                           tileProviders: TileProviders({'pmtiles': provider!}),
                           layerMode: VectorTileLayerMode.vector,
@@ -1424,7 +1475,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             ),
                             _LegendItem(
                               color: AppColors.primary,
-                              label: 'Conquises',
+                              label: 'Mon club',
+                            ),
+                            _LegendItem(
+                              color: AppColors.secondary,
+                              label: 'Autre club',
                             ),
                             _LegendItem(
                               color: Color(0xFF3B82F6),

@@ -1,12 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
-import '../../../core/config/dart_sense_service.dart';
+import '../../../core/config/dart_sense_service.dart' as mode;
 import '../../../core/config/translation_service.dart';
 import '../../../core/database/local_storage.dart';
+import '../../../core/network/dart_sense_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../auth/controller/auth_controller.dart';
@@ -19,6 +23,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isSigningOut = false;
   bool _isDeletingAccount = false;
   bool _isLoadingGameOptions = true;
@@ -27,6 +32,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isSavingLanguage = false;
   bool _isLoadingDartSense = true;
   bool _isSavingDartSense = false;
+  bool _isRunningDartSense = false;
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _scoreModeBox = 'settings';
   static const String _scoreModeLocalKey = 'score_mode';
@@ -37,7 +43,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _scoreMode = _manualScoreMode;
   List<LanguageOption> _languages = const <LanguageOption>[];
   String _languageCode = 'fr-FR';
-  DartSenseMode _dartSenseMode = DartSenseMode.off;
+  mode.DartSenseMode _dartSenseMode = mode.DartSenseMode.off;
 
   bool _isSupportedScoreMode(String value) {
     return value == _manualScoreMode ||
@@ -179,8 +185,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
       setState(() {
         _languages = const <LanguageOption>[
-          LanguageOption(code: 'fr-FR', name: 'Francais', isDefault: true),
-          LanguageOption(code: 'en-US', name: 'English'),
+          LanguageOption(
+            code: 'fr-FR',
+            countryName: 'France',
+            languageName: 'Francais',
+            flagEmoji: '🇫🇷',
+            isDefault: true,
+          ),
+          LanguageOption(
+            code: 'en-US',
+            countryName: 'United States',
+            languageName: 'English',
+            flagEmoji: '🇺🇸',
+          ),
         ];
         _isLoadingLanguage = false;
       });
@@ -207,7 +224,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Langue mise a jour.')),
+        SnackBar(
+          content: Text(
+            t('SCREEN.SETTINGS.LANGUAGE_UPDATED', fallback: 'Langue mise a jour.'),
+          ),
+        ),
       );
     } catch (_) {
       if (!mounted) {
@@ -215,7 +236,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
       setState(() => _languageCode = previous);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible de mettre a jour la langue.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.SETTINGS.LANGUAGE_UPDATE_FAILED',
+              fallback: 'Impossible de mettre a jour la langue.',
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -225,25 +253,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadDartSenseMode() async {
-    final service = DartSenseService(ref.read(apiClientProvider));
-    final mode = await service.loadMode();
+    final service = mode.DartSenseService(ref.read(apiClientProvider));
+    final loadedMode = await service.loadMode();
     if (!mounted) {
       return;
     }
     setState(() {
-      _dartSenseMode = mode;
+      _dartSenseMode = loadedMode;
       _isLoadingDartSense = false;
     });
   }
 
-  Future<void> _saveDartSenseMode(DartSenseMode mode) async {
+  Future<void> _saveDartSenseMode(mode.DartSenseMode modeValue) async {
     setState(() {
-      _dartSenseMode = mode;
+      _dartSenseMode = modeValue;
       _isSavingDartSense = true;
     });
 
-    final service = DartSenseService(ref.read(apiClientProvider));
-    await service.saveMode(mode);
+    final service = mode.DartSenseService(ref.read(apiClientProvider));
+    await service.saveMode(modeValue);
 
     if (!mounted) {
       return;
@@ -251,24 +279,182 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     setState(() => _isSavingDartSense = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Option Dart Sense enregistree.')),
+      SnackBar(
+        content: Text(
+          t(
+            'SCREEN.SETTINGS.DART_SENSE_SAVED',
+            fallback: 'Option Dart Sense enregistree.',
+          ),
+        ),
+      ),
     );
+  }
+
+  Future<void> _runDartSenseTest() async {
+    if (_dartSenseMode == mode.DartSenseMode.off || _isRunningDartSense) {
+      if (_dartSenseMode == mode.DartSenseMode.off) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              t(
+                'SCREEN.SETTINGS.DART_SENSE_ENABLE_FIRST',
+                fallback: 'Activez Dart Sense (ON) avant de lancer un test.',
+              ),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final photo = await _imagePicker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 90,
+      maxWidth: 1800,
+    );
+    if (photo == null || !mounted) {
+      return;
+    }
+
+    setState(() => _isRunningDartSense = true);
+    try {
+      final service = DartSenseApiService(ref.read(apiClientProvider));
+      final darts = await service.detect(File(photo.path));
+      if (!mounted) {
+        return;
+      }
+
+      if (darts.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              t('SCREEN.SETTINGS.DART_SENSE_NO_DARTS', fallback: 'Aucune fleche detectee.'),
+            ),
+          ),
+        );
+        return;
+      }
+
+      final total = darts.fold<int>(0, (sum, dart) => sum + dart.score);
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.surface,
+        builder: (dialogContext) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(photo.path),
+                      height: 220,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    t('SCREEN.SETTINGS.DART_SENSE_RESULT', fallback: 'Resultat Dart Sense'),
+                    style: Theme.of(dialogContext).textTheme.titleMedium
+                        ?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (var i = 0; i < darts.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        'Flechette ${i + 1}: ${darts[i].label} (${darts[i].score}) - ${(darts[i].confidence * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Total: $total',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: Text(
+                              t(
+                                'SCREEN.SETTINGS.RETAKE_PHOTO',
+                                fallback: 'Reprendre la photo',
+                              ),
+                            ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: Text(t('COMMON.CONFIRM', fallback: 'Confirmer')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.SETTINGS.DART_SENSE_FAILED',
+              fallback: 'Echec de detection Dart Sense.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isRunningDartSense = false);
+      }
+    }
   }
 
   Future<void> _confirmAndSignOut() async {
     final shouldSignOut = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Deconnexion'),
-        content: const Text('Voulez-vous vraiment vous deconnecter ?'),
+        title: Text(t('SCREEN.SETTINGS.SIGN_OUT', fallback: 'Deconnexion')),
+        content: Text(
+          t(
+            'SCREEN.SETTINGS.SIGN_OUT_CONFIRM',
+            fallback: 'Voulez-vous vraiment vous deconnecter ?',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
+            child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Se deconnecter'),
+            child: Text(
+              t('SCREEN.SETTINGS.SIGN_OUT_ACTION', fallback: 'Se deconnecter'),
+            ),
           ),
         ],
       ),
@@ -296,10 +482,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _confirmAndDeleteAccount() async {
     final confirmed = await showConfirmDialog(
       context: context,
-      title: 'Supprimer votre compte',
-      message:
-          'Cette action est irreversible. Votre compte sera anonymise et vos amities supprimees.',
-      confirmLabel: 'Supprimer',
+      title: t('SCREEN.SETTINGS.DELETE_ACCOUNT', fallback: 'Supprimer votre compte'),
+      message: t(
+        'SCREEN.SETTINGS.DELETE_ACCOUNT_CONFIRM',
+        fallback:
+            'Cette action est irreversible. Votre compte sera anonymise et vos amities supprimees.',
+      ),
+      confirmLabel: t('SCREEN.SETTINGS.DELETE_ACCOUNT_ACTION', fallback: 'Supprimer'),
       confirmColor: AppColors.error,
     );
     if (!confirmed || !mounted) {
@@ -318,7 +507,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) {
         setState(() => _isDeletingAccount = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de supprimer le compte.')),
+          SnackBar(
+            content: Text(
+              t(
+                'SCREEN.SETTINGS.DELETE_ACCOUNT_FAILED',
+                fallback: 'Impossible de supprimer le compte.',
+              ),
+            ),
+          ),
         );
       }
     }
@@ -330,16 +526,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        title: Text(t('SCREEN.SETTINGS.TITLE', fallback: 'Settings')),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ListView(
             children: [
               const SizedBox(height: 8),
-              const Text(
-                'Game options',
+              Text(
+                t('SCREEN.SETTINGS.GAME_OPTIONS', fallback: 'Game options'),
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -356,8 +553,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: _scoreMode,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Score mode',
+                  decoration: InputDecoration(
+                    labelText: t('SCREEN.SETTINGS.SCORE_MODE', fallback: 'Score mode'),
                     border: OutlineInputBorder(),
                   ),
                   items: const [
@@ -386,8 +583,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 12),
               const Divider(color: AppColors.stroke),
               const SizedBox(height: 8),
-              const Text(
-                'Language',
+              Text(
+                t('SCREEN.SETTINGS.LANGUAGE', fallback: 'Language'),
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -404,8 +601,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: _languageCode,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Application language',
+                  decoration: InputDecoration(
+                    labelText: t(
+                      'SCREEN.SETTINGS.APPLICATION_LANGUAGE',
+                      fallback: 'Application language',
+                    ),
                     border: OutlineInputBorder(),
                   ),
                   items: _languages
@@ -428,8 +628,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 12),
               const Divider(color: AppColors.stroke),
               const SizedBox(height: 8),
-              const Text(
-                'Dart Sense',
+              Text(
+                t('SCREEN.SETTINGS.DART_SENSE', fallback: 'Dart Sense'),
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -443,20 +643,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: LinearProgressIndicator(minHeight: 2),
                 )
               else
-                DropdownButtonFormField<DartSenseMode>(
+                DropdownButtonFormField<mode.DartSenseMode>(
                   initialValue: _dartSenseMode,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Coach assistant',
+                  decoration: InputDecoration(
+                    labelText: t(
+                      'SCREEN.SETTINGS.COACH_ASSISTANT',
+                      fallback: 'Coach assistant',
+                    ),
                     border: OutlineInputBorder(),
                   ),
                   items: const [
                     DropdownMenuItem(
-                      value: DartSenseMode.off,
+                      value: mode.DartSenseMode.off,
                       child: Text('OFF'),
                     ),
                     DropdownMenuItem(
-                      value: DartSenseMode.on,
+                      value: mode.DartSenseMode.on,
                       child: Text('ON'),
                     ),
                   ],
@@ -469,11 +672,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           _saveDartSenseMode(value);
                         },
                 ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _isRunningDartSense ? null : _runDartSenseTest,
+                icon: _isRunningDartSense
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.camera_alt_outlined),
+                label: Text(
+                  _isRunningDartSense
+                      ? t(
+                          'SCREEN.SETTINGS.DART_SENSE_DETECTING',
+                          fallback: 'Detection en cours...',
+                        )
+                      : t(
+                          'SCREEN.SETTINGS.DART_SENSE_BETA',
+                          fallback: 'Dart Sense (Beta)',
+                        ),
+                ),
+              ),
               const SizedBox(height: 12),
               const Divider(color: AppColors.stroke),
               const SizedBox(height: 8),
-              const Text(
-                'Compte',
+              Text(
+                t('SCREEN.SETTINGS.ACCOUNT', fallback: 'Compte'),
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -484,7 +709,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               OutlinedButton.icon(
                 onPressed: () => context.push(AppRoutes.about),
                 icon: const Icon(Icons.info_outline),
-                label: const Text('A propos'),
+                label: Text(t('SCREEN.SETTINGS.ABOUT', fallback: 'A propos')),
               ),
               const SizedBox(height: 10),
               ElevatedButton.icon(
@@ -496,7 +721,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.logout),
-                label: Text(_isSigningOut ? 'Deconnexion...' : 'Deconnexion'),
+                label: Text(
+                  _isSigningOut
+                      ? t('COMMON.LOADING', fallback: 'Deconnexion...')
+                      : t('SCREEN.SETTINGS.SIGN_OUT', fallback: 'Deconnexion'),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
@@ -518,8 +747,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: const Icon(Icons.delete_forever),
                   label: Text(
                     _isDeletingAccount
-                        ? 'Suppression...'
-                        : 'Supprimer mon compte',
+                        ? t('COMMON.LOADING', fallback: 'Suppression...')
+                        : t(
+                            'SCREEN.SETTINGS.DELETE_ACCOUNT',
+                            fallback: 'Supprimer mon compte',
+                          ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.error,

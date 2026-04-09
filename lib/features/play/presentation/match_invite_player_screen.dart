@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../shared/widgets/player_avatar.dart';
 import '../../contacts/controller/contacts_controller.dart';
 import '../../contacts/models/contact_models.dart';
@@ -38,7 +39,11 @@ class _MatchInvitePlayerScreenState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Inviter un joueur')),
+      appBar: AppBar(
+        title: Text(
+          t('SCREEN.PLAY.INVITE_PLAYER', fallback: 'Inviter un joueur'),
+        ),
+      ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.pageGradient),
         child: SafeArea(
@@ -50,7 +55,10 @@ class _MatchInvitePlayerScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Selection du joueur',
+                      t(
+                        'SCREEN.PLAY.INVITE_PLAYER',
+                        fallback: 'Selection du joueur',
+                      ),
                       style: GoogleFonts.rajdhani(
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
@@ -59,7 +67,10 @@ class _MatchInvitePlayerScreenState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Choisissez un ami a ajouter a la partie en preparation.',
+                      t(
+                        'SCREEN.CONTACTS.SEARCH',
+                        fallback: 'Choisissez un ami a ajouter a la partie en preparation.',
+                      ),
                       style: GoogleFonts.manrope(
                         color: AppColors.textSecondary,
                         fontSize: 13,
@@ -74,7 +85,10 @@ class _MatchInvitePlayerScreenState
                           .searchUsers(value),
                       style: GoogleFonts.manrope(color: AppColors.textPrimary),
                       decoration: InputDecoration(
-                        hintText: 'Rechercher un joueur',
+                        hintText: t(
+                          'SCREEN.CONTACTS.SEARCH',
+                          fallback: 'Rechercher un joueur',
+                        ),
                         hintStyle: GoogleFonts.manrope(
                           color: AppColors.textHint,
                         ),
@@ -148,7 +162,12 @@ class _MatchInvitePlayerScreenState
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                           children: [
                             if (contacts.searchResults.isNotEmpty) ...[
-                              _SectionTitle('Resultats de recherche'),
+                              _SectionTitle(
+                                t(
+                                  'SCREEN.CONTACTS.SEARCH',
+                                  fallback: 'Resultats de recherche',
+                                ),
+                              ),
                               const SizedBox(height: 8),
                               ...contacts.searchResults.map(
                                 (player) => Padding(
@@ -168,13 +187,15 @@ class _MatchInvitePlayerScreenState
                               ),
                               const SizedBox(height: 12),
                             ],
-                            _SectionTitle('Mes amis'),
+                            _SectionTitle(
+                              t('SCREEN.CLUB.MEMBERS', fallback: 'Mes amis'),
+                            ),
                             const SizedBox(height: 8),
                             if (contacts.friends.isEmpty)
                               _EmptyStateCard(
                                 message:
-                                    'Aucun ami disponible. Ajoutez un joueur puis revenez ici.',
-                                actionLabel: 'Fermer',
+                                  t('SCREEN.CONTACTS.NO_CONTACTS', fallback: 'Aucun ami disponible. Ajoutez un joueur puis revenez ici.'),
+                                actionLabel: t('COMMON.CANCEL', fallback: 'Fermer'),
                                 onAction: () => context.pop(),
                               ),
                             ...contacts.friends.map(
@@ -277,7 +298,7 @@ class _InviteTile extends StatelessWidget {
           ),
           IconButton(
             onPressed: onAction,
-            tooltip: 'Ajouter a la partie',
+            tooltip: t('SCREEN.PLAY.INVITE_PLAYER', fallback: 'Ajouter a la partie'),
             icon: const Icon(
               Icons.add_box_outlined,
               color: AppColors.primary,

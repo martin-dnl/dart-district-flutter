@@ -22,8 +22,19 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
   bool _isLoadingLanguages = true;
   String _languageCode = 'fr-FR';
   List<LanguageOption> _languages = const <LanguageOption>[
-    LanguageOption(code: 'fr-FR', name: 'Francais', isDefault: true),
-    LanguageOption(code: 'en-US', name: 'English'),
+    LanguageOption(
+      code: 'fr-FR',
+      countryName: 'France',
+      languageName: 'Francais',
+      flagEmoji: '🇫🇷',
+      isDefault: true,
+    ),
+    LanguageOption(
+      code: 'en-US',
+      countryName: 'United States',
+      languageName: 'English',
+      flagEmoji: '🇺🇸',
+    ),
   ];
 
   @override
@@ -88,7 +99,10 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Ce pseudo est déjà utilisé ou invalide. Essayez-en un autre.';
+        _error = t(
+          'COMMON.ERROR_GENERIC',
+          fallback: 'Ce pseudo est déjà utilisé ou invalide. Essayez-en un autre.',
+        );
       });
     }
   }
@@ -107,7 +121,10 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CHOISIR UN PSEUDO',
+                    t(
+                      'SCREEN.AUTH.CHOOSE_USERNAME',
+                      fallback: 'CHOISIR UN PSEUDO',
+                    ),
                     style: GoogleFonts.rajdhani(
                       fontSize: 30,
                       fontWeight: FontWeight.w700,
@@ -116,7 +133,10 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Votre pseudo sera visible par les autres joueurs.',
+                    t(
+                      'SCREEN.AUTH.USERNAME_HINT',
+                      fallback: 'Votre pseudo sera visible par les autres joueurs.',
+                    ),
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textSecondary,
@@ -129,7 +149,10 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
                     maxLength: 30,
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      labelText: 'Pseudo',
+                      labelText: t(
+                        'SCREEN.AUTH.CHOOSE_USERNAME',
+                        fallback: 'Pseudo',
+                      ),
                       hintText: 'ex: DartMaster42',
                       filled: true,
                       fillColor: AppColors.surface,
@@ -172,8 +195,15 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
                     ),
                     validator: (v) {
                       final val = v?.trim() ?? '';
-                      if (val.isEmpty) return 'Le pseudo ne peut pas être vide.';
-                      if (val.length < 3) return 'Minimum 3 caractères.';
+                      if (val.isEmpty) {
+                        return t(
+                          'COMMON.ERROR_GENERIC',
+                          fallback: 'Le pseudo ne peut pas être vide.',
+                        );
+                      }
+                      if (val.length < 3) {
+                        return 'Minimum 3 caracteres.';
+                      }
                       return null;
                     },
                   ),
@@ -186,7 +216,10 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
                       isExpanded: true,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
-                        labelText: 'Langue',
+                        labelText: t(
+                          'SCREEN.AUTH.CHOOSE_LANGUAGE',
+                          fallback: 'Langue',
+                        ),
                         filled: true,
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
@@ -262,7 +295,7 @@ class _SsoUsernameScreenState extends ConsumerState<SsoUsernameScreen> {
                               ),
                             )
                           : Text(
-                              'CONTINUER',
+                              t('COMMON.CONFIRM', fallback: 'CONTINUER'),
                               style: GoogleFonts.rajdhani(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/config/app_colors.dart';
+import '../../core/config/translation_service.dart';
 import '../models/match_history_summary.dart';
 import 'player_avatar.dart';
 
@@ -123,7 +124,7 @@ class MatchHistoryList extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: ElevatedButton(
               onPressed: onLoadMore,
-              child: const Text('Voir plus'),
+              child: Text(t('COMMON.SEE_MORE', fallback: 'Voir plus')),
             ),
           ),
         if (showViewAll && onViewAll != null)
@@ -131,7 +132,7 @@ class MatchHistoryList extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: TextButton(
               onPressed: onViewAll,
-              child: const Text('Voir tout'),
+              child: Text(t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout')),
             ),
           ),
       ],

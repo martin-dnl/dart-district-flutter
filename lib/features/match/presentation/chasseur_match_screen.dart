@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../controller/chasseur_match_controller.dart';
 import '../controller/match_controller.dart';
@@ -83,17 +84,17 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Chasseur'),
+        title: Text(t('SCREEN.CHASSEUR.TITLE', fallback: 'Chasseur')),
         actions: [
           IconButton(
             onPressed: _openSettings,
             icon: const Icon(Icons.settings),
-            tooltip: 'Parametres',
+            tooltip: t('SCREEN.CHASSEUR.SETTINGS', fallback: 'Parametres'),
           ),
           IconButton(
             onPressed: () => context.go(AppRoutes.play),
             icon: const Icon(Icons.close),
-            tooltip: 'Quitter',
+            tooltip: t('SCREEN.CHASSEUR.QUIT', fallback: 'Quitter'),
           ),
         ],
       ),
@@ -397,7 +398,14 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Synchronisation Chasseur indisponible.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.CHASSEUR.SYNC_UNAVAILABLE',
+              fallback: 'Synchronisation Chasseur indisponible.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -435,7 +443,14 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Synchronisation Chasseur indisponible.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.CHASSEUR.SYNC_UNAVAILABLE',
+              fallback: 'Synchronisation Chasseur indisponible.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -455,8 +470,11 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Parametres partie',
+                  Text(
+                    t(
+                      'SCREEN.CHASSEUR.MATCH_SETTINGS',
+                      fallback: 'Parametres partie',
+                    ),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -466,8 +484,11 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: localMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Mode de saisie',
+                    decoration: InputDecoration(
+                      labelText: t(
+                        'SCREEN.CHASSEUR.INPUT_MODE',
+                        fallback: 'Mode de saisie',
+                      ),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
@@ -487,13 +508,18 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.undo, color: AppColors.textSecondary),
-                    title: const Text('Retour arriere du round'),
+                    title: Text(
+                      t(
+                        'SCREEN.CHASSEUR.UNDO_ROUND',
+                        fallback: 'Retour arriere du round',
+                      ),
+                    ),
                     onTap: () => Navigator.pop(ctx, 'undo_round'),
                   ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.flag_outlined, color: AppColors.warning),
-                    title: const Text('Abandonner'),
+                    title: Text(t('SCREEN.CHASSEUR.SURRENDER', fallback: 'Abandonner')),
                     onTap: () => Navigator.pop(ctx, 'abandon'),
                   ),
                   const SizedBox(height: 8),
@@ -501,7 +527,7 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(ctx, 'save:$localMode'),
-                      child: const Text('Appliquer'),
+                      child: Text(t('COMMON.APPLY', fallback: 'Appliquer')),
                     ),
                   ),
                 ],
@@ -553,7 +579,14 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible de revenir au round precedent.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.CHASSEUR.UNDO_ROUND_FAILED',
+              fallback: 'Impossible de revenir au round precedent.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -582,7 +615,14 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible d\'abandonner la partie.')),
+          SnackBar(
+            content: Text(
+              t(
+                'SCREEN.CHASSEUR.SURRENDER_FAILED',
+                fallback: 'Impossible d\'abandonner la partie.',
+              ),
+            ),
+          ),
         );
       }
       return;
@@ -644,27 +684,29 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Text(
-            'Manche terminee',
+          title: Text(
+            t('SCREEN.CHASSEUR.ROUND_FINISHED', fallback: 'Manche terminee'),
             style: TextStyle(color: AppColors.textPrimary),
           ),
           content: Text(
             winner == null
-                ? 'Fin de partie.'
-                : '${winner.name} est le dernier survivant.',
+                ? t('SCREEN.CHASSEUR.END_MESSAGE', fallback: 'Fin de partie.')
+                : '${winner.name} ${t('SCREEN.CHASSEUR.LAST_SURVIVOR', fallback: 'est le dernier survivant.')}',
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Fermer'),
+              child: Text(t('COMMON.CLOSE', fallback: 'Fermer')),
             ),
             FilledButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
                 context.go(AppRoutes.play);
               },
-              child: const Text('Revenir au menu'),
+              child: Text(
+                t('SCREEN.CHASSEUR.BACK_TO_MENU', fallback: 'Revenir au menu'),
+              ),
             ),
           ],
         );

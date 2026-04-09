@@ -10,12 +10,12 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/match_history_list.dart';
 import '../../../shared/widgets/player_avatar.dart';
 import '../../../shared/widgets/section_header.dart';
-import '../../../shared/widgets/stat_card.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../../match/controller/ongoing_matches_controller.dart';
@@ -125,12 +125,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Prendre une photo'),
+              title: Text(
+                t('SCREEN.PROFILE.TAKE_PHOTO', fallback: 'Prendre une photo'),
+              ),
               onTap: () => Navigator.of(context).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choisir dans la galerie'),
+              title: Text(
+                t(
+                  'SCREEN.PROFILE.CHOOSE_GALLERY',
+                  fallback: 'Choisir dans la galerie',
+                ),
+              ),
               onTap: () => Navigator.of(context).pop(ImageSource.gallery),
             ),
           ],
@@ -171,10 +178,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo de profil mise a jour')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.PROFILE.PHOTO_UPDATED',
+              fallback: 'Photo de profil mise a jour',
+            ),
+          ),
+        ),
       );
     } catch (error) {
-      var message = 'Impossible de mettre a jour la photo';
+      var message = t(
+        'SCREEN.PROFILE.PHOTO_UPDATE_FAILED',
+        fallback: 'Impossible de mettre a jour la photo',
+      );
       if (error is DioException) {
         final data = error.response?.data;
         if (data is Map<String, dynamic>) {
@@ -200,9 +217,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (_isFriend) {
         final confirmed = await showConfirmDialog(
           context: context,
-          title: 'Retirer cet ami ?',
-          message: 'Cette personne sera retiree de votre liste d\'amis.',
-          confirmLabel: 'Retirer',
+          title: t('SCREEN.PROFILE.REMOVE_FRIEND', fallback: 'Retirer cet ami ?'),
+          message: t(
+            'SCREEN.PROFILE.REMOVE_FRIEND_CONFIRM',
+            fallback: 'Cette personne sera retiree de votre liste d\'amis.',
+          ),
+          confirmLabel: t('SCREEN.PROFILE.REMOVE', fallback: 'Retirer'),
           confirmColor: AppColors.error,
         );
         if (!confirmed) return;
@@ -214,9 +234,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       } else {
         final confirmed = await showConfirmDialog(
           context: context,
-          title: 'Ajouter ${visitorUser.username} ?',
-          message: 'Une demande d\'ami sera envoyee.',
-          confirmLabel: 'Envoyer',
+          title:
+              '${t('SCREEN.PROFILE.ADD', fallback: 'Ajouter')} ${visitorUser.username} ?',
+          message: t(
+            'SCREEN.PROFILE.ADD_FRIEND_CONFIRM',
+            fallback: 'Une demande d\'ami sera envoyee.',
+          ),
+          confirmLabel: t('SCREEN.PROFILE.SEND', fallback: 'Envoyer'),
         );
         if (!confirmed) return;
         await service.sendFriendRequest(visitorUser.id);
@@ -225,7 +249,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Action indisponible pour le moment.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.PROFILE.ACTION_UNAVAILABLE',
+              fallback: 'Action indisponible pour le moment.',
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -239,9 +270,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final confirmed = await showConfirmDialog(
       context: context,
-      title: 'Bloquer ${visitorUser.username} ?',
-      message: 'Cet utilisateur ne pourra plus vous contacter.',
-      confirmLabel: 'Bloquer',
+      title:
+          '${t('SCREEN.PROFILE.BLOCK', fallback: 'Bloquer')} ${visitorUser.username} ?',
+      message: t(
+        'SCREEN.PROFILE.BLOCK_CONFIRM',
+        fallback: 'Cet utilisateur ne pourra plus vous contacter.',
+      ),
+      confirmLabel: t('SCREEN.PROFILE.BLOCK', fallback: 'Bloquer'),
       confirmColor: AppColors.error,
     );
     if (!confirmed) return;
@@ -255,7 +290,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Blocage impossible pour le moment.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.PROFILE.BLOCK_FAILED',
+              fallback: 'Blocage impossible pour le moment.',
+            ),
+          ),
+        ),
       );
       setState(() => _isMutatingVisitorAction = false);
     }
@@ -291,10 +333,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Faites scanner ce code pour etre ajoute ou defie',
+            Text(
+              t(
+                'SCREEN.PROFILE.QR_HINT',
+                fallback: 'Faites scanner ce code pour etre ajoute ou defie',
+              ),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 24),
           ],
@@ -310,8 +358,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = isOwnProfile ? currentUser : _visitorUser;
     final profileState = ref.watch(profileControllerProvider);
     final recentMatches = profileState.matchHistory.take(5).toList();
-    final losses =
-        (user?.stats.matchesPlayed ?? 0) - (user?.stats.matchesWon ?? 0);
+    final wins = user?.stats.matchesWon ?? 0;
+    final losses = (user?.stats.matchesPlayed ?? 0) - wins;
 
     if (!isOwnProfile && _isLoadingVisitor) {
       return AppScaffold(
@@ -321,9 +369,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (!isOwnProfile && user == null) {
       return AppScaffold(
-        child: const Center(
+        child: Center(
           child: Text(
-            'Profil introuvable',
+            t('SCREEN.PROFILE.NOT_FOUND', fallback: 'Profil introuvable'),
             style: TextStyle(color: AppColors.textSecondary),
           ),
         ),
@@ -379,7 +427,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     Icons.block,
                                     color: AppColors.error,
                                   ),
-                                  tooltip: 'Bloquer',
+                                  tooltip: t('SCREEN.PROFILE.BLOCK', fallback: 'Bloquer'),
                                 ),
                               IconButton(
                                 onPressed:
@@ -395,10 +443,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       : AppColors.primary,
                                 ),
                                 tooltip: _isFriend
-                                    ? 'Retirer ami'
+                                    ? t(
+                                        'SCREEN.PROFILE.REMOVE_FRIEND_SHORT',
+                                        fallback: 'Retirer ami',
+                                      )
                                     : (_hasPendingRequest
-                                          ? 'Demande envoyee'
-                                          : 'Ajouter ami'),
+                                          ? t(
+                                              'SCREEN.PROFILE.REQUEST_SENT',
+                                              fallback: 'Demande envoyee',
+                                            )
+                                          : t(
+                                              'SCREEN.PROFILE.ADD_FRIEND',
+                                              fallback: 'Ajouter ami',
+                                            )),
                               ),
                             ],
                           ],
@@ -494,29 +551,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: StatCard(
-                            label: 'ELO',
-                            value: '${user?.elo ?? 1000}',
-                            icon: Icons.trending_up,
-                            valueColor: AppColors.accent,
+                          child: _ProfileStatTile(
+                            title: t('SCREEN.PROFILE.ELO', fallback: 'ELO'),
+                            child: Text(
+                              '${user?.elo ?? 1000}',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: StatCard(
-                            label: 'Victoires',
-                            value: '${user?.stats.matchesWon ?? 0}',
-                            icon: Icons.emoji_events,
-                            valueColor: AppColors.success,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: StatCard(
-                            label: 'Defaites',
-                            value: '$losses',
-                            icon: Icons.close,
-                            valueColor: AppColors.error,
+                          flex: 2,
+                          child: _ProfileStatTile(
+                            title: t('SCREEN.PROFILE.WIN_LOSS', fallback: 'V / D'),
+                            child: RichText(
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: '$wins',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const TextSpan(text: 'V / '),
+                                  TextSpan(
+                                    text: '$losses',
+                                    style: const TextStyle(
+                                      color: AppColors.error,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const TextSpan(text: 'D'),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -530,59 +608,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: StatCard(
-                            label: 'Moyenne',
-                            value:
-                                user?.stats.averageScore.toStringAsFixed(1) ??
-                                '0',
-                            icon: Icons.analytics,
-                            valueColor: AppColors.primary,
+                          child: _ProfileStatTile(
+                            title: t('SCREEN.PROFILE.AVERAGE', fallback: 'Moyenne'),
+                            child: Text(
+                              user?.stats.averageScore.toStringAsFixed(1) ??
+                                  '0',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: StatCard(
-                            label: 'Checkout',
-                            value:
-                                '${user?.stats.checkoutRate.toStringAsFixed(0) ?? 0}%',
-                            icon: Icons.check_circle,
-                            valueColor: AppColors.secondary,
+                          child: _ProfileStatTile(
+                            title: t('SCREEN.PROFILE.CHECKOUT', fallback: 'Checkout'),
+                            child: Text(
+                              '${user?.stats.checkoutRate.toStringAsFixed(0) ?? 0}%',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
                         Expanded(
-                          child: StatCard(
-                            label: '180s',
-                            value: '${user?.stats.highest180s ?? 0}',
-                            icon: Icons.stars,
-                            valueColor: AppColors.accent,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: StatCard(
-                            label: '140+',
-                            value: '${user?.stats.count140Plus ?? 0}',
-                            icon: Icons.local_fire_department,
-                            valueColor: AppColors.warning,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: StatCard(
-                            label: '100+',
-                            value: '${user?.stats.count100Plus ?? 0}',
-                            icon: Icons.bolt,
-                            valueColor: AppColors.primary,
+                          child: _ProfileStatTile(
+                            title: t('SCREEN.PROFILE.SHOTS', fallback: 'Tirs'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _ShotLine(
+                                  count: user?.stats.highest180s ?? 0,
+                                  label: '180',
+                                ),
+                                const SizedBox(height: 2),
+                                _ShotLine(
+                                  count: user?.stats.count140Plus ?? 0,
+                                  label: '140+',
+                                ),
+                                const SizedBox(height: 2),
+                                _ShotLine(
+                                  count: user?.stats.count100Plus ?? 0,
+                                  label: '100+',
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -597,8 +671,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
 
                 if (isOwnProfile)
-                  const SliverToBoxAdapter(
-                    child: SectionHeader(title: 'Progression ELO'),
+                  SliverToBoxAdapter(
+                    child: SectionHeader(
+                      title: t(
+                        'SCREEN.PROFILE.ELO_PROGRESSION',
+                        fallback: 'Progression ELO',
+                      ),
+                    ),
                   ),
                 if (isOwnProfile)
                   SliverToBoxAdapter(
@@ -623,8 +702,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 if (isOwnProfile)
                   SliverToBoxAdapter(
                     child: SectionHeader(
-                      title: 'Badges',
-                      actionText: 'Voir tout',
+                      title: t(
+                        'SCREEN.PROFILE.HISTORY',
+                        fallback: 'Historique des matchs',
+                      ),
+                    ),
+                  ),
+                if (isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: MatchHistoryList(
+                        matches: recentMatches,
+                        onMatchTap: (matchId) =>
+                            context.push('/match/$matchId/report'),
+                      ),
+                    ),
+                  ),
+                if (isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: SectionHeader(
+                      title: t('SCREEN.PROFILE.BADGES', fallback: 'Badges'),
+                      actionText: t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout'),
                       onAction: () => context.push(AppRoutes.badges),
                     ),
                   ),
@@ -638,27 +737,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                   ),
-
-                if (isOwnProfile)
-                  const SliverToBoxAdapter(
-                    child: SectionHeader(title: 'Historique des matchs'),
-                  ),
-                if (isOwnProfile)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: MatchHistoryList(
-                        matches: recentMatches,
-                        onMatchTap: (matchId) =>
-                            context.push('/match/$matchId/report'),
-                      ),
-                    ),
-                  ),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProfileStatTile extends StatelessWidget {
+  const _ProfileStatTile({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ShotLine extends StatelessWidget {
+  const _ShotLine({required this.count, required this.label});
+
+  final int count;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        children: [
+          TextSpan(
+            text: '$count',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          TextSpan(text: ' x $label'),
+        ],
       ),
     );
   }

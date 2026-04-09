@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../controller/cricket_match_controller.dart';
@@ -91,7 +92,7 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Cricket'),
+        title: Text(t('SCREEN.CRICKET.TITLE', fallback: 'Cricket')),
         leading: IconButton(
           onPressed: () {
             if (Navigator.of(context).canPop()) {
@@ -106,7 +107,7 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
           IconButton(
             onPressed: _openSettings,
             icon: const Icon(Icons.settings),
-            tooltip: 'Parametres',
+            tooltip: t('SCREEN.CRICKET.SETTINGS', fallback: 'Parametres'),
           ),
         ],
       ),
@@ -290,7 +291,14 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Synchronisation Cricket indisponible.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.CRICKET.SYNC_UNAVAILABLE',
+              fallback: 'Synchronisation Cricket indisponible.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -310,8 +318,11 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Parametres partie',
+                  Text(
+                    t(
+                      'SCREEN.CRICKET.MATCH_SETTINGS',
+                      fallback: 'Parametres partie',
+                    ),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -321,8 +332,11 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: localMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Mode de saisie',
+                    decoration: InputDecoration(
+                      labelText: t(
+                        'SCREEN.CRICKET.INPUT_MODE',
+                        fallback: 'Mode de saisie',
+                      ),
                       border: OutlineInputBorder(),
                     ),
                     items: const [
@@ -342,13 +356,18 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.undo, color: AppColors.textSecondary),
-                    title: const Text('Retour arriere du round'),
+                    title: Text(
+                      t(
+                        'SCREEN.CRICKET.UNDO_ROUND',
+                        fallback: 'Retour arriere du round',
+                      ),
+                    ),
                     onTap: () => Navigator.pop(ctx, 'undo_round'),
                   ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.flag_outlined, color: AppColors.warning),
-                    title: const Text('Abandonner'),
+                    title: Text(t('SCREEN.CRICKET.SURRENDER', fallback: 'Abandonner')),
                     onTap: () => Navigator.pop(ctx, 'abandon'),
                   ),
                   const SizedBox(height: 8),
@@ -356,7 +375,7 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(ctx, 'save:$localMode'),
-                      child: const Text('Appliquer'),
+                      child: Text(t('COMMON.APPLY', fallback: 'Appliquer')),
                     ),
                   ),
                 ],
@@ -408,7 +427,14 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible de revenir au round precedent.')),
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.CRICKET.UNDO_ROUND_FAILED',
+              fallback: 'Impossible de revenir au round precedent.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -444,7 +470,14 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible d\'abandonner la partie.')),
+          SnackBar(
+            content: Text(
+              t(
+                'SCREEN.CRICKET.SURRENDER_FAILED',
+                fallback: 'Impossible d\'abandonner la partie.',
+              ),
+            ),
+          ),
         );
       }
       return;
@@ -507,8 +540,8 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Text(
-            'Match termine',
+          title: Text(
+            t('SCREEN.CRICKET.MATCH_FINISHED', fallback: 'Match termine'),
             style: TextStyle(color: AppColors.textPrimary),
           ),
           content: SizedBox(
@@ -518,9 +551,9 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  winner == null
-                      ? 'Fin de partie.'
-                      : '${winner.name} remporte la partie de Cricket.',
+                    winner == null
+                      ? t('SCREEN.CRICKET.END_MESSAGE', fallback: 'Fin de partie.')
+                      : '${winner.name} ${t('SCREEN.CRICKET.WINS_MESSAGE', fallback: 'remporte la partie de Cricket.')}',
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 10),
@@ -533,8 +566,8 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                 ],
                 if (recent.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  const Text(
-                    'Derniers tours',
+                  Text(
+                    t('SCREEN.CRICKET.LAST_ROUNDS', fallback: 'Derniers tours'),
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
@@ -553,14 +586,16 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Fermer'),
+              child: Text(t('COMMON.CLOSE', fallback: 'Fermer')),
             ),
             FilledButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
                 context.go(AppRoutes.play);
               },
-              child: const Text('Revenir au menu'),
+              child: Text(
+                t('SCREEN.CRICKET.BACK_TO_MENU', fallback: 'Revenir au menu'),
+              ),
             ),
           ],
         );
@@ -587,7 +622,7 @@ class _CricketScoreboard extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           const spacing = 8.0;
-          final columns = state.players.length <= 2 ? 2 : 2;
+          final columns = state.players.length.clamp(2, 4);
           final tileWidth =
               (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
 
@@ -679,7 +714,7 @@ class _CricketGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 8.0;
-        final columns = state.players.length <= 2 ? 2 : 2;
+        final columns = state.players.length.clamp(2, 4);
         final cellWidth = (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
 
         return ListView.separated(

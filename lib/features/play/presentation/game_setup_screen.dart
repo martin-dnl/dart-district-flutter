@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../core/config/translation_service.dart';
 import '../../club/models/club_model.dart';
 import '../../contacts/controller/contacts_controller.dart';
 import '../../contacts/models/contact_models.dart';
@@ -121,7 +122,9 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Configuration · ${widget.gameMode}'),
+        title: Text(
+          '${t('SCREEN.PLAY.SETUP_TITLE', fallback: 'Configuration')} · ${widget.gameMode}',
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -176,7 +179,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                       Expanded(
                         child: _OptionCard(
                           icon: Icons.person_add,
-                          label: 'Inviter',
+                          label: t('SCREEN.PLAY.INVITE_PLAYER', fallback: 'Inviter'),
                           selected:
                               _startOption == GameStartOption.inviteFriend,
                           onTap: () async {
@@ -205,7 +208,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                       Expanded(
                         child: _OptionCard(
                           icon: Icons.qr_code_scanner,
-                          label: 'Scan',
+                          label: t('SCREEN.PLAY.SCAN_QR', fallback: 'Scan'),
                           selected: _startOption == GameStartOption.scanQr,
                           onTap: _handleUserQrScan,
                         ),
@@ -215,7 +218,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                     Expanded(
                       child: _OptionCard(
                         icon: Icons.person_outline,
-                        label: 'Local',
+                        label: t('SCREEN.PLAY.LOCAL', fallback: 'Local'),
                         selected: _startOption == GameStartOption.guest,
                         onTap: () {
                           setState(() {
@@ -260,7 +263,8 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                                 color: AppColors.textPrimary,
                               ),
                               decoration: InputDecoration(
-                                hintText: 'Invite ${index + 1}',
+                                hintText:
+                                    '${t('SCREEN.PLAY.GUEST_NAME_HINT', fallback: 'Invite')} ${index + 1}',
                                 filled: true,
                                 fillColor: AppColors.surface,
                                 border: OutlineInputBorder(
@@ -303,7 +307,9 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                         });
                       },
                       icon: const Icon(Icons.add),
-                      label: const Text('Ajouter un joueur'),
+                      label: Text(
+                        t('SCREEN.PLAY.INVITE_PLAYER', fallback: 'Ajouter un joueur'),
+                      ),
                     ),
                 ],
                 if (!isGuest && !_isSpecialMode) ...[
@@ -478,7 +484,10 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                 ],
                 if (!_isChasseurMode) ...[
                   _buildCounter(
-                    label: 'Legs par set (BO)',
+                      label: t(
+                        'SCREEN.PLAY.LEGS_PER_SET',
+                        fallback: 'Legs par set (BO)',
+                      ),
                     value: _legsPerSet,
                     onMinus: () {
                       if (_legsPerSet > 1) {
@@ -489,7 +498,10 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildCounter(
-                    label: 'Sets pour gagner',
+                      label: t(
+                        'SCREEN.PLAY.SETS_TO_WIN',
+                        fallback: 'Sets pour gagner',
+                      ),
                     value: _setsToWin,
                     onMinus: () {
                       if (_setsToWin > 1) {
@@ -672,7 +684,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
+              child: Text(t('COMMON.CONFIRM', fallback: 'OK')),
             ),
           ],
         );
@@ -747,8 +759,13 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
     final currentUser = authState.user;
     if (currentUser == null || selectedOpponent == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selectionnez un adversaire avant de demarrer.'),
+        SnackBar(
+          content: Text(
+            t(
+              'COMMON.ERROR_GENERIC',
+              fallback: 'Selectionnez un adversaire avant de demarrer.',
+            ),
+          ),
         ),
       );
       return;
@@ -809,7 +826,14 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d\'envoyer l\'invitation.')),
+        SnackBar(
+          content: Text(
+            t(
+              'COMMON.ERROR_GENERIC',
+              fallback: 'Impossible d\'envoyer l\'invitation.',
+            ),
+          ),
+        ),
       );
     }
   }

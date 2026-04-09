@@ -11,7 +11,23 @@ export declare class StatsController {
         user: {
             id: string;
         };
-    }, limit?: number): Promise<import("./entities/elo-history.entity").EloHistory[]>;
+    }, limit?: number, mode?: 'week' | 'month' | 'year', offset?: number): Promise<import("./entities/elo-history.entity").EloHistory[]> | Promise<{
+        mode: "year";
+        offset: number;
+        period_label: string;
+        points: {
+            date: string;
+            elo: number;
+        }[];
+    } | {
+        mode: "week" | "month";
+        offset: number;
+        period_label: string;
+        points: {
+            date: string;
+            elo: number;
+        }[];
+    }>;
     myDartboardPeriods(req: {
         user: {
             id: string;
@@ -41,7 +57,23 @@ export declare class StatsController {
         }[];
     }>;
     userStats(userId: string): Promise<import("./entities/player-stat.entity").PlayerStat>;
-    userEloHistory(userId: string, limit?: number): Promise<import("./entities/elo-history.entity").EloHistory[]>;
+    userEloHistory(userId: string, limit?: number, mode?: 'week' | 'month' | 'year', offset?: number): Promise<import("./entities/elo-history.entity").EloHistory[]> | Promise<{
+        mode: "year";
+        offset: number;
+        period_label: string;
+        points: {
+            date: string;
+            elo: number;
+        }[];
+    } | {
+        mode: "week" | "month";
+        offset: number;
+        period_label: string;
+        points: {
+            date: string;
+            elo: number;
+        }[];
+    }>;
     userDartboardPeriods(userId: string): Promise<{
         years: {
             year: number;

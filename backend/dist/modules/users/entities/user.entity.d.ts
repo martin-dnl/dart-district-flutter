@@ -9,12 +9,14 @@ export declare class User {
     password_hash: string | null;
     avatar_url: string | null;
     elo: number;
+    conquest_score: number;
     is_guest: boolean;
     is_active: boolean;
     has_tournament_abandon: boolean;
     is_admin: boolean;
     preferred_hand: string;
     level: string;
+    preferred_language: string;
     city: string | null;
     region: string | null;
     created_at: Date;

@@ -27,10 +27,20 @@ let TournamentsController = class TournamentsController {
         if (req.user.is_guest || req.user.id === 'guest') {
             throw new common_1.ForbiddenException('Guest account cannot create tournaments');
         }
+        if (dto.club_id && req.user.is_admin !== true) {
+            return this.tournamentsService
+                .canCreateForClub(req.user.id, dto.club_id)
+                .then((canCreate) => {
+                if (!canCreate) {
+                    throw new common_1.ForbiddenException('Only an admin or the club president can create a club tournament');
+                }
+                return this.tournamentsService.create(dto, req.user.id);
+            });
+        }
         return this.tournamentsService.create(dto, req.user.id);
     }
-    findAll(status, upcoming) {
-        return this.tournamentsService.findAll({ status, upcoming });
+    findAll(status, upcoming, clubId) {
+        return this.tournamentsService.findAll({ status, upcoming, clubId });
     }
     findOne(id) {
         return this.tournamentsService.findById(id);
@@ -79,8 +89,9 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('status')),
     __param(1, (0, common_1.Query)('upcoming')),
+    __param(2, (0, common_1.Query)('club_id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], TournamentsController.prototype, "findAll", null);
 __decorate([

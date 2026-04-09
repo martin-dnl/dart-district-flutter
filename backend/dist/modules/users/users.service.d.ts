@@ -33,7 +33,7 @@ export declare class UsersService {
         avatar_sm_url: string;
         avatar_url: string;
     }>;
-    search(query: string, limit?: number): Promise<User[]>;
+    search(query: string, limit?: number, excludeUserId?: string): Promise<User[]>;
     leaderboard(limit?: number): Promise<User[]>;
     remove(id: string): Promise<{
         success: boolean;

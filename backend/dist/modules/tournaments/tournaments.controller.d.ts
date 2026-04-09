@@ -8,9 +8,10 @@ export declare class TournamentsController {
         user: {
             id: string;
             is_guest?: boolean;
+            is_admin?: boolean;
         };
     }): Promise<import("./entities/tournament.entity").Tournament>;
-    findAll(status?: string, upcoming?: string): Promise<import("./entities/tournament.entity").Tournament[]>;
+    findAll(status?: string, upcoming?: string, clubId?: string): Promise<import("./entities/tournament.entity").Tournament[]>;
     findOne(id: string): Promise<{
         players: import("./entities/tournament-player.entity").TournamentPlayer[];
         id: string;
@@ -18,6 +19,7 @@ export declare class TournamentsController {
         description: string | null;
         territory_id: string | null;
         is_territorial: boolean;
+        is_ranked: boolean;
         mode: string;
         finish: string;
         venue_name: string | null;

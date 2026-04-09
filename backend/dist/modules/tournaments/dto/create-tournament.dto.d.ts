@@ -7,6 +7,7 @@ export declare class CreateTournamentDto {
     city?: string;
     club_id?: string;
     is_territorial?: boolean;
+    is_ranked?: boolean;
     mode?: string;
     finish?: string;
     entry_fee?: number;

@@ -6,4 +6,5 @@ export declare class UpdateUserDto {
     level?: string;
     city?: string;
     region?: string;
+    preferred_language?: string;
 }

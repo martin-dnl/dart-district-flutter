@@ -56,6 +56,9 @@ let MatchesController = class MatchesController {
     report(id) {
         return this.matchesService.getMatchReport(id);
     }
+    resultSummary(id, req) {
+        return this.matchesService.getResultSummary(id, req.user.id);
+    }
     findOne(id) {
         return this.matchesService.findById(id);
     }
@@ -157,6 +160,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], MatchesController.prototype, "report", null);
+__decorate([
+    (0, common_1.Get)(':id/result-summary'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], MatchesController.prototype, "resultSummary", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),

@@ -14,6 +14,8 @@ export declare class Match {
     invitation_status: string | null;
     invitation_created_at: Date | null;
     territory_id: string | null;
+    territory_club_id: string | null;
+    territory_code_iris: string | null;
     is_territorial: boolean;
     tournament_id: string | null;
     is_offline: boolean;

@@ -32,6 +32,8 @@ let UsersController = class UsersController {
                 email: null,
                 avatar_url: null,
                 elo: 1000,
+                conquest_score: 0,
+                preferred_language: 'fr-FR',
                 is_admin: false,
                 created_at: new Date().toISOString(),
                 stats: {
@@ -61,8 +63,8 @@ let UsersController = class UsersController {
     leaderboard(limit) {
         return this.usersService.leaderboard(limit);
     }
-    search(q, limit) {
-        return this.usersService.search(q, limit);
+    search(req, q, limit) {
+        return this.usersService.search(q, limit, req.user.id);
     }
     findOne(id) {
         return this.usersService.findById(id);
@@ -132,10 +134,11 @@ __decorate([
 ], UsersController.prototype, "leaderboard", null);
 __decorate([
     (0, common_1.Get)('search'),
-    __param(0, (0, common_1.Query)('q')),
-    __param(1, (0, common_1.Query)('limit')),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('q')),
+    __param(2, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:paramtypes", [Object, String, Number]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "search", null);
 __decorate([

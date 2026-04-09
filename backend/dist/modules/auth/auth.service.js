@@ -183,6 +183,7 @@ let AuthService = AuthService_1 = class AuthService {
             sub: user.id,
             email: user.email ?? '',
             username: user.username,
+            is_admin: user.is_admin,
         };
         const access_token = this.jwtService.sign(payload);
         const refresh_token = (0, crypto_1.randomUUID)();

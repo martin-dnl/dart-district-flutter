@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ClubsController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClubsController = void 0;
 const common_1 = require("@nestjs/common");
@@ -19,10 +20,70 @@ const clubs_service_1 = require("./clubs.service");
 const create_club_dto_1 = require("./dto/create-club.dto");
 const update_club_dto_1 = require("./dto/update-club.dto");
 const manage_member_dto_1 = require("./dto/manage-member.dto");
+const resolve_territory_dto_1 = require("./dto/resolve-territory.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
-let ClubsController = class ClubsController {
-    constructor(clubsService) {
+const territories_service_1 = require("../territories/territories.service");
+let ClubsController = ClubsController_1 = class ClubsController {
+    constructor(clubsService, territoriesService) {
         this.clubsService = clubsService;
+        this.territoriesService = territoriesService;
+        this.logger = new common_1.Logger(ClubsController_1.name);
+    }
+    async resolveTerritory(dto) {
+        this.logger.log(`resolve-territory request received latitude=${dto.latitude}, longitude=${dto.longitude}`);
+        const polygonCodeIris = await this.territoriesService.resolveCodeIrisByPolygon(dto.latitude, dto.longitude);
+        let codeIris = (polygonCodeIris ?? '').toString().trim().toUpperCase();
+        if (codeIris) {
+            this.logger.log(`resolve-territory matched via polygon code_iris=${codeIris}`);
+        }
+        if (!codeIris) {
+            this.logger.warn('resolve-territory polygon match failed, trying nearest centroid fallback');
+            codeIris =
+                (await this.clubsService.resolveNearestCodeIris(dto.latitude, dto.longitude, 30)) ??
+                    '';
+            if (codeIris) {
+                this.logger.log(`resolve-territory matched via centroid fallback code_iris=${codeIris}`);
+            }
+        }
+        if (!codeIris) {
+            this.logger.warn(`resolve-territory failed latitude=${dto.latitude}, longitude=${dto.longitude} (no_territory_found)`);
+            return {
+                success: false,
+                data: null,
+                error: 'no_territory_found',
+            };
+        }
+        const territory = await this.territoriesService.findByCodeIrisOrNull(codeIris);
+        if (!territory) {
+            this.logger.warn(`resolve-territory code_iris=${codeIris} found by geo matching but missing in territories table. Returning fallback payload.`);
+            return {
+                success: true,
+                data: {
+                    code_iris: codeIris,
+                    name: `IRIS ${codeIris}`,
+                    city: null,
+                    department: null,
+                    region: null,
+                    latitude: dto.latitude,
+                    longitude: dto.longitude,
+                },
+                error: null,
+            };
+        }
+        this.logger.log(`resolve-territory success code_iris=${territory.code_iris}, name=${territory.name}, city=${territory.nom_com}`);
+        return {
+            success: true,
+            data: {
+                code_iris: territory.code_iris,
+                name: territory.name,
+                city: territory.nom_com,
+                department: territory.dep_name,
+                region: territory.region_name,
+                latitude: territory.centroid_lat,
+                longitude: territory.centroid_lng,
+            },
+            error: null,
+        };
     }
     create(dto, req) {
         if (req.user.is_guest || req.user.id === 'guest') {
@@ -45,6 +106,9 @@ let ClubsController = class ClubsController {
     findOne(id) {
         return this.clubsService.findById(id);
     }
+    territoryPointsTotal(id) {
+        return this.clubsService.getTerritoryPointsTotal(id);
+    }
     update(id, dto, req) {
         if (req.user.is_guest || req.user.id === 'guest') {
             throw new common_1.ForbiddenException('Guest account cannot update a club');
@@ -65,6 +129,15 @@ let ClubsController = class ClubsController {
     }
 };
 exports.ClubsController = ClubsController;
+__decorate([
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('resolve-territory'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [resolve_territory_dto_1.ResolveTerritoryDto]),
+    __metadata("design:returntype", Promise)
+], ClubsController.prototype, "resolveTerritory", null);
 __decorate([
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -116,6 +189,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ClubsController.prototype, "findOne", null);
 __decorate([
+    (0, common_1.Get)(':id/territory-points-total'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ClubsController.prototype, "territoryPointsTotal", null);
+__decorate([
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Patch)(':id'),
@@ -160,9 +240,10 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", void 0)
 ], ClubsController.prototype, "removeMember", null);
-exports.ClubsController = ClubsController = __decorate([
+exports.ClubsController = ClubsController = ClubsController_1 = __decorate([
     (0, swagger_1.ApiTags)('clubs'),
     (0, common_1.Controller)('clubs'),
-    __metadata("design:paramtypes", [clubs_service_1.ClubsService])
+    __metadata("design:paramtypes", [clubs_service_1.ClubsService,
+        territories_service_1.TerritoriesService])
 ], ClubsController);
 //# sourceMappingURL=clubs.controller.js.map

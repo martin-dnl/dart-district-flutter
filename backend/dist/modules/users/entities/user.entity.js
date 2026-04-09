@@ -43,6 +43,10 @@ __decorate([
     __metadata("design:type", Number)
 ], User.prototype, "elo", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], User.prototype, "conquest_score", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], User.prototype, "is_guest", void 0);
@@ -66,6 +70,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 20, default: 'intermediate' }),
     __metadata("design:type", String)
 ], User.prototype, "level", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 10, default: 'fr-FR' }),
+    __metadata("design:type", String)
+], User.prototype, "preferred_language", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),
     __metadata("design:type", Object)

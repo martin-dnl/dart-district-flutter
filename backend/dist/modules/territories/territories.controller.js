@@ -28,6 +28,10 @@ let TerritoriesController = class TerritoriesController {
     tilesetMetadata() {
         return this.territoriesService.getTilesetMetadata();
     }
+    async activeZones() {
+        const codes = await this.territoriesService.getActiveIrisCodes();
+        return { codes };
+    }
     mapStatuses(query) {
         return this.territoriesService.getMapStatuses(query);
     }
@@ -37,7 +41,7 @@ let TerritoriesController = class TerritoriesController {
     getClubZones() {
         return this.territoriesService.getClubZones();
     }
-    mapHit(latRaw, lngRaw, zoomRaw, viewportWidthRaw) {
+    mapHit(latRaw, lngRaw, zoomRaw, viewportWidthRaw, activeOnlyRaw) {
         const lat = Number.parseFloat(latRaw);
         const lng = Number.parseFloat(lngRaw);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -51,7 +55,24 @@ let TerritoriesController = class TerritoriesController {
         if (viewportWidthRaw != null && !Number.isFinite(viewportWidthPx)) {
             throw new common_1.BadRequestException('viewport_width_px query param must be a valid number');
         }
-        return this.territoriesService.hitTestByCoordinates(lat, lng, zoom, viewportWidthPx);
+        const activeOnly = activeOnlyRaw == null
+            ? true
+            : !['0', 'false', 'no', 'off'].includes(activeOnlyRaw.toLowerCase());
+        const hit = this.territoriesService.hitTestByCoordinates(lat, lng, zoom, viewportWidthPx);
+        if (!activeOnly) {
+            return hit;
+        }
+        return hit.then(async (result) => {
+            const code = (result?.code_iris ?? '').toString().trim().toUpperCase();
+            if (!code) {
+                return { code_iris: null };
+            }
+            const activeCodes = await this.territoriesService.getActiveIrisCodes();
+            if (!activeCodes.includes(code)) {
+                return { code_iris: null };
+            }
+            return result;
+        });
     }
     findAll() {
         return this.territoriesService.findAll();
@@ -92,6 +113,12 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TerritoriesController.prototype, "tilesetMetadata", null);
 __decorate([
+    (0, common_1.Get)('tileset/active-zones'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], TerritoriesController.prototype, "activeZones", null);
+__decorate([
     (0, common_1.Get)('map/statuses'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -116,8 +143,9 @@ __decorate([
     __param(1, (0, common_1.Query)('lng')),
     __param(2, (0, common_1.Query)('zoom')),
     __param(3, (0, common_1.Query)('viewport_width_px')),
+    __param(4, (0, common_1.Query)('active_only')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], TerritoriesController.prototype, "mapHit", null);
 __decorate([

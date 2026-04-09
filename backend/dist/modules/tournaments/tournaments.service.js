@@ -21,15 +21,44 @@ const tournament_player_entity_1 = require("./entities/tournament-player.entity"
 const tournament_pool_entity_1 = require("./entities/tournament-pool.entity");
 const tournament_pool_standing_entity_1 = require("./entities/tournament-pool-standing.entity");
 const tournament_bracket_match_entity_1 = require("./entities/tournament-bracket-match.entity");
+const user_entity_1 = require("../users/entities/user.entity");
+const club_member_entity_1 = require("../clubs/entities/club-member.entity");
 let TournamentsService = class TournamentsService {
-    constructor(tournamentRepo, playerRepo, poolRepo, standingRepo, bracketRepo) {
+    constructor(tournamentRepo, playerRepo, poolRepo, standingRepo, bracketRepo, userRepo, clubMemberRepo) {
         this.tournamentRepo = tournamentRepo;
         this.playerRepo = playerRepo;
         this.poolRepo = poolRepo;
         this.standingRepo = standingRepo;
         this.bracketRepo = bracketRepo;
+        this.userRepo = userRepo;
+        this.clubMemberRepo = clubMemberRepo;
+    }
+    async canCreateForClub(userId, clubId) {
+        const user = await this.userRepo.findOne({ where: { id: userId } });
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        if (user.is_admin) {
+            return true;
+        }
+        const membership = await this.clubMemberRepo.findOne({
+            where: {
+                club_id: clubId,
+                user_id: userId,
+                is_active: true,
+            },
+        });
+        return membership?.role === 'president';
     }
     async create(dto, userId) {
+        if (dto.club_id) {
+            const canCreateForClub = await this.canCreateForClub(userId, dto.club_id);
+            if (!canCreateForClub) {
+                throw new common_1.ForbiddenException('Only an admin or the club president can create a club tournament');
+            }
+        }
+        const isTerritorial = dto.is_territorial ?? false;
+        const isRanked = dto.is_ranked ?? false;
         const poolCount = dto.format === 'pools_then_elimination' ? (dto.pool_count ?? 4) : null;
         const playersPerPool = dto.format === 'pools_then_elimination' && poolCount
             ? Math.ceil(dto.max_players / poolCount)
@@ -37,6 +66,8 @@ let TournamentsService = class TournamentsService {
         const tournament = this.tournamentRepo.create({
             ...dto,
             club_id: dto.club_id ?? null,
+            is_territorial: isTerritorial,
+            is_ranked: isTerritorial ? true : isRanked,
             current_phase: 'registration',
             pool_count: poolCount,
             players_per_pool: playersPerPool,
@@ -53,6 +84,9 @@ let TournamentsService = class TournamentsService {
             .orderBy('t.scheduled_at', 'ASC');
         if (options?.status) {
             qb.andWhere('t.status = :status', { status: options.status });
+        }
+        if (options?.clubId) {
+            qb.andWhere('t.club_id = :clubId', { clubId: options.clubId });
         }
         if (options?.upcoming === 'true') {
             qb.andWhere('t.scheduled_at > :now', { now: new Date() });
@@ -357,7 +391,11 @@ exports.TournamentsService = TournamentsService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(tournament_pool_entity_1.TournamentPool)),
     __param(3, (0, typeorm_1.InjectRepository)(tournament_pool_standing_entity_1.TournamentPoolStanding)),
     __param(4, (0, typeorm_1.InjectRepository)(tournament_bracket_match_entity_1.TournamentBracketMatch)),
+    __param(5, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(6, (0, typeorm_1.InjectRepository)(club_member_entity_1.ClubMember)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

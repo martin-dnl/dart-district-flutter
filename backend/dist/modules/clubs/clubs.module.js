@@ -11,14 +11,19 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const club_entity_1 = require("./entities/club.entity");
 const club_member_entity_1 = require("./entities/club-member.entity");
+const club_territory_points_entity_1 = require("./entities/club-territory-points.entity");
 const clubs_service_1 = require("./clubs.service");
 const clubs_controller_1 = require("./clubs.controller");
+const territories_module_1 = require("../territories/territories.module");
 let ClubsModule = class ClubsModule {
 };
 exports.ClubsModule = ClubsModule;
 exports.ClubsModule = ClubsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([club_entity_1.Club, club_member_entity_1.ClubMember])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([club_entity_1.Club, club_member_entity_1.ClubMember, club_territory_points_entity_1.ClubTerritoryPoints]),
+            territories_module_1.TerritoriesModule,
+        ],
         controllers: [clubs_controller_1.ClubsController],
         providers: [clubs_service_1.ClubsService],
         exports: [clubs_service_1.ClubsService],

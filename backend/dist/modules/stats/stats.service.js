@@ -21,13 +21,22 @@ const elo_history_entity_1 = require("./entities/elo-history.entity");
 const user_entity_1 = require("../users/entities/user.entity");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
 const throw_entity_1 = require("../matches/entities/throw.entity");
+const match_entity_1 = require("../matches/entities/match.entity");
+const club_member_entity_1 = require("../clubs/entities/club-member.entity");
+const club_territory_points_entity_1 = require("../clubs/entities/club-territory-points.entity");
+const territory_entity_1 = require("../territories/entities/territory.entity");
 const K_FACTOR = 32;
 let StatsService = class StatsService {
-    constructor(statRepo, eloRepo, userRepo, throwRepo) {
+    constructor(statRepo, eloRepo, userRepo, throwRepo, matchRepo, clubMemberRepo, ctpRepo, territoryRepo) {
         this.statRepo = statRepo;
         this.eloRepo = eloRepo;
         this.userRepo = userRepo;
         this.throwRepo = throwRepo;
+        this.matchRepo = matchRepo;
+        this.clubMemberRepo = clubMemberRepo;
+        this.ctpRepo = ctpRepo;
+        this.territoryRepo = territoryRepo;
+        this.territoryControlMinPoints = Math.max(1, Number(process.env.TERRITORY_CONTROL_MIN_POINTS ?? 200));
     }
     async getByUser(userId) {
         const stat = await this.statRepo.findOne({
@@ -112,6 +121,175 @@ let StatsService = class StatsService {
             order: { created_at: 'DESC' },
             take,
         });
+    }
+    async eloHistoryByPeriod(userId, mode = 'week', offset = 0) {
+        const safeOffset = Math.max(0, Math.floor(offset));
+        const now = new Date();
+        const user = await this.userRepo.findOne({ where: { id: userId } });
+        const fallbackElo = user?.elo ?? 1000;
+        if (mode === 'year') {
+            const anchorMonth = new Date(now.getFullYear(), now.getMonth() - safeOffset * 12, 1);
+            const start = new Date(anchorMonth.getFullYear(), anchorMonth.getMonth() - 12, 1);
+            const end = new Date(anchorMonth.getFullYear(), anchorMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+            const rows = await this.eloRepo
+                .createQueryBuilder('e')
+                .select(['e.elo_after', 'e.created_at'])
+                .where('e.user_id = :userId', { userId })
+                .andWhere('e.created_at <= :end', { end })
+                .orderBy('e.created_at', 'ASC')
+                .getMany();
+            let cursor = 0;
+            let currentElo = fallbackElo;
+            const points = [];
+            for (let i = 0; i <= 12; i++) {
+                const monthStart = new Date(start.getFullYear(), start.getMonth() + i, 1);
+                const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23, 59, 59, 999);
+                while (cursor < rows.length && rows[cursor].created_at <= monthEnd) {
+                    currentElo = rows[cursor].elo_after;
+                    cursor += 1;
+                }
+                points.push({
+                    date: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`,
+                    elo: currentElo,
+                });
+            }
+            const periodLabel = `${String(start.getMonth() + 1).padStart(2, '0')}/${start.getFullYear()} - ${String(anchorMonth.getMonth() + 1).padStart(2, '0')}/${anchorMonth.getFullYear()}`;
+            return {
+                mode,
+                offset: safeOffset,
+                period_label: periodLabel,
+                points,
+            };
+        }
+        const days = mode === 'week' ? 7 : 30;
+        const anchor = new Date(now.getFullYear(), now.getMonth(), now.getDate() - safeOffset * days, 23, 59, 59, 999);
+        const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - (days - 1), 0, 0, 0, 0);
+        const rows = await this.eloRepo
+            .createQueryBuilder('e')
+            .select(['e.elo_after', 'e.created_at'])
+            .where('e.user_id = :userId', { userId })
+            .andWhere('e.created_at <= :anchor', { anchor })
+            .orderBy('e.created_at', 'ASC')
+            .getMany();
+        let cursor = 0;
+        let currentElo = fallbackElo;
+        const points = [];
+        for (let i = 0; i < days; i++) {
+            const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+            const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
+            while (cursor < rows.length && rows[cursor].created_at <= dayEnd) {
+                currentElo = rows[cursor].elo_after;
+                cursor += 1;
+            }
+            points.push({
+                date: `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`,
+                elo: currentElo,
+            });
+        }
+        const periodLabel = `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')}/${start.getFullYear()} - ${String(anchor.getDate()).padStart(2, '0')}/${String(anchor.getMonth() + 1).padStart(2, '0')}/${anchor.getFullYear()}`;
+        return {
+            mode,
+            offset: safeOffset,
+            period_label: periodLabel,
+            points,
+        };
+    }
+    async processTerritoryPoints(params) {
+        const match = await this.matchRepo.findOne({
+            where: { id: params.matchId },
+        });
+        if (!match || !match.is_territorial || !match.territory_code_iris) {
+            return null;
+        }
+        const winnerMembership = await this.clubMemberRepo.findOne({
+            where: {
+                user_id: params.winnerId,
+                is_active: true,
+            },
+            relations: ['club'],
+            order: { joined_at: 'ASC' },
+        });
+        const loserMembership = await this.clubMemberRepo.findOne({
+            where: {
+                user_id: params.loserId,
+                is_active: true,
+            },
+            relations: ['club'],
+            order: { joined_at: 'ASC' },
+        });
+        if (!winnerMembership) {
+            return null;
+        }
+        if (loserMembership != null &&
+            loserMembership.club?.id != null &&
+            loserMembership.club.id === winnerMembership.club.id) {
+            return null;
+        }
+        const winnerClubId = winnerMembership.club.id;
+        const codeIris = match.territory_code_iris.toUpperCase();
+        const pointsToAdd = Math.max(0, Math.floor(params.eloDelta ?? 0));
+        if (pointsToAdd <= 0) {
+            await this.recalculateTerritoryControl(codeIris);
+            return null;
+        }
+        let association = await this.ctpRepo.findOne({
+            where: {
+                club_id: winnerClubId,
+                code_iris: codeIris,
+            },
+        });
+        if (!association) {
+            association = this.ctpRepo.create({
+                club_id: winnerClubId,
+                code_iris: codeIris,
+                points: 0,
+            });
+        }
+        association.points += pointsToAdd;
+        const saved = await this.ctpRepo.save(association);
+        await this.userRepo
+            .createQueryBuilder()
+            .update(user_entity_1.User)
+            .set({ conquest_score: () => `conquest_score + ${pointsToAdd}` })
+            .where('id = :winnerId', { winnerId: params.winnerId })
+            .execute();
+        await this.recalculateTerritoryControl(codeIris);
+        return saved;
+    }
+    async recalculateTerritoryControl(codeIris) {
+        const territory = await this.territoryRepo.findOne({
+            where: { code_iris: codeIris },
+        });
+        if (!territory) {
+            return;
+        }
+        const rows = await this.ctpRepo.find({
+            where: { code_iris: codeIris },
+            order: { points: 'DESC' },
+        });
+        const eligible = rows.filter((row) => row.points >= this.territoryControlMinPoints);
+        if (eligible.length === 0) {
+            territory.owner_club_id = null;
+            territory.status = 'available';
+            territory.conquered_at = null;
+            await this.territoryRepo.save(territory);
+            return;
+        }
+        const leader = eligible[0];
+        const second = eligible.length > 1 ? eligible[1] : null;
+        const isTie = second != null && second.points === leader.points;
+        if (isTie) {
+            territory.status = 'conflict';
+            await this.territoryRepo.save(territory);
+            return;
+        }
+        const ownerChanged = territory.owner_club_id !== leader.club_id;
+        territory.owner_club_id = leader.club_id;
+        territory.status = 'conquered';
+        if (ownerChanged) {
+            territory.conquered_at = new Date();
+        }
+        await this.territoryRepo.save(territory);
     }
     async getDartboardPeriods(userId) {
         const rows = await this.throwRepo
@@ -214,7 +392,15 @@ exports.StatsService = StatsService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(elo_history_entity_1.EloHistory)),
     __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(3, (0, typeorm_1.InjectRepository)(throw_entity_1.Throw)),
+    __param(4, (0, typeorm_1.InjectRepository)(match_entity_1.Match)),
+    __param(5, (0, typeorm_1.InjectRepository)(club_member_entity_1.ClubMember)),
+    __param(6, (0, typeorm_1.InjectRepository)(club_territory_points_entity_1.ClubTerritoryPoints)),
+    __param(7, (0, typeorm_1.InjectRepository)(territory_entity_1.Territory)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])

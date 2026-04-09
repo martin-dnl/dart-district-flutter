@@ -16,6 +16,8 @@ const tournament_pool_standing_entity_1 = require("./entities/tournament-pool-st
 const tournament_bracket_match_entity_1 = require("./entities/tournament-bracket-match.entity");
 const tournaments_service_1 = require("./tournaments.service");
 const tournaments_controller_1 = require("./tournaments.controller");
+const user_entity_1 = require("../users/entities/user.entity");
+const club_member_entity_1 = require("../clubs/entities/club-member.entity");
 let TournamentsModule = class TournamentsModule {
 };
 exports.TournamentsModule = TournamentsModule;
@@ -28,6 +30,8 @@ exports.TournamentsModule = TournamentsModule = __decorate([
                 tournament_pool_entity_1.TournamentPool,
                 tournament_pool_standing_entity_1.TournamentPoolStanding,
                 tournament_bracket_match_entity_1.TournamentBracketMatch,
+                user_entity_1.User,
+                club_member_entity_1.ClubMember,
             ]),
         ],
         controllers: [tournaments_controller_1.TournamentsController],

@@ -5,6 +5,7 @@ export declare class CreateMatchDto {
     best_of_legs: number;
     player_ids: string[];
     is_territorial?: boolean;
+    is_ranked?: boolean;
     territory_id?: string;
     club_id?: string;
     tournament_id?: string;

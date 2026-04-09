@@ -44,6 +44,18 @@ __decorate([
     __metadata("design:type", Object)
 ], Club.prototype, "region", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 10, nullable: true }),
+    __metadata("design:type", Object)
+], Club.prototype, "postal_code", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true, default: 'France' }),
+    __metadata("design:type", Object)
+], Club.prototype, "country", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', nullable: true }),
+    __metadata("design:type", Object)
+], Club.prototype, "opening_hours", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'numeric', precision: 10, scale: 7, nullable: true }),
     __metadata("design:type", Object)
 ], Club.prototype, "latitude", void 0);

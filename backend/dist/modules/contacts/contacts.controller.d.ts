@@ -16,6 +16,7 @@ export declare class ContactsController {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
     }[]>;
     outgoingRequests(req: {
@@ -30,6 +31,7 @@ export declare class ContactsController {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
     }[]>;
     sendRequest(req: {
@@ -43,6 +45,7 @@ export declare class ContactsController {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
         request_id?: undefined;
     } | {
@@ -61,6 +64,7 @@ export declare class ContactsController {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
     }>;
     rejectRequest(req: {
@@ -79,6 +83,7 @@ export declare class ContactsController {
         username: string;
         avatar_url: string | null;
         elo: number;
+        club_id: string | null;
     }[]>;
     addFriend(req: {
         user: {

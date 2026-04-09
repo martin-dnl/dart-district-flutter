@@ -44,11 +44,21 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
 
   // Local PMTiles assets for development
-  // Resolve from process root to avoid dist path depth differences between environments.
-  const irisDataDir = join(process.cwd(), 'iris_data');
-  if (existsSync(irisDataDir)) {
+  // Allow explicit override and common relative fallbacks for different launch cwd.
+  const irisCandidates = [
+    process.env.IRIS_DATA_DIR?.trim(),
+    join(process.cwd(), 'iris_data'),
+    join(process.cwd(), '..', 'iris_data'),
+  ].filter((value): value is string => Boolean(value && value.trim().length > 0));
+
+  const irisDataDir = irisCandidates.find((candidate) => existsSync(candidate));
+  if (irisDataDir) {
     app.use('/tiles', serveStatic(irisDataDir, { index: false }));
     logger.log(`Serving local tiles from ${irisDataDir} at /tiles`);
+  } else {
+    logger.warn(
+      `No iris_data directory found. Checked: ${irisCandidates.join(', ')}`,
+    );
   }
 
   // User-uploaded assets (avatars)

@@ -55,6 +55,11 @@ __decorate([
     __metadata("design:type", Boolean)
 ], CreateTournamentDto.prototype, "is_territorial", void 0);
 __decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateTournamentDto.prototype, "is_ranked", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsIn)(['301', '501', '701', 'cricket', 'chasseur']),

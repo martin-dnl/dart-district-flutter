@@ -19,6 +19,7 @@ export declare class ContactsService {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
     }[]>;
     listOutgoingRequests(userId: string): Promise<{
@@ -29,6 +30,7 @@ export declare class ContactsService {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
     }[]>;
     sendFriendRequest(userId: string, receiverId: string): Promise<{
@@ -38,6 +40,7 @@ export declare class ContactsService {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
         request_id?: undefined;
     } | {
@@ -52,6 +55,7 @@ export declare class ContactsService {
             username: string;
             avatar_url: string | null;
             elo: number;
+            club_id: string | null;
         } | null;
     }>;
     rejectFriendRequest(userId: string, requestId: string): Promise<{
@@ -62,6 +66,7 @@ export declare class ContactsService {
         username: string;
         avatar_url: string | null;
         elo: number;
+        club_id: string | null;
     }[]>;
     addFriend(userId: string, friendId: string): Promise<{
         id: string;
@@ -100,4 +105,5 @@ export declare class ContactsService {
     }>;
     private ensureFriendshipPair;
     private mapFriend;
+    private resolvePrimaryClubId;
 }

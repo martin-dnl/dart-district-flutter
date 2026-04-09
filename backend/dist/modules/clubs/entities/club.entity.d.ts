@@ -7,6 +7,12 @@ export declare class Club {
     address: string | null;
     city: string | null;
     region: string | null;
+    postal_code: string | null;
+    country: string | null;
+    opening_hours: Record<string, {
+        open: string;
+        close: string;
+    }> | null;
     latitude: number | null;
     longitude: number | null;
     code_iris: string | null;

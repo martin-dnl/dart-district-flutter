@@ -16,6 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TerritoriesService = void 0;
 const common_1 = require("@nestjs/common");
 const promises_1 = require("fs/promises");
+const fs_1 = require("fs");
 const path = require("path");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -34,6 +35,7 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
         this.tilesetRepo = tilesetRepo;
         this.territoryGateway = territoryGateway;
         this.dataSource = dataSource;
+        this.logger = new common_1.Logger(TerritoriesService_1.name);
     }
     resolveTilesetSourceUrl(sourceUrl) {
         const explicitOverride = process.env.IRIS_PMTILES_URL?.trim();
@@ -187,6 +189,21 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
         }
         return this.fallbackTilesetMetadata();
     }
+    async getActiveIrisCodes() {
+        const schema = await this.getSchemaInfo();
+        if (!schema.hasIrisTerritories) {
+            return [];
+        }
+        const rows = await this.dataSource.query(`
+        SELECT DISTINCT code_iris
+        FROM clubs
+        WHERE code_iris IS NOT NULL
+        ORDER BY code_iris ASC
+      `);
+        return rows
+            .map((row) => typeof row.code_iris === 'string' ? row.code_iris.trim().toUpperCase() : '')
+            .filter((code) => /^[0-9A-Z]{9}$/.test(code));
+    }
     async findAll() {
         const schema = await this.getSchemaInfo();
         if (!schema.hasIrisTerritories && schema.hasLegacyTerritories) {
@@ -248,10 +265,10 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
         c.id,
         c.name,
         COUNT(t.code_iris) as territories_count,
-        COUNT(CASE WHEN t.status = 'conquered' THEN 1 END) as conquered_count,
-        COUNT(CASE WHEN t.status = 'locked' THEN 1 END) as locked_count,
-        COUNT(CASE WHEN t.status = 'alert' THEN 1 END) as alert_count,
-        COUNT(CASE WHEN t.status = 'conflict' THEN 1 END) as conflict_count
+        COUNT(CASE WHEN t.status::text = 'conquered' THEN 1 END) as conquered_count,
+        COUNT(CASE WHEN t.status::text = 'locked' THEN 1 END) as locked_count,
+        COUNT(CASE WHEN t.status::text = 'alert' THEN 1 END) as alert_count,
+        COUNT(CASE WHEN t.status::text = 'conflict' THEN 1 END) as conflict_count
       FROM clubs c
       LEFT JOIN territories t ON c.id = t.owner_club_id
       GROUP BY c.id, c.name
@@ -314,11 +331,30 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
     resolveIrisGeoJsonPath() {
         const configured = process.env.IRIS_GEOJSON_PATH?.trim();
         if (configured) {
-            return path.isAbsolute(configured)
+            const configuredPath = path.isAbsolute(configured)
                 ? configured
                 : path.resolve(process.cwd(), configured);
+            if ((0, fs_1.existsSync)(configuredPath)) {
+                this.logger.log(`Using IRIS GeoJSON path from IRIS_GEOJSON_PATH: ${configuredPath}`);
+                return configuredPath;
+            }
+            this.logger.warn(`IRIS_GEOJSON_PATH is set but file does not exist at ${configuredPath}. Falling back to auto-detected path.`);
         }
-        return path.resolve(process.cwd(), '..', 'iris_data', 'iris_france.geojson');
+        const candidates = [
+            path.resolve(process.cwd(), 'iris_data', 'iris_france.geojson'),
+            path.resolve(process.cwd(), '..', 'iris_data', 'iris_france.geojson'),
+            path.resolve(__dirname, '..', '..', '..', '..', 'iris_data', 'iris_france.geojson'),
+            path.resolve('/', 'app', 'iris_data', 'iris_france.geojson'),
+            path.resolve('/', 'iris_data', 'iris_france.geojson'),
+        ];
+        for (const candidate of candidates) {
+            if ((0, fs_1.existsSync)(candidate)) {
+                this.logger.log(`Using IRIS GeoJSON path: ${candidate}`);
+                return candidate;
+            }
+        }
+        this.logger.warn(`No IRIS GeoJSON candidate found. Will try default fallback path: ${candidates[1]}`);
+        return candidates[1];
     }
     async getIrisGeoIndex() {
         if (!this.irisGeoIndexPromise) {
@@ -328,6 +364,7 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
     }
     async loadIrisGeoIndex() {
         const filePath = this.resolveIrisGeoJsonPath();
+        this.logger.log(`Loading IRIS GeoJSON index from ${filePath}`);
         const raw = await (0, promises_1.readFile)(filePath, 'utf8');
         const parsed = JSON.parse(raw);
         if (parsed.type !== 'FeatureCollection' || !Array.isArray(parsed.features)) {
@@ -335,7 +372,14 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
         }
         const indexed = [];
         for (const feature of parsed.features) {
-            const codeIris = (feature.properties?.code_iris ?? '').toString().trim().toUpperCase();
+            const properties = feature.properties ?? {};
+            const codeIris = (properties['code_iris'] ??
+                properties['CODE_IRIS'] ??
+                properties['Code_iris'] ??
+                '')
+                .toString()
+                .trim()
+                .toUpperCase();
             if (!/^[0-9A-Z]{9}$/.test(codeIris)) {
                 continue;
             }
@@ -372,6 +416,7 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
                 polygons,
             });
         }
+        this.logger.log(`IRIS GeoJSON index loaded: ${indexed.length} valid features from ${parsed.features.length} raw features.`);
         return indexed;
     }
     extractPolygons(geometryType, coordinates) {
@@ -465,6 +510,70 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
         }
         return false;
     }
+    isValidCoordinates(lat, lng) {
+        return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+    }
+    haversineDistanceKm(fromLat, fromLng, toLat, toLng) {
+        const toRadians = (value) => (value * Math.PI) / 180;
+        const dLat = toRadians(toLat - fromLat);
+        const dLng = toRadians(toLng - fromLng);
+        const lat1 = toRadians(fromLat);
+        const lat2 = toRadians(toLat);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+        return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+    findNearestFeatureByBboxDistance(index, lat, lng, maxDistanceKm) {
+        let nearest = null;
+        let nearestDistanceKm = Number.POSITIVE_INFINITY;
+        for (const feature of index) {
+            const clampedLng = Math.min(feature.maxLng, Math.max(feature.minLng, lng));
+            const clampedLat = Math.min(feature.maxLat, Math.max(feature.minLat, lat));
+            const distanceKm = this.haversineDistanceKm(lat, lng, clampedLat, clampedLng);
+            if (distanceKm < nearestDistanceKm) {
+                nearestDistanceKm = distanceKm;
+                nearest = feature;
+            }
+        }
+        if (!nearest || nearestDistanceKm > maxDistanceKm) {
+            return null;
+        }
+        return { feature: nearest, distanceKm: nearestDistanceKm };
+    }
+    async resolveCodeIrisByPolygon(lat, lng, maxDistanceKm = TerritoriesService_1.GEOJSON_NEAREST_FALLBACK_KM) {
+        if (!this.isValidCoordinates(lat, lng)) {
+            this.logger.warn(`resolveCodeIrisByPolygon rejected invalid coordinates lat=${lat}, lng=${lng}`);
+            return null;
+        }
+        const index = await this.getIrisGeoIndex();
+        this.logger.debug(`resolveCodeIrisByPolygon start lat=${lat}, lng=${lng}, indexSize=${index.length}, maxDistanceKm=${maxDistanceKm}`);
+        const directHit = index.find((feature) => this.isPointInFeature(lng, lat, feature));
+        if (directHit) {
+            this.logger.debug(`resolveCodeIrisByPolygon direct-hit code_iris=${directHit.codeIris} for lat=${lat}, lng=${lng}`);
+            return directHit.codeIris;
+        }
+        if (this.isValidCoordinates(lng, lat)) {
+            const swappedHit = index.find((feature) => this.isPointInFeature(lat, lng, feature));
+            if (swappedHit) {
+                this.logger.warn(`resolveCodeIrisByPolygon matched with swapped coordinates. input(lat=${lat}, lng=${lng}) matched as (lat=${lng}, lng=${lat}) => code_iris=${swappedHit.codeIris}`);
+                return swappedHit.codeIris;
+            }
+        }
+        const nearestDirect = this.findNearestFeatureByBboxDistance(index, lat, lng, maxDistanceKm);
+        if (nearestDirect) {
+            this.logger.debug(`resolveCodeIrisByPolygon nearest-direct code_iris=${nearestDirect.feature.codeIris}, distanceKm=${nearestDirect.distanceKm.toFixed(3)}`);
+            return nearestDirect.feature.codeIris;
+        }
+        if (this.isValidCoordinates(lng, lat)) {
+            const nearestSwapped = this.findNearestFeatureByBboxDistance(index, lng, lat, maxDistanceKm);
+            if (nearestSwapped) {
+                this.logger.warn(`resolveCodeIrisByPolygon nearest-swapped code_iris=${nearestSwapped.feature.codeIris}, distanceKm=${nearestSwapped.distanceKm.toFixed(3)}. input(lat=${lat}, lng=${lng}) interpreted as swapped.`);
+                return nearestSwapped.feature.codeIris;
+            }
+        }
+        this.logger.warn(`resolveCodeIrisByPolygon no match for lat=${lat}, lng=${lng} (maxDistanceKm=${maxDistanceKm})`);
+        return null;
+    }
     computeVisibleWidthKm(latitude, zoom, viewportWidthPx) {
         const latRadians = (latitude * Math.PI) / 180;
         const metersPerPixel = (156543.03392804097 * Math.abs(Math.cos(latRadians))) / Math.pow(2, zoom);
@@ -473,7 +582,7 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
     }
     async hitTestByCoordinates(lat, lng, zoom, viewportWidthPx) {
         await this.ensureIrisSchema('territory map hit-test');
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        if (!this.isValidCoordinates(lat, lng)) {
             throw new common_1.BadRequestException('Invalid coordinates for territory hit-test');
         }
         if (Number.isFinite(zoom) &&
@@ -491,13 +600,16 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
         }
         return { code_iris: hit.codeIris };
     }
-    async findByCodeIris(codeIris) {
+    async findByCodeIrisOrNull(codeIris) {
         await this.ensureIrisSchema('territory lookup');
         const code = this.normalizeCodeIris(codeIris);
-        const t = await this.territoryRepo.findOne({
+        return this.territoryRepo.findOne({
             where: { code_iris: code },
             relations: ['owner_club'],
         });
+    }
+    async findByCodeIris(codeIris) {
+        const t = await this.findByCodeIrisOrNull(codeIris);
         if (!t)
             throw new common_1.NotFoundException('Territory not found');
         return t;
@@ -519,10 +631,33 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
             order: { created_at: 'DESC' },
             relations: ['challengerClub', 'defenderClub'],
         });
+        let topClubs = [];
+        try {
+            const rows = await this.dataSource.query(`
+          SELECT ctp.club_id, c.name AS club_name, ctp.points
+          FROM club_territory_points ctp
+          INNER JOIN clubs c ON c.id = ctp.club_id
+          WHERE ctp.code_iris = $1
+          ORDER BY ctp.points DESC, c.name ASC
+          LIMIT 3
+        `, [territory.code_iris]);
+            topClubs = rows.map((row, index) => ({
+                rank: index + 1,
+                club_id: row.club_id,
+                club_name: (row.club_name ?? '').toString(),
+                points: Number(row.points ?? 0),
+            }));
+        }
+        catch (error) {
+            if (!this.isMissingRelationError(error, 'club_territory_points')) {
+                throw error;
+            }
+        }
         return {
             territory,
             active_duel: activeDuel,
             latest_events: lastEvents,
+            top_clubs: topClubs,
         };
     }
     async history(codeIris) {
@@ -676,6 +811,7 @@ let TerritoriesService = TerritoriesService_1 = class TerritoriesService {
 };
 exports.TerritoriesService = TerritoriesService;
 TerritoriesService.HIT_TEST_MAX_VISIBLE_WIDTH_KM = 5;
+TerritoriesService.GEOJSON_NEAREST_FALLBACK_KM = 12;
 exports.TerritoriesService = TerritoriesService = TerritoriesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(territory_entity_1.Territory)),

@@ -172,7 +172,7 @@ let ContactsService = class ContactsService {
     async listFriends(userId) {
         const rows = await this.friendshipRepo.find({
             where: { user_id: userId },
-            relations: ['friend'],
+            relations: ['friend', 'friend.club_memberships', 'friend.club_memberships.club'],
             order: { created_at: 'DESC' },
         });
         return rows
@@ -183,6 +183,7 @@ let ContactsService = class ContactsService {
             username: friend.username,
             avatar_url: friend.avatar_url,
             elo: friend.elo,
+            club_id: this.resolvePrimaryClubId(friend),
         }));
     }
     async addFriend(userId, friendId) {
@@ -366,7 +367,13 @@ let ContactsService = class ContactsService {
             username: friend.username,
             avatar_url: friend.avatar_url,
             elo: friend.elo,
+            club_id: this.resolvePrimaryClubId(friend),
         };
+    }
+    resolvePrimaryClubId(friend) {
+        const memberships = friend.club_memberships ?? [];
+        const activeMembership = memberships.find((membership) => membership.is_active);
+        return activeMembership?.club_id ?? null;
     }
 };
 exports.ContactsService = ContactsService;

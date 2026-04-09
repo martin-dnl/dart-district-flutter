@@ -17,6 +17,8 @@ export declare class TerritoriesService {
     private readonly territoryGateway;
     private readonly dataSource;
     private static readonly HIT_TEST_MAX_VISIBLE_WIDTH_KM;
+    private static readonly GEOJSON_NEAREST_FALLBACK_KM;
+    private readonly logger;
     private schemaInfoPromise?;
     private irisGeoIndexPromise?;
     constructor(territoryRepo: Repository<Territory>, historyRepo: Repository<TerritoryHistory>, duelRepo: Repository<Duel>, clubMemberRepo: Repository<ClubMember>, tilesetRepo: Repository<TerritoryTileset>, territoryGateway: TerritoryGateway, dataSource: DataSource);
@@ -67,6 +69,7 @@ export declare class TerritoriesService {
         created_at: Date;
         updated_at: Date;
     }>;
+    getActiveIrisCodes(): Promise<any>;
     findAll(): Promise<any>;
     getMapStatuses(query: QueryTerritoryStatusesDto): Promise<{
         count: number;
@@ -111,17 +114,28 @@ export declare class TerritoriesService {
     private isPointInRing;
     private isPointInPolygon;
     private isPointInFeature;
+    private isValidCoordinates;
+    private haversineDistanceKm;
+    private findNearestFeatureByBboxDistance;
+    resolveCodeIrisByPolygon(lat: number, lng: number, maxDistanceKm?: number): Promise<string | null>;
     private computeVisibleWidthKm;
     hitTestByCoordinates(lat: number, lng: number, zoom?: number, viewportWidthPx?: number): Promise<{
         code_iris: null;
     } | {
         code_iris: string;
     }>;
+    findByCodeIrisOrNull(codeIris: string): Promise<Territory | null>;
     findByCodeIris(codeIris: string): Promise<Territory>;
     getTerritoryPanel(codeIris: string): Promise<{
         territory: Territory;
         active_duel: Duel | null;
         latest_events: TerritoryHistory[];
+        top_clubs: {
+            rank: number;
+            club_id: string;
+            club_name: string;
+            points: number;
+        }[];
     }>;
     history(codeIris: string): Promise<TerritoryHistory[]>;
     updateStatus(codeIris: string, dto: UpdateTerritoryStatusDto, actorUserId: string): Promise<Territory>;

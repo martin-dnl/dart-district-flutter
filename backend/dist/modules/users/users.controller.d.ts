@@ -15,6 +15,8 @@ export declare class UsersController {
         email: null;
         avatar_url: null;
         elo: number;
+        conquest_score: number;
+        preferred_language: string;
         is_admin: boolean;
         created_at: string;
         stats: {
@@ -47,7 +49,11 @@ export declare class UsersController {
         value: string | null;
     }>;
     leaderboard(limit?: number): Promise<import("./entities/user.entity").User[]>;
-    search(q: string, limit?: number): Promise<import("./entities/user.entity").User[]>;
+    search(req: {
+        user: {
+            id: string;
+        };
+    }, q: string, limit?: number): Promise<import("./entities/user.entity").User[]>;
     findOne(id: string): Promise<import("./entities/user.entity").User>;
     update(req: {
         user: {

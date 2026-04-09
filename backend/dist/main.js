@@ -29,10 +29,18 @@ async function bootstrap() {
     }));
     app.useGlobalFilters(new global_exception_filter_1.GlobalExceptionFilter());
     app.useGlobalInterceptors(new logging_interceptor_1.LoggingInterceptor(), new transform_interceptor_1.TransformInterceptor());
-    const irisDataDir = (0, path_1.join)(process.cwd(), 'iris_data');
-    if ((0, fs_1.existsSync)(irisDataDir)) {
+    const irisCandidates = [
+        process.env.IRIS_DATA_DIR?.trim(),
+        (0, path_1.join)(process.cwd(), 'iris_data'),
+        (0, path_1.join)(process.cwd(), '..', 'iris_data'),
+    ].filter((value) => Boolean(value && value.trim().length > 0));
+    const irisDataDir = irisCandidates.find((candidate) => (0, fs_1.existsSync)(candidate));
+    if (irisDataDir) {
         app.use('/tiles', (0, express_1.static)(irisDataDir, { index: false }));
         logger.log(`Serving local tiles from ${irisDataDir} at /tiles`);
+    }
+    else {
+        logger.warn(`No iris_data directory found. Checked: ${irisCandidates.join(', ')}`);
     }
     const uploadsDir = (0, path_1.join)(process.cwd(), 'uploads');
     app.useStaticAssets(uploadsDir, { prefix: '/uploads' });

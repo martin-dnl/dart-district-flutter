@@ -8,16 +8,20 @@ import { CreateMatchDto } from './dto/create-match.dto';
 import { SubmitThrowDto } from './dto/submit-throw.dto';
 import { SystemGateway } from '../realtime/gateways/system.gateway';
 import { MatchGateway } from '../realtime/gateways/match.gateway';
+import { StatsService } from '../stats/stats.service';
+import { Territory } from '../territories/entities/territory.entity';
 export declare class MatchesService {
     private readonly matchRepo;
     private readonly playerRepo;
     private readonly setRepo;
     private readonly legRepo;
     private readonly throwRepo;
+    private readonly territoryRepo;
     private readonly dataSource;
     private readonly systemGateway;
     private readonly matchGateway;
-    constructor(matchRepo: Repository<Match>, playerRepo: Repository<MatchPlayer>, setRepo: Repository<Set>, legRepo: Repository<Leg>, throwRepo: Repository<Throw>, dataSource: DataSource, systemGateway: SystemGateway, matchGateway: MatchGateway);
+    private readonly statsService;
+    constructor(matchRepo: Repository<Match>, playerRepo: Repository<MatchPlayer>, setRepo: Repository<Set>, legRepo: Repository<Leg>, throwRepo: Repository<Throw>, territoryRepo: Repository<Territory>, dataSource: DataSource, systemGateway: SystemGateway, matchGateway: MatchGateway, statsService: StatsService);
     createInvitation(inviterId: string, body: {
         invitee_id: string;
         mode?: string;
@@ -27,6 +31,8 @@ export declare class MatchesService {
         finish_type?: string;
         is_ranked?: boolean;
         is_territorial?: boolean;
+        territory_club_id?: string;
+        territory_code_iris?: string;
     }): Promise<{
         id: string;
         mode: string;
@@ -71,6 +77,8 @@ export declare class MatchesService {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     getOngoingForUser(userId: string): Promise<{
@@ -117,6 +125,8 @@ export declare class MatchesService {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }[]>;
     acceptInvitation(matchId: string, userId: string): Promise<{
@@ -163,6 +173,8 @@ export declare class MatchesService {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     refuseInvitation(matchId: string, userId: string): Promise<{
@@ -225,6 +237,8 @@ export declare class MatchesService {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     undoLastThrow(matchId: string, userId: string): Promise<{
@@ -271,6 +285,8 @@ export declare class MatchesService {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     abandonMatch(matchId: string, userId: string, body: {
@@ -319,6 +335,8 @@ export declare class MatchesService {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     create(dto: CreateMatchDto): Promise<Match>;
@@ -371,6 +389,19 @@ export declare class MatchesService {
             leg: number;
             winner_username: string;
         }[];
+    }>;
+    getResultSummary(matchId: string, userId: string): Promise<{
+        match_id: string;
+        is_ranked: boolean;
+        is_territorial: boolean;
+        user_id: string;
+        is_winner: boolean;
+        elo_before: number;
+        elo_after: number;
+        elo_delta: number;
+        territory_points_gained: number;
+        territory_code_iris: string | null;
+        territory_name: string | null;
     }>;
     submitThrow(matchId: string, legId: string, playerId: string, dto: SubmitThrowDto): Promise<Throw>;
     private completeLeg;

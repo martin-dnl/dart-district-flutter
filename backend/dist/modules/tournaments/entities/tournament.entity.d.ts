@@ -10,6 +10,7 @@ export declare class Tournament {
     description: string | null;
     territory_id: string | null;
     is_territorial: boolean;
+    is_ranked: boolean;
     mode: string;
     finish: string;
     venue_name: string | null;

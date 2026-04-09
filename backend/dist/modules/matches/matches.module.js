@@ -17,14 +17,17 @@ const throw_entity_1 = require("./entities/throw.entity");
 const matches_service_1 = require("./matches.service");
 const matches_controller_1 = require("./matches.controller");
 const realtime_module_1 = require("../realtime/realtime.module");
+const stats_module_1 = require("../stats/stats.module");
+const territory_entity_1 = require("../territories/entities/territory.entity");
 let MatchesModule = class MatchesModule {
 };
 exports.MatchesModule = MatchesModule;
 exports.MatchesModule = MatchesModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([match_entity_1.Match, match_player_entity_1.MatchPlayer, set_entity_1.Set, leg_entity_1.Leg, throw_entity_1.Throw]),
+            typeorm_1.TypeOrmModule.forFeature([match_entity_1.Match, match_player_entity_1.MatchPlayer, set_entity_1.Set, leg_entity_1.Leg, throw_entity_1.Throw, territory_entity_1.Territory]),
             realtime_module_1.RealtimeModule,
+            stats_module_1.StatsModule,
         ],
         controllers: [matches_controller_1.MatchesController],
         providers: [matches_service_1.MatchesService],

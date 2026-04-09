@@ -42,6 +42,9 @@ export declare class TerritoriesController {
         created_at: Date;
         updated_at: Date;
     }>;
+    activeZones(): Promise<{
+        codes: any;
+    }>;
     mapStatuses(query: QueryTerritoryStatusesDto): Promise<{
         count: number;
         statuses: never[];
@@ -77,7 +80,7 @@ export declare class TerritoriesController {
         count: any;
         zones: any;
     }>;
-    mapHit(latRaw: string, lngRaw: string, zoomRaw?: string, viewportWidthRaw?: string): Promise<{
+    mapHit(latRaw: string, lngRaw: string, zoomRaw?: string, viewportWidthRaw?: string, activeOnlyRaw?: string): Promise<{
         code_iris: null;
     } | {
         code_iris: string;
@@ -88,6 +91,12 @@ export declare class TerritoriesController {
         territory: import("./entities/territory.entity").Territory;
         active_duel: import("./entities/duel.entity").Duel | null;
         latest_events: import("./entities/territory-history.entity").TerritoryHistory[];
+        top_clubs: {
+            rank: number;
+            club_id: string;
+            club_name: string;
+            points: number;
+        }[];
     }>;
     history(codeIris: string): Promise<import("./entities/territory-history.entity").TerritoryHistory[]>;
     updateStatus(codeIris: string, dto: UpdateTerritoryStatusDto, req: {

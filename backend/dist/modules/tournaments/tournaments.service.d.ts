@@ -5,9 +5,12 @@ import { TournamentPool } from './entities/tournament-pool.entity';
 import { TournamentPoolStanding } from './entities/tournament-pool-standing.entity';
 import { TournamentBracketMatch } from './entities/tournament-bracket-match.entity';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
+import { User } from '../users/entities/user.entity';
+import { ClubMember } from '../clubs/entities/club-member.entity';
 type FindAllOptions = {
     status?: string;
     upcoming?: string;
+    clubId?: string;
 };
 export declare class TournamentsService {
     private readonly tournamentRepo;
@@ -15,7 +18,10 @@ export declare class TournamentsService {
     private readonly poolRepo;
     private readonly standingRepo;
     private readonly bracketRepo;
-    constructor(tournamentRepo: Repository<Tournament>, playerRepo: Repository<TournamentPlayer>, poolRepo: Repository<TournamentPool>, standingRepo: Repository<TournamentPoolStanding>, bracketRepo: Repository<TournamentBracketMatch>);
+    private readonly userRepo;
+    private readonly clubMemberRepo;
+    constructor(tournamentRepo: Repository<Tournament>, playerRepo: Repository<TournamentPlayer>, poolRepo: Repository<TournamentPool>, standingRepo: Repository<TournamentPoolStanding>, bracketRepo: Repository<TournamentBracketMatch>, userRepo: Repository<User>, clubMemberRepo: Repository<ClubMember>);
+    canCreateForClub(userId: string, clubId: string): Promise<boolean>;
     create(dto: CreateTournamentDto, userId: string): Promise<Tournament>;
     findAll(options?: FindAllOptions): Promise<Tournament[]>;
     findById(id: string): Promise<{
@@ -25,6 +31,7 @@ export declare class TournamentsService {
         description: string | null;
         territory_id: string | null;
         is_territorial: boolean;
+        is_ranked: boolean;
         mode: string;
         finish: string;
         venue_name: string | null;
@@ -49,7 +56,7 @@ export declare class TournamentsService {
         created_by: string | null;
         created_at: Date;
         territory: import("../territories/entities/territory.entity").Territory;
-        creator: import("../users/entities/user.entity").User;
+        creator: User;
         club: import("../clubs/entities/club.entity").Club;
         pools: TournamentPool[];
         bracket_matches: TournamentBracketMatch[];

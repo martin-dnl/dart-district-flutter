@@ -43,6 +43,11 @@ __decorate([
     __metadata("design:type", Boolean)
 ], CreateMatchDto.prototype, "is_territorial", void 0);
 __decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateMatchDto.prototype, "is_ranked", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.Matches)(/^[0-9A-Za-z]{9}$/),
     (0, class_validator_1.IsOptional)(),

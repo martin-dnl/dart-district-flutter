@@ -15,12 +15,27 @@ const user_entity_1 = require("../users/entities/user.entity");
 const stats_service_1 = require("./stats.service");
 const stats_controller_1 = require("./stats.controller");
 const throw_entity_1 = require("../matches/entities/throw.entity");
+const match_entity_1 = require("../matches/entities/match.entity");
+const club_member_entity_1 = require("../clubs/entities/club-member.entity");
+const club_territory_points_entity_1 = require("../clubs/entities/club-territory-points.entity");
+const territory_entity_1 = require("../territories/entities/territory.entity");
 let StatsModule = class StatsModule {
 };
 exports.StatsModule = StatsModule;
 exports.StatsModule = StatsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([player_stat_entity_1.PlayerStat, elo_history_entity_1.EloHistory, user_entity_1.User, throw_entity_1.Throw])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([
+                player_stat_entity_1.PlayerStat,
+                elo_history_entity_1.EloHistory,
+                user_entity_1.User,
+                throw_entity_1.Throw,
+                match_entity_1.Match,
+                club_member_entity_1.ClubMember,
+                club_territory_points_entity_1.ClubTerritoryPoints,
+                territory_entity_1.Territory,
+            ]),
+        ],
         controllers: [stats_controller_1.StatsController],
         providers: [stats_service_1.StatsService],
         exports: [stats_service_1.StatsService],

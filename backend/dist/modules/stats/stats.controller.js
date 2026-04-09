@@ -24,7 +24,10 @@ let StatsController = class StatsController {
     myStats(req) {
         return this.statsService.getByUser(req.user.id);
     }
-    myEloHistory(req, limit) {
+    myEloHistory(req, limit, mode, offset) {
+        if (mode) {
+            return this.statsService.eloHistoryByPeriod(req.user.id, mode, offset);
+        }
         return this.statsService.eloHistory(req.user.id, limit);
     }
     myDartboardPeriods(req) {
@@ -40,7 +43,10 @@ let StatsController = class StatsController {
     userStats(userId) {
         return this.statsService.getByUser(userId);
     }
-    userEloHistory(userId, limit) {
+    userEloHistory(userId, limit, mode, offset) {
+        if (mode) {
+            return this.statsService.eloHistoryByPeriod(userId, mode, offset);
+        }
         return this.statsService.eloHistory(userId, limit);
     }
     userDartboardPeriods(userId) {
@@ -66,8 +72,10 @@ __decorate([
     (0, common_1.Get)('me/elo-history'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('mode')),
+    __param(3, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:paramtypes", [Object, Number, String, Number]),
     __metadata("design:returntype", void 0)
 ], StatsController.prototype, "myEloHistory", null);
 __decorate([
@@ -98,8 +106,10 @@ __decorate([
     (0, common_1.Get)(':userId/elo-history'),
     __param(0, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
     __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('mode')),
+    __param(3, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:paramtypes", [String, Number, String, Number]),
     __metadata("design:returntype", void 0)
 ], StatsController.prototype, "userEloHistory", null);
 __decorate([

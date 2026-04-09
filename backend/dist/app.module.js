@@ -26,6 +26,7 @@ const qr_module_1 = require("./modules/qr/qr.module");
 const contacts_module_1 = require("./modules/contacts/contacts.module");
 const app_version_module_1 = require("./modules/app_version/app-version.module");
 const badges_module_1 = require("./modules/badges/badges.module");
+const i18n_module_1 = require("./modules/i18n/i18n.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -62,6 +63,7 @@ exports.AppModule = AppModule = __decorate([
             contacts_module_1.ContactsModule,
             app_version_module_1.AppVersionModule,
             badges_module_1.BadgesModule,
+            i18n_module_1.I18nModule,
         ],
         providers: [
             {

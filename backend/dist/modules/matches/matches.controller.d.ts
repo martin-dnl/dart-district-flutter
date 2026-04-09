@@ -12,6 +12,8 @@ export declare class MatchesController {
         sets_to_win?: number;
         legs_per_set?: number;
         finish_type?: string;
+        territory_club_id?: string;
+        territory_code_iris?: string;
     }, req: {
         user: {
             id: string;
@@ -60,6 +62,8 @@ export declare class MatchesController {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     ongoing(req: {
@@ -110,6 +114,8 @@ export declare class MatchesController {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }[]>;
     acceptInvitation(id: string, req: {
@@ -160,6 +166,8 @@ export declare class MatchesController {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     refuseInvitation(id: string, req: {
@@ -234,6 +242,8 @@ export declare class MatchesController {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     undoLastThrow(id: string, req: {
@@ -284,6 +294,8 @@ export declare class MatchesController {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     abandonMatch(id: string, body: {
@@ -336,6 +348,8 @@ export declare class MatchesController {
         finish_type: string;
         is_ranked: boolean;
         is_territorial: boolean;
+        territory_club_id: string | null;
+        territory_code_iris: string | null;
         abandoned_by_index: number | null;
     }>;
     create(dto: CreateMatchDto): Promise<import("./entities/match.entity").Match>;
@@ -391,6 +405,23 @@ export declare class MatchesController {
             leg: number;
             winner_username: string;
         }[];
+    }>;
+    resultSummary(id: string, req: {
+        user: {
+            id: string;
+        };
+    }): Promise<{
+        match_id: string;
+        is_ranked: boolean;
+        is_territorial: boolean;
+        user_id: string;
+        is_winner: boolean;
+        elo_before: number;
+        elo_after: number;
+        elo_delta: number;
+        territory_points_gained: number;
+        territory_code_iris: string | null;
+        territory_name: string | null;
     }>;
     findOne(id: string): Promise<import("./entities/match.entity").Match>;
     submitThrow(matchId: string, legId: string, dto: SubmitThrowDto, req: {

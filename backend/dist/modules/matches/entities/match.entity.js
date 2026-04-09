@@ -71,6 +71,14 @@ __decorate([
     __metadata("design:type", Object)
 ], Match.prototype, "territory_id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Match.prototype, "territory_club_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 9, nullable: true }),
+    __metadata("design:type", Object)
+], Match.prototype, "territory_code_iris", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], Match.prototype, "is_territorial", void 0);

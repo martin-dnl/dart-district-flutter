@@ -153,14 +153,21 @@ let UsersService = class UsersService {
             avatar_url: mdPublicUrl,
         };
     }
-    async search(query, limit = 20) {
+    async search(query, limit = 20, excludeUserId) {
+        const normalizedQuery = query.trim();
+        if (normalizedQuery.length < 2) {
+            return [];
+        }
         const take = (0, normalize_limit_1.normalizeLimit)(limit, 20);
-        return this.repo
+        const qb = this.repo
             .createQueryBuilder('u')
-            .where('u.username ILIKE :q', { q: `%${query}%` })
+            .where('u.username ILIKE :q', { q: `%${normalizedQuery}%` })
             .orderBy('u.elo', 'DESC')
-            .take(take)
-            .getMany();
+            .take(take);
+        if (excludeUserId) {
+            qb.andWhere('u.id != :excludeUserId', { excludeUserId });
+        }
+        return qb.getMany();
     }
     async leaderboard(limit = 50) {
         const take = (0, normalize_limit_1.normalizeLimit)(limit, 50);

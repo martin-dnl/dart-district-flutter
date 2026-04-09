@@ -24,16 +24,20 @@ const throw_entity_1 = require("./entities/throw.entity");
 const system_gateway_1 = require("../realtime/gateways/system.gateway");
 const match_gateway_1 = require("../realtime/gateways/match.gateway");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
+const stats_service_1 = require("../stats/stats.service");
+const territory_entity_1 = require("../territories/entities/territory.entity");
 let MatchesService = class MatchesService {
-    constructor(matchRepo, playerRepo, setRepo, legRepo, throwRepo, dataSource, systemGateway, matchGateway) {
+    constructor(matchRepo, playerRepo, setRepo, legRepo, throwRepo, territoryRepo, dataSource, systemGateway, matchGateway, statsService) {
         this.matchRepo = matchRepo;
         this.playerRepo = playerRepo;
         this.setRepo = setRepo;
         this.legRepo = legRepo;
         this.throwRepo = throwRepo;
+        this.territoryRepo = territoryRepo;
         this.dataSource = dataSource;
         this.systemGateway = systemGateway;
         this.matchGateway = matchGateway;
+        this.statsService = statsService;
     }
     async createInvitation(inviterId, body) {
         if (!body.invitee_id) {
@@ -58,6 +62,8 @@ let MatchesService = class MatchesService {
                 legs_per_set: legsPerSet,
                 is_ranked: body.is_ranked ?? false,
                 is_territorial: body.is_territorial ?? false,
+                territory_club_id: body.territory_club_id ?? null,
+                territory_code_iris: body.territory_code_iris ?? null,
                 status: 'pending',
                 inviter_id: inviterId,
                 invitee_id: body.invitee_id,
@@ -191,6 +197,7 @@ let MatchesService = class MatchesService {
         const roundNumber = Math.floor((activeLeg.throws?.length ?? 0) / Math.max(players.length, 1)) +
             1;
         const isDoubleOut = match.finish === 'double_out';
+        const isMasterOut = match.finish === 'master_out';
         const isBust = remaining < 0;
         const isCheckout = remaining == 0 && !isBust;
         let segment = `VISIT_${score}`;
@@ -202,10 +209,10 @@ let MatchesService = class MatchesService {
             recordedScore = 0;
             recordedRemaining = activeLeg.starting_score - thrownTotal;
         }
-        if (isCheckout && isDoubleOut) {
+        if (isCheckout && (isDoubleOut || isMasterOut)) {
             doublesAttempted = body.doubles_attempted ?? 0;
             if (doublesAttempted < 1 || doublesAttempted > 3) {
-                throw new common_1.BadRequestException('doubles_attempted must be between 1 and 3 for double_out checkout');
+                throw new common_1.BadRequestException('doubles_attempted must be between 1 and 3 for checkout');
             }
             segment = `CD${doublesAttempted}`;
         }
@@ -309,7 +316,10 @@ let MatchesService = class MatchesService {
                 total_sets: dto.best_of_sets,
                 legs_per_set: dto.best_of_legs,
                 is_territorial: dto.is_territorial ?? false,
+                is_ranked: dto.is_ranked ?? false,
                 territory_id: dto.territory_id ?? null,
+                territory_club_id: dto.club_id ?? null,
+                territory_code_iris: dto.territory_id ?? null,
                 tournament_id: dto.tournament_id ?? null,
                 status: 'in_progress',
                 started_at: new Date(),
@@ -483,6 +493,49 @@ let MatchesService = class MatchesService {
             timeline,
         };
     }
+    async getResultSummary(matchId, userId) {
+        const match = await this.loadMatchWithGraph(matchId);
+        const orderedPlayers = this.getOrderedPlayers(match);
+        const me = orderedPlayers.find((player) => player.user_id === userId);
+        if (!me) {
+            throw new common_1.BadRequestException('You are not a player in this match');
+        }
+        const eloRow = await this.dataSource.query(`
+        SELECT elo_before, elo_after, delta
+        FROM elo_history
+        WHERE match_id = $1 AND user_id = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [matchId, userId]);
+        const winner = orderedPlayers.find((player) => player.is_winner);
+        const isWinner = winner?.user_id === userId;
+        const eloBefore = Number(eloRow?.[0]?.elo_before ?? 0);
+        const eloAfter = Number(eloRow?.[0]?.elo_after ?? 0);
+        const eloDelta = Number(eloRow?.[0]?.delta ?? 0);
+        let territoryName = null;
+        if (match.territory_code_iris) {
+            const territory = await this.territoryRepo.findOne({
+                where: { code_iris: match.territory_code_iris.toUpperCase() },
+            });
+            territoryName = territory?.name ?? null;
+        }
+        const territoryPointsGained = match.is_ranked && match.is_territorial && isWinner
+            ? Math.max(0, Math.abs(eloDelta))
+            : 0;
+        return {
+            match_id: match.id,
+            is_ranked: match.is_ranked,
+            is_territorial: match.is_territorial,
+            user_id: userId,
+            is_winner: isWinner,
+            elo_before: eloBefore,
+            elo_after: eloAfter,
+            elo_delta: eloDelta,
+            territory_points_gained: territoryPointsGained,
+            territory_code_iris: match.territory_code_iris ?? null,
+            territory_name: territoryName,
+        };
+    }
     async submitThrow(matchId, legId, playerId, dto) {
         const leg = await this.legRepo.findOne({
             where: { id: legId },
@@ -557,9 +610,22 @@ let MatchesService = class MatchesService {
             match.status = 'completed';
             match.ended_at = new Date();
             await this.matchRepo.save(match);
+            const loserId = match.players.find((p) => p.user.id !== lastSetWinnerId)?.user
+                .id;
             for (const mp of match.players) {
                 mp.is_winner = mp.user.id === lastSetWinnerId;
                 await this.playerRepo.save(mp);
+            }
+            if (loserId) {
+                const eloResult = await this.statsService.processElo(match.id, lastSetWinnerId, loserId, match.is_ranked);
+                if (match.is_territorial) {
+                    await this.statsService.processTerritoryPoints({
+                        matchId: match.id,
+                        winnerId: lastSetWinnerId,
+                        loserId,
+                        eloDelta: Math.abs(eloResult?.winner.delta ?? 0),
+                    });
+                }
             }
         }
         else {
@@ -698,6 +764,8 @@ let MatchesService = class MatchesService {
             'finish_type': match.finish,
             'is_ranked': match.is_ranked,
             'is_territorial': match.is_territorial,
+            'territory_club_id': match.territory_club_id,
+            'territory_code_iris': match.territory_code_iris,
             'abandoned_by_index': abandonedByIndex < 0 ? null : abandonedByIndex,
         };
     }
@@ -796,13 +864,16 @@ exports.MatchesService = MatchesService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(set_entity_1.Set)),
     __param(3, (0, typeorm_1.InjectRepository)(leg_entity_1.Leg)),
     __param(4, (0, typeorm_1.InjectRepository)(throw_entity_1.Throw)),
+    __param(5, (0, typeorm_1.InjectRepository)(territory_entity_1.Territory)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,
         system_gateway_1.SystemGateway,
-        match_gateway_1.MatchGateway])
+        match_gateway_1.MatchGateway,
+        stats_service_1.StatsService])
 ], MatchesService);
 //# sourceMappingURL=matches.service.js.map

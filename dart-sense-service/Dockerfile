@@ -5,7 +5,16 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends curl libglib2.0-0 libgomp1 \
+	&& apt-get install -y --no-install-recommends \
+		curl \
+		libglib2.0-0 \
+		libgomp1 \
+		libgl1 \
+		libsm6 \
+		libxext6 \
+		libxrender1 \
+		libx11-6 \
+		libxcb1 \
 	&& rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./

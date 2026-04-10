@@ -108,6 +108,23 @@ done
 eval "$curl_cmd" | jq
 ```
 
+### POST /feedback
+
+Enregistre une photo annotee manuellement (zone + multiplicateur) pour le
+pipeline d'entrainement.
+
+```bash
+curl -sS -X POST \
+  -F "image=@./tests/frame.jpg" \
+  -F "zone=20" \
+  -F "multiplier=3" \
+  -F "source=mobile_app" \
+  -F "note=vue legere gauche" \
+  http://127.0.0.1:8001/feedback | jq
+```
+
+Les echantillons sont stockes dans `app/training_feedback` (volume Docker).
+
 ## Reverse proxy Caddy (VPS)
 
 Ajouter dans le Caddyfile:

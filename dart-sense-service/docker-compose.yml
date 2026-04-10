@@ -11,10 +11,12 @@ services:
       - DART_SENSE_CONF=0.25
       - DART_SENSE_IOU=0.45
       - DART_SENSE_MAX_DET=12
+      - DART_SENSE_FEEDBACK_DIR=/app/app/training_feedback
       # CPU by default. Set to "0" for first GPU if available in runtime.
       - DART_SENSE_DEVICE=
     volumes:
       - ./app/models:/app/app/models:ro
+      - ./app/training_feedback:/app/app/training_feedback
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
       interval: 30s

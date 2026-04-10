@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import os
 import tempfile
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 
 from .detector import Detector
 from .scorer import to_response_dart
@@ -18,6 +21,10 @@ detector = Detector(
     max_det=int(os.getenv("DART_SENSE_MAX_DET", "12")),
     device=os.getenv("DART_SENSE_DEVICE") or None,
 )
+feedback_dir = Path(
+    os.getenv("DART_SENSE_FEEDBACK_DIR", "/app/app/training_feedback")
+)
+feedback_index_file = feedback_dir / "feedback.jsonl"
 
 
 def _save_upload_to_temp(image: UploadFile) -> Path:
@@ -38,11 +45,19 @@ def _detect_from_upload(image: UploadFile) -> list[dict[str, Any]]:
 
 @app.get("/health")
 def health() -> dict[str, object]:
+    feedback_count = 0
+    if feedback_index_file.exists():
+        try:
+            feedback_count = len(feedback_index_file.read_text(encoding="utf-8").splitlines())
+        except Exception:
+            feedback_count = 0
+
     return {
         "success": True,
         "model_path": detector.model_path,
         "ready": detector.is_ready,
         "error": detector.model_error,
+        "feedback_samples": feedback_count,
     }
 
 
@@ -124,5 +139,63 @@ async def detect_batch(
             "darts": stabilized,
             "frames_processed": len(sampled_images),
             "min_occurrences": min_occurrences,
+        },
+    }
+
+
+def _build_label(zone: int, multiplier: int) -> str:
+    if zone == 25:
+        return "DB" if multiplier >= 2 else "SB"
+    prefix = "S"
+    if multiplier == 2:
+        prefix = "D"
+    elif multiplier >= 3:
+        prefix = "T"
+    return f"{prefix}{zone}"
+
+
+@app.post("/feedback")
+async def feedback(
+    image: UploadFile = File(...),
+    zone: int = Form(...),
+    multiplier: int = Form(...),
+    source: str = Form("mobile_app"),
+    note: str | None = Form(None),
+) -> dict[str, object]:
+    content = await image.read()
+    image.file.seek(0)
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty image payload")
+
+    if zone == 25 and multiplier > 2:
+        raise HTTPException(status_code=400, detail="Bull multiplier must be 1 or 2")
+
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+
+    suffix = Path(image.filename or "feedback.jpg").suffix or ".jpg"
+    sample_id = uuid4().hex
+    sample_filename = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}_{sample_id}{suffix}"
+    sample_path = feedback_dir / sample_filename
+    sample_path.write_bytes(content)
+
+    entry = {
+        "id": sample_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "image": sample_filename,
+        "zone": zone,
+        "multiplier": multiplier,
+        "label": _build_label(zone, multiplier),
+        "source": source,
+        "note": note,
+    }
+
+    with feedback_index_file.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(entry, ensure_ascii=True) + "\n")
+
+    return {
+        "success": True,
+        "data": {
+            "sample": entry,
+            "message": "Feedback sample stored for training pipeline",
         },
     }

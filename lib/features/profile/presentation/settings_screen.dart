@@ -33,6 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isLoadingDartSense = true;
   bool _isSavingDartSense = false;
   bool _isRunningDartSense = false;
+  bool _isSendingDartSenseTraining = false;
   static const String _scoreModeSettingKey = 'GAME_OPTION.SCORE_MODE';
   static const String _scoreModeBox = 'settings';
   static const String _scoreModeLocalKey = 'score_mode';
@@ -290,6 +291,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<List<File>> _captureBurstFrames({int maxFrames = 5}) async {
+    final captured = <File>[];
+    while (captured.length < maxFrames) {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 90,
+        maxWidth: 1800,
+      );
+
+      if (photo == null) {
+        break;
+      }
+      captured.add(File(photo.path));
+
+      if (!mounted || captured.length >= maxFrames) {
+        break;
+      }
+
+      final continueCapture = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            t(
+              'SCREEN.SETTINGS.DART_SENSE_CONTINUE_TITLE',
+              fallback: 'Capture continue',
+            ),
+          ),
+          content: Text(
+            t(
+              'SCREEN.SETTINGS.DART_SENSE_CONTINUE_MESSAGE',
+              fallback:
+                  'Photo ${captured.length} capturee. Voulez-vous capturer une frame supplementaire ?',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(t('COMMON.CONFIRM', fallback: 'Analyser')),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(
+                t(
+                  'SCREEN.SETTINGS.CAPTURE_NEXT',
+                  fallback: 'Frame suivante',
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (continueCapture != true) {
+        break;
+      }
+    }
+    return captured;
+  }
+
   Future<void> _runDartSenseTest() async {
     if (_dartSenseMode == mode.DartSenseMode.off || _isRunningDartSense) {
       if (_dartSenseMode == mode.DartSenseMode.off) {
@@ -307,19 +367,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
-    final photo = await _imagePicker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 90,
-      maxWidth: 1800,
-    );
-    if (photo == null || !mounted) {
+    final photos = await _captureBurstFrames(maxFrames: 5);
+    if (photos.isEmpty || !mounted) {
       return;
     }
 
     setState(() => _isRunningDartSense = true);
     try {
       final service = DartSenseApiService(ref.read(apiClientProvider));
-      final darts = await service.detect(File(photo.path));
+      final batch = await service.detectBatch(
+        photos,
+        minOccurrences: photos.length > 1 ? 2 : 1,
+        maxFrames: photos.length,
+      );
+      final darts = batch.darts;
       if (!mounted) {
         return;
       }
@@ -351,7 +412,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.file(
-                      File(photo.path),
+                      photos.last,
                       height: 220,
                       width: double.infinity,
                       fit: BoxFit.cover,
@@ -367,6 +428,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                   ),
                   const SizedBox(height: 8),
+                  Text(
+                    t(
+                      'SCREEN.SETTINGS.DART_SENSE_FRAMES_INFO',
+                      fallback: 'Frames analysees: ${batch.framesProcessed}',
+                    ),
+                    style: const TextStyle(color: AppColors.textHint),
+                  ),
+                  const SizedBox(height: 4),
                   for (var i = 0; i < darts.length; i++)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -430,6 +499,208 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } finally {
       if (mounted) {
         setState(() => _isRunningDartSense = false);
+      }
+    }
+  }
+
+  ({int zone, int multiplier})? _parseDartLabel(String raw) {
+    final value = raw.trim().toUpperCase().replaceAll(' ', '');
+    if (value == 'SB') {
+      return (zone: 25, multiplier: 1);
+    }
+    if (value == 'DB' || value == 'BULL') {
+      return (zone: 25, multiplier: 2);
+    }
+    if (value.length < 2) {
+      return null;
+    }
+
+    final prefix = value[0];
+    final zoneRaw = value.substring(1);
+    final zone = int.tryParse(zoneRaw);
+    if (zone == null || zone < 1 || zone > 20) {
+      return null;
+    }
+
+    final multiplier = switch (prefix) {
+      'S' => 1,
+      'D' => 2,
+      'T' => 3,
+      _ => 0,
+    };
+
+    if (multiplier == 0) {
+      return null;
+    }
+    return (zone: zone, multiplier: multiplier);
+  }
+
+  Future<void> _runDartSenseTraining() async {
+    if (_dartSenseMode == mode.DartSenseMode.off || _isSendingDartSenseTraining) {
+      if (_dartSenseMode == mode.DartSenseMode.off) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              t(
+                'SCREEN.SETTINGS.DART_SENSE_ENABLE_FIRST',
+                fallback: 'Activez Dart Sense (ON) avant de lancer un test.',
+              ),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final photo = await _imagePicker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 95,
+      maxWidth: 1800,
+    );
+    if (photo == null || !mounted) {
+      return;
+    }
+
+    final labelController = TextEditingController();
+    final noteController = TextEditingController();
+    final parsed = await showDialog<({int zone, int multiplier, String? note})>(
+      context: context,
+      builder: (dialogContext) {
+        String? error;
+        return StatefulBuilder(
+          builder: (dialogContext, setModalState) {
+            return AlertDialog(
+              title: Text(
+                t(
+                  'SCREEN.SETTINGS.DART_SENSE_TRAINING',
+                  fallback: 'Entrainement Dart Sense',
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.file(
+                        File(photo.path),
+                        height: 170,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: labelController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: t(
+                          'SCREEN.SETTINGS.DART_VALUE',
+                          fallback: 'Valeur (ex: T20, D16, SB, DB)',
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: noteController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: t(
+                          'SCREEN.SETTINGS.DART_NOTE',
+                          fallback: 'Note (optionnel)',
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(error!, style: const TextStyle(color: AppColors.error)),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final parsedLabel = _parseDartLabel(labelController.text);
+                    if (parsedLabel == null) {
+                      setModalState(() {
+                        error = t(
+                          'SCREEN.SETTINGS.DART_VALUE_INVALID',
+                          fallback: 'Valeur invalide. Exemples: T20, D16, SB, DB',
+                        );
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(
+                      (
+                        zone: parsedLabel.zone,
+                        multiplier: parsedLabel.multiplier,
+                        note: noteController.text.trim().isEmpty
+                            ? null
+                            : noteController.text.trim(),
+                      ),
+                    );
+                  },
+                  child: Text(t('COMMON.SAVE', fallback: 'Enregistrer')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (parsed == null || !mounted) {
+      return;
+    }
+
+    setState(() => _isSendingDartSenseTraining = true);
+    try {
+      final service = DartSenseApiService(ref.read(apiClientProvider));
+      await service.submitTrainingFeedback(
+        imageFile: File(photo.path),
+        zone: parsed.zone,
+        multiplier: parsed.multiplier,
+        note: parsed.note,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.SETTINGS.DART_SENSE_TRAINING_SAVED',
+              fallback: 'Sample enregistre pour entrainement du modele.',
+            ),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            t(
+              'SCREEN.SETTINGS.DART_SENSE_TRAINING_FAILED',
+              fallback: 'Echec envoi sample entrainement.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingDartSenseTraining = false);
       }
     }
   }
@@ -691,6 +962,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       : t(
                           'SCREEN.SETTINGS.DART_SENSE_BETA',
                           fallback: 'Dart Sense (Beta)',
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _isSendingDartSenseTraining
+                    ? null
+                    : _runDartSenseTraining,
+                icon: _isSendingDartSenseTraining
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.school_outlined),
+                label: Text(
+                  _isSendingDartSenseTraining
+                      ? t(
+                          'SCREEN.SETTINGS.DART_SENSE_TRAINING_SENDING',
+                          fallback: 'Envoi sample...',
+                        )
+                      : t(
+                          'SCREEN.SETTINGS.DART_SENSE_TRAINING_BUTTON',
+                          fallback: 'Entrainement (photo + valeur)',
                         ),
                 ),
               ),

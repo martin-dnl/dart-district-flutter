@@ -55,6 +55,18 @@ class DetectedDart {
   }
 }
 
+class BatchDetectionResult {
+  const BatchDetectionResult({
+    required this.darts,
+    required this.framesProcessed,
+    required this.minOccurrences,
+  });
+
+  final List<DetectedDart> darts;
+  final int framesProcessed;
+  final int minOccurrences;
+}
+
 class DartSenseApiService {
   const DartSenseApiService(this._api);
 
@@ -77,5 +89,67 @@ class DartSenseApiService {
         .whereType<Map<String, dynamic>>();
 
     return rows.map(DetectedDart.fromJson).toList(growable: false);
+  }
+
+  Future<BatchDetectionResult> detectBatch(
+    List<File> imageFiles, {
+    int minOccurrences = 2,
+    int maxFrames = 24,
+  }) async {
+    if (imageFiles.isEmpty) {
+      return const BatchDetectionResult(
+        darts: <DetectedDart>[],
+        framesProcessed: 0,
+        minOccurrences: 2,
+      );
+    }
+
+    final files = imageFiles.take(maxFrames).toList(growable: false);
+    final formMap = <String, dynamic>{
+      'images': <MultipartFile>[],
+    };
+
+    for (final image in files) {
+      (formMap['images'] as List<MultipartFile>).add(
+        await MultipartFile.fromFile(image.path),
+      );
+    }
+
+    final response = await _api.post<Map<String, dynamic>>(
+      '/dart-sense/detect/batch?min_occurrences=$minOccurrences&max_frames=$maxFrames',
+      data: FormData.fromMap(formMap),
+    );
+
+    final payload = response.data ?? const <String, dynamic>{};
+    final dartsRaw = (payload['darts'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+
+    return BatchDetectionResult(
+      darts: dartsRaw.map(DetectedDart.fromJson).toList(growable: false),
+      framesProcessed: (payload['framesProcessed'] as num?)?.toInt() ?? files.length,
+      minOccurrences: (payload['minOccurrences'] as num?)?.toInt() ?? minOccurrences,
+    );
+  }
+
+  Future<void> submitTrainingFeedback({
+    required File imageFile,
+    required int zone,
+    required int multiplier,
+    String source = 'mobile_app',
+    String? note,
+  }) async {
+    final formMap = <String, dynamic>{
+      'image': await MultipartFile.fromFile(imageFile.path),
+      'zone': zone,
+      'multiplier': multiplier,
+      'source': source,
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    };
+
+    await _api.post<Map<String, dynamic>>(
+      '/dart-sense/feedback',
+      data: FormData.fromMap(formMap),
+    );
   }
 }

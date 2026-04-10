@@ -68,6 +68,7 @@ class Scoreboard extends StatelessWidget {
                   setsWon: player.setsWon,
                   averageText: null,
                   checkoutText: _checkoutFor(player),
+                  compact: true,
                 ),
               ),
             );

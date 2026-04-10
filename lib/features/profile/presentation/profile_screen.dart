@@ -635,6 +635,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _ProfileStatTile(
                             title: t('SCREEN.PROFILE.SHOTS', fallback: 'Tirs'),
@@ -664,11 +665,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                SliverToBoxAdapter(
-                  child: PrecisionSection(
-                    userId: isOwnProfile ? null : user?.id,
-                  ),
-                ),
 
                 if (isOwnProfile)
                   SliverToBoxAdapter(
@@ -698,6 +694,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                   ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                SliverToBoxAdapter(
+                  child: PrecisionSection(
+                    userId: isOwnProfile ? null : user?.id,
+                  ),
+                ),
 
                 if (isOwnProfile)
                   SliverToBoxAdapter(

@@ -103,6 +103,80 @@ Reload Caddy:
 docker exec dartdistrict-reverse-proxy caddy reload --config /etc/caddy/Caddyfile
 ```
 
+## Dart Sense (Detection continue video)
+
+Service de detection de flechettes en Docker, compatible lecture continue camera
+via envoi de frames successives.
+
+### Fichiers a valider sur le VPS
+
+- `dart-sense-service/Dockerfile`
+- `dart-sense-service/docker-compose.yml`
+- `dart-sense-service/app/main.py`
+- `dart-sense-service/app/detector.py`
+- `dart-sense-service/app/models/dart_sense.pt`
+- Caddyfile du reverse proxy (`/etc/caddy/Caddyfile`)
+
+### 1) Build et lancement
+
+```bash
+cd dart-sense-service
+docker compose down
+docker compose up -d --build
+```
+
+### 2) Verification service
+
+```bash
+docker ps --filter name=dartdistrict-dart-sense
+docker logs -f --tail 200 dartdistrict-dart-sense
+curl -sS http://127.0.0.1:8001/health | jq
+```
+
+Le champ `ready` doit etre `true`.
+
+### 3) Test image unique
+
+```bash
+curl -sS -X POST -F "image=@/opt/tests/frame.jpg" http://127.0.0.1:8001/detect | jq
+```
+
+### 4) Test lecture continue video (batch frames)
+
+```bash
+mkdir -p /tmp/dartsense_frames
+ffmpeg -hide_banner -loglevel error -i /opt/tests/darts.mp4 -vf fps=6,scale=960:-1 /tmp/dartsense_frames/f_%05d.jpg
+
+curl_cmd='curl -sS -X POST "http://127.0.0.1:8001/detect/batch?min_occurrences=2&max_frames=24"'
+for f in /tmp/dartsense_frames/*.jpg; do
+  curl_cmd="$curl_cmd -F images=@$f"
+done
+eval "$curl_cmd" | jq
+```
+
+### 5) Routage Caddy
+
+Ajouter dans le vhost `dart-district.fr`:
+
+```caddyfile
+handle_path /api/dart-sense/* {
+  reverse_proxy 127.0.0.1:8001
+}
+```
+
+Puis reload:
+
+```bash
+docker exec dartdistrict-reverse-proxy caddy reload --config /etc/caddy/Caddyfile
+```
+
+### 6) Validation publique
+
+```bash
+curl -sS https://dart-district.fr/api/dart-sense/health | jq
+curl -sS -X POST -F "image=@/opt/tests/frame.jpg" https://dart-district.fr/api/dart-sense/detect | jq
+```
+
 ### 5) Commandes utiles
 
 Redemarrer:

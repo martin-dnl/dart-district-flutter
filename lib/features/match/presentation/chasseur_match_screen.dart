@@ -113,9 +113,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 1.8,
+                            mainAxisSpacing: 6,
+                            crossAxisSpacing: 6,
+                            childAspectRatio: 2.6,
                           ),
                       itemBuilder: (context, index) {
                         final player = state.players[index];
@@ -123,6 +123,7 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                           player: player,
                           isActive: state.currentPlayerIndex == index &&
                               state.status == MatchStatus.inProgress,
+                          compact: true,
                         );
                       },
                     )
@@ -755,16 +756,21 @@ class _Header extends StatelessWidget {
 }
 
 class _PlayerCard extends StatelessWidget {
-  const _PlayerCard({required this.player, required this.isActive});
+  const _PlayerCard({
+    required this.player,
+    required this.isActive,
+    this.compact = false,
+  });
 
   final ChasseurPlayerState player;
   final bool isActive;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(compact ? 6 : 10),
       decoration: BoxDecoration(
         color: isActive ? AppColors.primary.withValues(alpha: 0.14) : AppColors.card,
         borderRadius: BorderRadius.circular(12),
@@ -778,54 +784,74 @@ class _PlayerCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  player.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        player.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: compact ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                    if (player.isHunter) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.gps_fixed,
+                        size: compact ? 12 : 14,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                    if (player.isEliminated) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        'OUT',
+                        style: TextStyle(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w700,
+                          fontSize: compact ? 10 : 12,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: compact ? 2 : 4),
                 Text(
                   'Zone ${player.zone == 25 ? 'Bull' : (player.zone?.toString() ?? '-')}',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: compact ? 10 : 12,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: List.generate(4, (i) {
               if (player.isEliminated) {
-                return const Padding(
-                  padding: EdgeInsets.only(left: 2),
-                  child: Icon(Icons.close, size: 16, color: AppColors.error),
+                return Padding(
+                  padding: const EdgeInsets.only(left: 1),
+                  child: Icon(Icons.close, size: compact ? 12 : 16, color: AppColors.error),
                 );
               }
               return Padding(
-                padding: const EdgeInsets.only(left: 2),
+                padding: const EdgeInsets.only(left: 1),
                 child: Icon(
                   i < player.lives ? Icons.favorite : Icons.favorite_border,
-                  size: 16,
+                  size: compact ? 12 : 16,
                   color: i < player.lives ? AppColors.error : AppColors.textHint,
                 ),
               );
             }),
           ),
-          const SizedBox(width: 8),
-          if (player.isEliminated)
-            const Text(
-              'OUT',
-              style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700),
-            )
-          else if (player.isHunter)
-            const Text(
-              'CHASSEUR',
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
-            ),
         ],
       ),
     );

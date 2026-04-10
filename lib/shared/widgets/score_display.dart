@@ -11,6 +11,7 @@ class ScoreDisplay extends StatelessWidget {
   final int setsWon;
   final String? averageText;
   final String? checkoutText;
+  final bool compact;
 
   const ScoreDisplay({
     super.key,
@@ -22,10 +23,18 @@ class ScoreDisplay extends StatelessWidget {
     this.setsWon = 0,
     this.averageText,
     this.checkoutText,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return _buildCompact();
+    }
+    return _buildNormal();
+  }
+
+  Widget _buildNormal() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
@@ -96,6 +105,69 @@ class ScoreDisplay extends StatelessWidget {
     );
   }
 
+  Widget _buildCompact() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.primary.withValues(alpha: 0.15)
+            : AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: isActive
+            ? Border.all(color: AppColors.primary, width: 1.5)
+            : null,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            playerName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isActive ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          _AnimatedScoreNumber(
+            score: score,
+            animate: animateScoreChange,
+            isActive: isActive,
+            compact: true,
+          ),
+          const SizedBox(height: 2),
+          if (checkoutText != null)
+            Text(
+              checkoutText!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 9,
+                color: AppColors.accent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'S$setsWon',
+                style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'L$legsWon',
+                style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBadge(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -116,11 +188,13 @@ class _AnimatedScoreNumber extends StatefulWidget {
     required this.score,
     required this.animate,
     required this.isActive,
+    this.compact = false,
   });
 
   final int score;
   final bool animate;
   final bool isActive;
+  final bool compact;
 
   @override
   State<_AnimatedScoreNumber> createState() => _AnimatedScoreNumberState();
@@ -243,7 +317,7 @@ class _AnimatedScoreNumberState extends State<_AnimatedScoreNumber>
           child: Text(
             '$_displayedScore',
             style: TextStyle(
-              fontSize: 48,
+              fontSize: widget.compact ? 28 : 48,
               fontWeight: FontWeight.bold,
               color: baseColor,
               shadows: [

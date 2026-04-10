@@ -379,8 +379,8 @@ class _DartboardHeatmapPainter extends CustomPainter {
         points[i],
         kernelRadius,
         [
-          heatColor.withValues(alpha: 0.72),
-          heatColor.withValues(alpha: 0.34),
+          heatColor.withValues(alpha: 0.85),
+          heatColor.withValues(alpha: 0.45),
           heatColor.withValues(alpha: 0.0),
         ],
         const [0.0, 0.42, 1.0],
@@ -391,7 +391,7 @@ class _DartboardHeatmapPainter extends CustomPainter {
         kernelRadius,
         Paint()
           ..shader = shader
-          ..blendMode = BlendMode.plus,
+          ..blendMode = BlendMode.screen,
       );
     }
 
@@ -399,7 +399,7 @@ class _DartboardHeatmapPainter extends CustomPainter {
       canvas.drawCircle(
         point,
         boardRect.width * 0.0055,
-        Paint()..color = Colors.white.withValues(alpha: 0.75),
+        Paint()..color = Colors.white.withValues(alpha: 0.45),
       );
     }
 

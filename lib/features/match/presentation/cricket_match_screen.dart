@@ -611,53 +611,49 @@ class _CricketScoreboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final playerCount = state.players.length;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.surfaceLight),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const spacing = 8.0;
-          final columns = state.players.length.clamp(2, 4);
-          final tileWidth =
-              (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
-
-          return Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: [
-              for (var i = 0; i < state.players.length; i++)
-                SizedBox(
-                  width: tileWidth,
-                  child: _PlayerPanel(
-                    player: state.players[i],
-                    isActive:
-                        state.currentPlayerIndex == i &&
-                        state.status == MatchStatus.inProgress,
-                  ),
-                ),
-            ],
-          );
-        },
+      child: Row(
+        children: [
+          for (var i = 0; i < playerCount; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(
+              child: _PlayerPanel(
+                player: state.players[i],
+                isActive: state.currentPlayerIndex == i &&
+                    state.status == MatchStatus.inProgress,
+                compact: playerCount > 2,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
 class _PlayerPanel extends StatelessWidget {
-  const _PlayerPanel({required this.player, required this.isActive});
+  const _PlayerPanel({
+    required this.player,
+    required this.isActive,
+    this.compact = false,
+  });
 
   final CricketPlayerState player;
   final bool isActive;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(compact ? 6 : 10),
       decoration: BoxDecoration(
         color: isActive ? AppColors.primary.withValues(alpha: 0.14) : AppColors.surface,
         borderRadius: BorderRadius.circular(10),
@@ -673,25 +669,26 @@ class _PlayerPanel extends StatelessWidget {
             player.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
+              fontSize: compact ? 12 : 14,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             '${player.score}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 28,
+              fontSize: compact ? 20 : 28,
               fontWeight: FontWeight.bold,
             ),
           ),
           Text(
-            'Legs ${player.legsWon} • Sets ${player.setsWon}',
-            style: const TextStyle(
+            'L${player.legsWon} S${player.setsWon}',
+            style: TextStyle(
               color: AppColors.textSecondary,
-              fontSize: 12,
+              fontSize: compact ? 10 : 12,
             ),
           ),
         ],
@@ -711,70 +708,147 @@ class _CricketGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const spacing = 8.0;
-        final columns = state.players.length.clamp(2, 4);
-        final cellWidth = (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+    final playerCount = state.players.length;
+    // Build column headers: player names on either side of center zone column
+    // Layout: [P1] [Zone] [P2] [P3?] [P4?]
+    // With 2 players: P1 | Zone | P2
+    // With 3 players: P1 | Zone | P2 | P3
+    // With 4 players: P1 | Zone | P2 | P3 | P4
 
-        return ListView.separated(
-          itemCount: cricketZones.length,
-          separatorBuilder: (_, index) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final zone = cricketZones[index];
-            final closedByAll = state.players.every((p) => p.isClosed(zone));
-
-            return Container(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.surfaceLight),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    zone == 25 ? 'BULL' : 'Zone $zone',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
+    return Column(
+      children: [
+        // Header row with player names
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              // Player 1 column header
+              Expanded(
+                child: Center(
+                  child: Text(
+                    state.players[0].name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: state.currentPlayerIndex == 0
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: [
-                      for (var playerIndex = 0;
-                          playerIndex < state.players.length;
-                          playerIndex++)
-                        SizedBox(
-                          width: cellWidth,
-                          child: _CricketCell(
-                            hits: state.players[playerIndex].hits[zone] ?? 0,
-                            active:
-                                state.currentPlayerIndex == playerIndex &&
-                                state.status == MatchStatus.inProgress,
-                            scoringOpen:
-                                state.players[playerIndex].isClosed(zone) &&
-                                state.players
-                                    .asMap()
-                                    .entries
-                                    .where((entry) => entry.key != playerIndex)
-                                    .any((entry) => !entry.value.isClosed(zone)),
-                            fullyClosed: closedByAll,
-                            onTap: () => onTapZone(zone),
+                ),
+              ),
+              // Zone column header
+              const SizedBox(
+                width: 52,
+                child: Center(
+                  child: Text(
+                    'Zone',
+                    style: TextStyle(
+                      color: AppColors.textHint,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+              // Remaining player column headers (P2, P3, P4)
+              for (var p = 1; p < playerCount; p++)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      state.players[p].name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: state.currentPlayerIndex == p
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Grid rows
+        Expanded(
+          child: ListView.separated(
+            itemCount: cricketZones.length,
+            separatorBuilder: (_, _2) => const SizedBox(height: 4),
+            itemBuilder: (context, index) {
+              final zone = cricketZones[index];
+              final closedByAll = state.players.every((p) => p.isClosed(zone));
+
+              return Row(
+                children: [
+                  // Player 1 cell
+                  Expanded(
+                    child: _CricketCell(
+                      hits: state.players[0].hits[zone] ?? 0,
+                      active: state.currentPlayerIndex == 0 &&
+                          state.status == MatchStatus.inProgress,
+                      scoringOpen: state.players[0].isClosed(zone) &&
+                          state.players
+                              .asMap()
+                              .entries
+                              .where((e) => e.key != 0)
+                              .any((e) => !e.value.isClosed(zone)),
+                      fullyClosed: closedByAll,
+                      onTap: () => onTapZone(zone),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Zone label (center)
+                  SizedBox(
+                    width: 52,
+                    height: 44,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          zone == 25 ? 'BULL' : '$zone',
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
                           ),
                         ),
-                    ],
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 4),
+                  // Remaining player cells (P2, P3, P4)
+                  for (var p = 1; p < playerCount; p++) ...[
+                    Expanded(
+                      child: _CricketCell(
+                        hits: state.players[p].hits[zone] ?? 0,
+                        active: state.currentPlayerIndex == p &&
+                            state.status == MatchStatus.inProgress,
+                        scoringOpen: state.players[p].isClosed(zone) &&
+                            state.players
+                                .asMap()
+                                .entries
+                                .where((e) => e.key != p)
+                                .any((e) => !e.value.isClosed(zone)),
+                        fullyClosed: closedByAll,
+                        onTap: () => onTapZone(zone),
+                      ),
+                    ),
+                    if (p < playerCount - 1) const SizedBox(width: 4),
+                  ],
                 ],
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -846,7 +920,7 @@ class _CricketCell extends StatelessWidget {
     return GestureDetector(
       onTap: active ? onTap : null,
       child: Container(
-        height: 52,
+        height: 44,
         decoration: BoxDecoration(
           color: cellColor,
           borderRadius: BorderRadius.circular(10),

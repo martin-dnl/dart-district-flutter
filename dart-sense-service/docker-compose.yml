@@ -2,8 +2,22 @@ version: '3.8'
 services:
   dart-sense:
     build: .
+    container_name: dartdistrict-dart-sense
     ports:
       - "8001:8000"
     restart: unless-stopped
     environment:
       - MODEL_PATH=/app/app/models/dart_sense.pt
+      - DART_SENSE_CONF=0.25
+      - DART_SENSE_IOU=0.45
+      - DART_SENSE_MAX_DET=12
+      # CPU by default. Set to "0" for first GPU if available in runtime.
+      - DART_SENSE_DEVICE=
+    volumes:
+      - ./app/models:/app/app/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

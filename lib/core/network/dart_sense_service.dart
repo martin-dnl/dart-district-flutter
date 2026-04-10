@@ -115,21 +115,36 @@ class DartSenseApiService {
       );
     }
 
-    final response = await _api.post<Map<String, dynamic>>(
-      '/dart-sense/detect/batch?min_occurrences=$minOccurrences&max_frames=$maxFrames',
-      data: FormData.fromMap(formMap),
-    );
+    try {
+      final response = await _api.post<Map<String, dynamic>>(
+        '/dart-sense/detect/batch?min_occurrences=$minOccurrences&max_frames=$maxFrames',
+        data: FormData.fromMap(formMap),
+      );
 
-    final payload = response.data ?? const <String, dynamic>{};
-    final dartsRaw = (payload['darts'] as List<dynamic>? ?? const <dynamic>[])
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
+      final payload = response.data ?? const <String, dynamic>{};
+      final dartsRaw = (payload['darts'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
 
-    return BatchDetectionResult(
-      darts: dartsRaw.map(DetectedDart.fromJson).toList(growable: false),
-      framesProcessed: (payload['framesProcessed'] as num?)?.toInt() ?? files.length,
-      minOccurrences: (payload['minOccurrences'] as num?)?.toInt() ?? minOccurrences,
-    );
+      return BatchDetectionResult(
+        darts: dartsRaw.map(DetectedDart.fromJson).toList(growable: false),
+        framesProcessed:
+            (payload['framesProcessed'] as num?)?.toInt() ?? files.length,
+        minOccurrences:
+            (payload['minOccurrences'] as num?)?.toInt() ?? minOccurrences,
+      );
+    } on DioException catch (error) {
+      // Backward compatibility: older backends may not expose /detect/batch yet.
+      if (error.response?.statusCode == 404 && files.isNotEmpty) {
+        final single = await detect(files.last);
+        return BatchDetectionResult(
+          darts: single,
+          framesProcessed: 1,
+          minOccurrences: 1,
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<void> submitTrainingFeedback({

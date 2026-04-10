@@ -13,7 +13,7 @@ export class DartSenseService {
     return (
       process.env.DART_SENSE_BASE_URL?.trim() ||
       process.env.DART_SENSE_URL?.trim() ||
-      'http://localhost:8001'
+      'http://dartdistrict-dart-sense:8000'
     );
   }
 

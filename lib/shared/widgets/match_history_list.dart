@@ -32,6 +32,29 @@ class MatchHistoryList extends StatelessWidget {
         ? matches
         : matches.take(maxItems!).toList(growable: false);
 
+    if (visibleMatches.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.stroke),
+        ),
+        child: Text(
+          t(
+            'SCREEN.PROFILE.HISTORY_EMPTY',
+            fallback: 'Aucun match a afficher pour le moment.',
+          ),
+          style: GoogleFonts.manrope(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return Column(
       children: [
         ...visibleMatches.map(
@@ -142,9 +165,15 @@ class MatchHistoryList extends StatelessWidget {
   static String _formatRelativeTime(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    if (diff.inHours < 1) return 'A l\'instant';
-    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
-    if (diff.inDays == 1) return 'Hier';
-    return 'Il y a ${diff.inDays}j';
+    if (diff.inHours < 1) {
+      return t('COMMON.TIME.NOW', fallback: 'A l\'instant');
+    }
+    if (diff.inHours < 24) {
+      return '${t('COMMON.TIME.AGO', fallback: 'Il y a')} ${diff.inHours}h';
+    }
+    if (diff.inDays == 1) {
+      return t('COMMON.TIME.YESTERDAY', fallback: 'Hier');
+    }
+    return '${t('COMMON.TIME.AGO', fallback: 'Il y a')} ${diff.inDays}j';
   }
 }

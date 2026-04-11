@@ -9,6 +9,7 @@ import '../../core/network/connectivity_status.dart';
 import '../../features/auth/controller/auth_controller.dart';
 import '../../features/contacts/controller/contacts_controller.dart';
 import '../../features/match/controller/ongoing_matches_controller.dart';
+import '../../features/notifications/controller/notifications_controller.dart';
 import 'player_avatar.dart';
 
 class AppScaffold extends ConsumerWidget {
@@ -51,6 +52,7 @@ class AppScaffold extends ConsumerWidget {
     final location = GoRouterState.of(context).uri.path;
     final user = ref.watch(currentUserProvider);
     final unreadContacts = ref.watch(contactsUnreadCountProvider);
+    final unreadNotifications = ref.watch(notificationsUnreadCountProvider);
     final ongoingMatchCount = ref
         .watch(ongoingMatchesControllerProvider)
         .matches
@@ -106,17 +108,62 @@ class AppScaffold extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.surface,
-                          border: Border.all(color: AppColors.stroke),
-                        ),
-                        child: const Icon(
-                          Icons.notifications_none,
-                          color: AppColors.textPrimary,
+                      InkWell(
+                        borderRadius: BorderRadius.circular(99),
+                        onTap: () => context.push(AppRoutes.socialFeed),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.surface,
+                            border: Border.all(color: AppColors.stroke),
+                          ),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Center(
+                                child: Icon(
+                                  Icons.notifications_none,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              if (unreadNotifications > 0)
+                                Positioned(
+                                  right: -2,
+                                  top: -3,
+                                  child: Container(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: AppColors.surface,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        unreadNotifications > 99
+                                            ? '99+'
+                                            : '$unreadNotifications',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

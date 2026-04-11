@@ -26,6 +26,16 @@ let DartSenseController = class DartSenseController {
     detect(file) {
         return this.dartSenseService.detect(file);
     }
+    detectBatch(files, minOccurrences, maxFrames) {
+        const parsedMin = minOccurrences ? Number.parseInt(minOccurrences, 10) : 2;
+        const parsedMax = maxFrames ? Number.parseInt(maxFrames, 10) : 24;
+        return this.dartSenseService.detectBatch(files ?? [], parsedMin, parsedMax);
+    }
+    feedback(file, zone, multiplier, source, note) {
+        const parsedZone = Number.parseInt(zone ?? '', 10);
+        const parsedMultiplier = Number.parseInt(multiplier ?? '', 10);
+        return this.dartSenseService.feedback(file, parsedZone, parsedMultiplier, source, note);
+    }
 };
 exports.DartSenseController = DartSenseController;
 __decorate([
@@ -42,6 +52,40 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], DartSenseController.prototype, "detect", null);
+__decorate([
+    (0, common_1.Post)('detect/batch'),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('images', 24, {
+        storage: (0, multer_1.memoryStorage)(),
+        limits: {
+            fileSize: 10 * 1024 * 1024,
+        },
+    })),
+    __param(0, (0, common_1.UploadedFiles)()),
+    __param(1, (0, common_1.Query)('min_occurrences')),
+    __param(2, (0, common_1.Query)('max_frames')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array, String, String]),
+    __metadata("design:returntype", void 0)
+], DartSenseController.prototype, "detectBatch", null);
+__decorate([
+    (0, common_1.Post)('feedback'),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('image', {
+        storage: (0, multer_1.memoryStorage)(),
+        limits: {
+            fileSize: 10 * 1024 * 1024,
+        },
+    })),
+    __param(0, (0, common_1.UploadedFile)()),
+    __param(1, (0, common_1.Body)('zone')),
+    __param(2, (0, common_1.Body)('multiplier')),
+    __param(3, (0, common_1.Body)('source')),
+    __param(4, (0, common_1.Body)('note')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], DartSenseController.prototype, "feedback", null);
 exports.DartSenseController = DartSenseController = __decorate([
     (0, swagger_1.ApiTags)('dart-sense'),
     (0, swagger_1.ApiBearerAuth)(),

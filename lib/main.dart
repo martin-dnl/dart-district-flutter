@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -9,7 +10,11 @@ import 'core/config/translation_service.dart';
 import 'core/config/app_routes.dart';
 import 'core/config/app_theme.dart';
 import 'core/database/local_storage.dart';
+import 'core/notifications/local_notification_service.dart';
 import 'core/version/version_gate.dart';
+import 'features/match/controller/match_controller.dart';
+import 'features/match/controller/ongoing_matches_controller.dart';
+import 'features/match/models/match_model.dart';
 import 'features/match/widgets/match_invitation_overlay.dart';
 
 bool _isBenignMapCancellation(Object error, StackTrace stackTrace) {
@@ -58,6 +63,7 @@ void main() async {
   await LocalStorage.init();
 
   await TranslationService.instance.loadFromLocal();
+  await LocalNotificationService.instance.initialize();
   final preferredLanguage =
       TranslationService.instance.currentLanguage.isNotEmpty
       ? TranslationService.instance.currentLanguage
@@ -67,11 +73,59 @@ void main() async {
   runApp(const ProviderScope(child: DartDistrictApp()));
 }
 
-class DartDistrictApp extends ConsumerWidget {
+class DartDistrictApp extends ConsumerStatefulWidget {
   const DartDistrictApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DartDistrictApp> createState() => _DartDistrictAppState();
+}
+
+class _DartDistrictAppState extends ConsumerState<DartDistrictApp> {
+  StreamSubscription<InvitationNotificationAction>? _invitationActionSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _invitationActionSub = LocalNotificationService.instance.invitationActions
+        .listen(_handleInvitationAction);
+  }
+
+  @override
+  void dispose() {
+    _invitationActionSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleInvitationAction(InvitationNotificationAction action) async {
+    final controller = ref.read(ongoingMatchesControllerProvider.notifier);
+
+    if (action.actionId == 'decline_invite') {
+      await controller.refuseInvitation(action.matchId);
+      return;
+    }
+
+    final acceptedMatch = await controller.acceptInvitation(action.matchId);
+    if (acceptedMatch == null || !mounted) {
+      return;
+    }
+
+    ref.read(matchControllerProvider.notifier).loadMatch(acceptedMatch);
+    ref.read(routerProvider).push(_routeForMatch(acceptedMatch));
+  }
+
+  String _routeForMatch(MatchModel match) {
+    final mode = match.mode.trim().toLowerCase();
+    if (mode == 'cricket') {
+      return AppRoutes.matchCricket;
+    }
+    if (mode == 'chasseur') {
+      return AppRoutes.matchChasseur;
+    }
+    return AppRoutes.matchLive;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
     return ValueListenableBuilder<int>(

@@ -68,6 +68,7 @@ class AchievementBadge {
   final String name;
   final String description;
   final String icon;
+  final String difficulty;
   final bool unlocked;
   final DateTime? earnedAt;
 
@@ -77,6 +78,7 @@ class AchievementBadge {
     required this.name,
     required this.description,
     this.icon = '🎯',
+    this.difficulty = 'Bronze',
     this.unlocked = false,
     this.earnedAt,
   });
@@ -220,36 +222,142 @@ class ProfileController extends StateNotifier<ProfileState> {
     List<AchievementBadge> earnedBadges,
   ) {
     final matchesPlayed = (stats['matches_played'] as num?)?.toInt() ?? 0;
+    final matchesWon = (stats['matches_won'] as num?)?.toInt() ?? 0;
     final total180s = (stats['total_180s'] as num?)?.toInt() ?? 0;
+    final count140Plus = (stats['count_140_plus'] as num?)?.toInt() ?? 0;
+    final count100Plus = (stats['count_100_plus'] as num?)?.toInt() ?? 0;
+    final bestAvg = (stats['best_avg'] as num?)?.toDouble() ?? 0;
     final checkoutRate = (stats['checkout_rate'] as num?)?.toDouble() ?? 0;
     final earnedByKey = <String, AchievementBadge>{
       for (final b in earnedBadges) b.key: b,
     };
 
-    final defaults = [
+    final defaults = <AchievementBadge>[
       AchievementBadge(
         id: '1',
-        key: 'first_win',
+        key: 'rookie_first_match',
         name: 'Premier Match',
         description: 'Jouer son premier match',
         icon: '🎯',
+        difficulty: 'Bronze',
         unlocked: matchesPlayed > 0,
       ),
       AchievementBadge(
         id: '2',
+        key: 'grinder_10_matches',
+        name: 'Serie 10',
+        description: 'Jouer 10 matchs classes',
+        icon: '🧱',
+        difficulty: 'Bronze',
+        unlocked: matchesPlayed >= 10,
+      ),
+      AchievementBadge(
+        id: '3',
+        key: 'marathon_100_matches',
+        name: 'Centurion',
+        description: 'Jouer 100 matchs classes',
+        icon: '🏛️',
+        difficulty: 'Or',
+        unlocked: matchesPlayed >= 100,
+      ),
+      AchievementBadge(
+        id: '4',
+        key: 'first_victory',
+        name: 'Premiere Victoire',
+        description: 'Gagner son premier match',
+        icon: '🥇',
+        difficulty: 'Bronze',
+        unlocked: matchesWon >= 1,
+      ),
+      AchievementBadge(
+        id: '5',
+        key: 'win_50',
+        name: 'Machine a Gagner',
+        description: 'Atteindre 50 victoires',
+        icon: '🏆',
+        difficulty: 'Or',
+        unlocked: matchesWon >= 50,
+      ),
+      AchievementBadge(
+        id: '6',
         key: 'first_180',
         name: '180!',
         description: 'Réaliser un 180',
         icon: '🔥',
+        difficulty: 'Argent',
         unlocked: total180s > 0,
       ),
       AchievementBadge(
-        id: '3',
+        id: '7',
+        key: 'triple_180',
+        name: 'Triple Foudre',
+        description: 'Réaliser 3 fois 180',
+        icon: '⚡',
+        difficulty: 'Or',
+        unlocked: total180s >= 3,
+      ),
+      AchievementBadge(
+        id: '8',
+        key: 'demolition_140',
+        name: '140+ Factory',
+        description: 'Faire 25 scores a 140+',
+        icon: '💥',
+        difficulty: 'Argent',
+        unlocked: count140Plus >= 25,
+      ),
+      AchievementBadge(
+        id: '9',
+        key: 'century_stream',
+        name: 'Century Stream',
+        description: 'Faire 80 scores a 100+',
+        icon: '📈',
+        difficulty: 'Argent',
+        unlocked: count100Plus >= 80,
+      ),
+      AchievementBadge(
+        id: '10',
+        key: 'checkout_sniper',
+        name: 'Sniper Checkout',
+        description: 'Atteindre 40% de checkout',
+        icon: '🎯',
+        difficulty: 'Argent',
+        unlocked: checkoutRate >= 40,
+      ),
+      AchievementBadge(
+        id: '11',
         key: 'checkout_master',
         name: 'Checkout Master',
         description: 'Atteindre 60% de checkout',
         icon: '💎',
+        difficulty: 'Diamant',
         unlocked: checkoutRate >= 60,
+      ),
+      AchievementBadge(
+        id: '12',
+        key: 'best_avg_75',
+        name: 'Meme Lord 75',
+        description: 'Signer une meilleure moyenne a 75+',
+        icon: '🗿',
+        difficulty: 'Legende',
+        unlocked: bestAvg >= 75,
+      ),
+      AchievementBadge(
+        id: '13',
+        key: 'territory_warlord',
+        name: 'Conquerant IRIS',
+        description: 'Faire gagner une zone a son club',
+        icon: '🗺️',
+        difficulty: 'Legende',
+        unlocked: earnedByKey['territory_warlord'] != null,
+      ),
+      AchievementBadge(
+        id: '14',
+        key: 'tournament_king',
+        name: 'Roi du Tournoi',
+        description: 'Remporter un tournoi officiel',
+        icon: '👑',
+        difficulty: 'Legende',
+        unlocked: earnedByKey['tournament_king'] != null,
       ),
     ];
 
@@ -263,7 +371,9 @@ class ProfileController extends StateNotifier<ProfileState> {
         description: earned.description.isEmpty
             ? badge.description
             : earned.description,
-        icon: earned.icon,
+        icon: earned.icon.isEmpty ? badge.icon : earned.icon,
+        difficulty:
+            earned.difficulty.isEmpty ? badge.difficulty : earned.difficulty,
         unlocked: true,
         earnedAt: earned.earnedAt,
       );

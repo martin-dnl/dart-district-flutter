@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/notifications/local_notification_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../notifications/controller/notifications_controller.dart';
 import '../data/match_realtime_service.dart';
 import '../data/match_service.dart';
 import '../models/match_model.dart';
@@ -49,6 +51,7 @@ class OngoingMatchesController extends StateNotifier<OngoingMatchesState> {
     required this.service,
     required this.realtime,
     required this.currentUserId,
+    this.onInvitationReceived,
   }) : super(const OngoingMatchesState()) {
     if (currentUserId != null && currentUserId!.isNotEmpty) {
       _bootstrap();
@@ -61,6 +64,7 @@ class OngoingMatchesController extends StateNotifier<OngoingMatchesState> {
   final MatchService service;
   final MatchRealtimeService realtime;
   final String? currentUserId;
+  final Future<void> Function()? onInvitationReceived;
 
   StreamSubscription<MatchModel>? _invitationSub;
   StreamSubscription<MatchModel>? _scoreUpdateSub;
@@ -98,6 +102,8 @@ class OngoingMatchesController extends StateNotifier<OngoingMatchesState> {
     if (invitation.invitationStatus == InvitationStatus.pending) {
       final updated = [...state.pendingInvitations, invitation];
       state = state.copyWith(pendingInvitations: updated);
+      LocalNotificationService.instance.showMatchInvitation(invitation);
+      onInvitationReceived?.call();
     }
   }
 
@@ -219,5 +225,7 @@ final ongoingMatchesControllerProvider =
         service: service,
         realtime: realtime,
         currentUserId: authState.user?.id,
+        onInvitationReceived: () =>
+            ref.read(notificationsUnreadCountProvider.notifier).refresh(),
       );
     });

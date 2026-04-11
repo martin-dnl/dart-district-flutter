@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/app_routes.dart';
 import '../../../core/config/translation_service.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/player_avatar.dart';
@@ -10,6 +12,7 @@ import '../controller/match_report_provider.dart';
 import '../models/match_model.dart';
 import '../models/match_report_data.dart';
 import '../widgets/dartboard_input_stats.dart';
+import '../../social/controller/social_feed_controller.dart';
 
 class MatchReportScreen extends ConsumerWidget {
   const MatchReportScreen({super.key, required this.matchId, this.extra});
@@ -56,13 +59,13 @@ class MatchReportScreen extends ConsumerWidget {
   }
 }
 
-class _MatchReportView extends StatelessWidget {
+class _MatchReportView extends ConsumerWidget {
   const _MatchReportView({required this.data});
 
   final MatchReportData data;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isP1Winner = data.winnerIndex == 0;
 
     return Scaffold(
@@ -275,15 +278,38 @@ class _MatchReportView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () {
+              onPressed: () async {
+                final description = await _askShareDescription(context);
+                if (description == null) {
+                  return;
+                }
+
+                final ok = await ref
+                    .read(socialFeedControllerProvider.notifier)
+                    .shareMatchReport(data, description);
+                if (!context.mounted) {
+                  return;
+                }
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      t(
-                        'SCREEN.MATCH.REPORT.SHARE_COMING_SOON',
-                        fallback: 'Partage a venir.',
-                      ),
+                      ok
+                          ? t(
+                              'SCREEN.MATCH.REPORT.SHARED_SUCCESS',
+                              fallback: 'Partage publie dans votre fil.',
+                            )
+                          : t(
+                              'SCREEN.MATCH.REPORT.SHARED_FAILED',
+                              fallback: 'Impossible de partager ce match.',
+                            ),
                     ),
+                    action: ok
+                        ? SnackBarAction(
+                            label: t('SCREEN.MATCH.REPORT.OPEN_FEED', fallback: 'Voir fil'),
+                            onPressed: () => context.push(AppRoutes.socialFeed),
+                          )
+                        : null,
                   ),
                 );
               },
@@ -293,6 +319,87 @@ class _MatchReportView extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<String?> _askShareDescription(BuildContext context) {
+    final controller = TextEditingController();
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              6,
+              16,
+              12 + MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t(
+                    'SCREEN.MATCH.REPORT.SHARE_MODAL_TITLE',
+                    fallback: 'Partager cette partie',
+                  ),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  t(
+                    'SCREEN.MATCH.REPORT.SHARE_MODAL_HINT',
+                    fallback: 'Ajoutez un petit commentaire pour vos amis.',
+                  ),
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  maxLines: 4,
+                  minLines: 3,
+                  maxLength: 220,
+                  decoration: InputDecoration(
+                    hintText: t(
+                      'SCREEN.MATCH.REPORT.SHARE_MODAL_PLACEHOLDER',
+                      fallback: 'Ex: Gros finish sous pression !',
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                        child: Text(t('COMMON.SHARE', fallback: 'Partager')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/translation_service.dart';
 import '../controller/profile_controller.dart';
 
 class BadgesScreen extends ConsumerWidget {
@@ -15,7 +16,7 @@ class BadgesScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mes Badges'),
+        title: Text(t('SCREEN.BADGES.TITLE', fallback: 'Mes Badges')),
         backgroundColor: AppColors.background,
       ),
       body: GridView.builder(
@@ -41,6 +42,22 @@ class BadgesScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.background.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      badge.difficulty,
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(badge.icon, style: const TextStyle(fontSize: 28)),
                   const SizedBox(height: 8),
                   Text(
@@ -52,6 +69,17 @@ class BadgesScreen extends ConsumerWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    badge.description,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -74,12 +102,12 @@ class BadgesScreen extends ConsumerWidget {
 
   static String _earnedLabel(AchievementBadge badge) {
     if (!badge.unlocked || badge.earnedAt == null) {
-      return 'Non obtenu';
+      return t('SCREEN.BADGES.NOT_EARNED', fallback: 'Non obtenu');
     }
 
     final d = badge.earnedAt!;
     final day = d.day.toString().padLeft(2, '0');
     final month = d.month.toString().padLeft(2, '0');
-    return 'Obtenu le $day/$month/${d.year}';
+    return '${t('SCREEN.BADGES.EARNED_AT', fallback: 'Obtenu le')} $day/$month/${d.year}';
   }
 }

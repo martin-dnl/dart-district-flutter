@@ -29,6 +29,7 @@ import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/badges_screen.dart';
 import '../../features/profile/presentation/settings_screen.dart';
 import '../../features/profile/presentation/about_screen.dart';
+import '../../features/social/presentation/social_feed_screen.dart';
 import '../../features/match/presentation/match_live_screen.dart';
 import '../../features/match/presentation/match_history_screen.dart';
 import '../../features/match/presentation/match_report_screen.dart';
@@ -71,6 +72,7 @@ class AppRoutes {
   static const String settings = '/profile/settings';
   static const String about = '/profile/about';
   static const String badges = '/profile/badges';
+  static const String socialFeed = '/social-feed';
   static const String matchLive = '/match';
   static const String matchCricket = '/match/cricket';
   static const String matchChasseur = '/match/chasseur';
@@ -336,6 +338,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: ProfileScreen(userId: userId),
           );
         },
+      ),
+      GoRoute(
+        path: AppRoutes.socialFeed,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SocialFeedScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.matchHistory,

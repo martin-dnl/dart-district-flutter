@@ -198,7 +198,8 @@ let MatchesService = class MatchesService {
             1;
         const isDoubleOut = match.finish === 'double_out';
         const isMasterOut = match.finish === 'master_out';
-        const isBust = remaining < 0;
+        const bustOnOneRemaining = (isDoubleOut || isMasterOut) && remaining === 1;
+        const isBust = remaining < 0 || bustOnOneRemaining;
         const isCheckout = remaining == 0 && !isBust;
         let segment = `VISIT_${score}`;
         let recordedScore = score;

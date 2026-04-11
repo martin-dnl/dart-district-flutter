@@ -43,7 +43,9 @@ class _BadgeItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: badge.unlocked ? AppColors.card : AppColors.surface,
+        color: badge.unlocked
+            ? AppColors.card
+            : AppColors.surface.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: badge.unlocked
@@ -55,6 +57,22 @@ class _BadgeItem extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              badge.difficulty,
+              style: const TextStyle(
+                fontSize: 9,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             badge.icon,
             style: TextStyle(
@@ -75,6 +93,12 @@ class _BadgeItem extends StatelessWidget {
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Icon(
+            badge.unlocked ? Icons.verified_rounded : Icons.lock_outline_rounded,
+            size: 14,
+            color: badge.unlocked ? AppColors.success : AppColors.textHint,
           ),
         ],
       ),

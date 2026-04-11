@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
@@ -360,6 +361,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final recentMatches = profileState.matchHistory.take(5).toList();
     final wins = user?.stats.matchesWon ?? 0;
     final losses = (user?.stats.matchesPlayed ?? 0) - wins;
+    final showProfileSkeleton =
+      isOwnProfile &&
+      profileState.isLoading &&
+      profileState.matchHistory.isEmpty &&
+      profileState.badges.isEmpty;
 
     if (!isOwnProfile && _isLoadingVisitor) {
       return AppScaffold(
@@ -375,6 +381,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             style: TextStyle(color: AppColors.textSecondary),
           ),
         ),
+      );
+    }
+
+    if (showProfileSkeleton) {
+      return AppScaffold(
+        child: const _ProfileLoadingSkeleton(),
       );
     }
 
@@ -509,13 +521,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          isOwnProfile ? (user?.email ?? '') : '',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
+                        if (isOwnProfile && (user?.email ?? '').isNotEmpty)
+                          Text(
+                            user?.email ?? '',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
                         if (user?.clubName != null) ...[
                           const SizedBox(height: 6),
                           Container(
@@ -544,13 +557,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
 
-                // Stats cards
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 40) / 2,
                           child: _ProfileStatTile(
                             title: t('SCREEN.PROFILE.ELO', fallback: 'ELO'),
                             child: Text(
@@ -563,16 +578,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 40) / 2,
                           child: _ProfileStatTile(
                             title: t('SCREEN.PROFILE.WIN_LOSS', fallback: 'V / D'),
                             child: RichText(
                               text: TextSpan(
                                 style: const TextStyle(
                                   color: AppColors.textSecondary,
-                                  fontSize: 24,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.w700,
                                 ),
                                 children: [
@@ -597,22 +611,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 40) / 3,
                           child: _ProfileStatTile(
                             title: t('SCREEN.PROFILE.AVERAGE', fallback: 'Moyenne'),
                             child: Text(
-                              user?.stats.averageScore.toStringAsFixed(1) ??
-                                  '0',
+                              user?.stats.averageScore.toStringAsFixed(1) ?? '0',
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 24,
@@ -621,8 +625,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 40) / 3,
                           child: _ProfileStatTile(
                             title: t('SCREEN.PROFILE.CHECKOUT', fallback: 'Checkout'),
                             child: Text(
@@ -635,8 +639,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
+                        SizedBox(
+                          width: (MediaQuery.of(context).size.width - 40) / 3,
                           child: _ProfileStatTile(
                             title: t('SCREEN.PROFILE.SHOTS', fallback: 'Tirs'),
                             child: Column(
@@ -709,6 +713,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         'SCREEN.PROFILE.HISTORY',
                         fallback: 'Historique des matchs',
                       ),
+                      actionText: t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout'),
+                      onAction: () => context.push(AppRoutes.matchHistory),
                     ),
                   ),
                 if (isOwnProfile)
@@ -795,14 +801,81 @@ class _ShotLine extends StatelessWidget {
       text: TextSpan(
         style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
         children: [
+          TextSpan(text: '$label :'),
           TextSpan(
             text: '$count',
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w800,
             ),
+          )
+          
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileLoadingSkeleton extends StatelessWidget {
+  const _ProfileLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: AppColors.surface,
+      highlightColor: AppColors.surfaceLight,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const SizedBox(height: 10),
+          const CircleAvatar(radius: 45, backgroundColor: Colors.white),
+          const SizedBox(height: 14),
+          Center(
+            child: Container(
+              width: 140,
+              height: 16,
+              color: Colors.white,
+            ),
           ),
-          TextSpan(text: ' x $label'),
+          const SizedBox(height: 18),
+          Row(
+            children: List.generate(
+              2,
+              (_) => Expanded(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 94,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(
+              3,
+              (_) => Expanded(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 94,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Container(height: 180, color: Colors.white),
+          const SizedBox(height: 16),
+          Container(height: 120, color: Colors.white),
+          const SizedBox(height: 16),
+          Container(height: 140, color: Colors.white),
         ],
       ),
     );

@@ -20,6 +20,7 @@ import { AppVersionModule } from './modules/app_version/app-version.module';
 import { BadgesModule } from './modules/badges/badges.module';
 import { I18nModule } from './modules/i18n/i18n.module';
 import { DartSenseModule } from './modules/dart_sense/dart-sense.module';
+import { SocialModule } from './modules/social/social.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { DartSenseModule } from './modules/dart_sense/dart-sense.module';
     BadgesModule,
     I18nModule,
     DartSenseModule,
+    SocialModule,
   ],
   providers: [
     {

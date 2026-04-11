@@ -69,6 +69,7 @@ dependencies:
   latlong2: ^0.9.1
   qr_flutter: ^4.1.0
   image_picker: ^1.1.0
+  flutter_local_notifications: ^17.2.2
 
   # Auth
   flutter_secure_storage: ^9.2.4

@@ -64,6 +64,14 @@ __decorate([
     __metadata("design:type", Number)
 ], PlayerStat.prototype, "best_leg_darts", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], PlayerStat.prototype, "consecutive_days_played", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", Object)
+], PlayerStat.prototype, "last_played_date", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'numeric', precision: 5, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], PlayerStat.prototype, "precision_t20", void 0);

@@ -12,6 +12,8 @@ export declare class PlayerStat {
     count_100_plus: number;
     high_finish: number;
     best_leg_darts: number;
+    consecutive_days_played: number;
+    last_played_date: Date | null;
     precision_t20: number;
     precision_t19: number;
     precision_double: number;

@@ -30,6 +30,7 @@ import '../../features/profile/presentation/badges_screen.dart';
 import '../../features/profile/presentation/settings_screen.dart';
 import '../../features/profile/presentation/about_screen.dart';
 import '../../features/social/presentation/social_feed_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/match/presentation/match_live_screen.dart';
 import '../../features/match/presentation/match_history_screen.dart';
 import '../../features/match/presentation/match_report_screen.dart';
@@ -73,6 +74,7 @@ class AppRoutes {
   static const String about = '/profile/about';
   static const String badges = '/profile/badges';
   static const String socialFeed = '/social-feed';
+  static const String notifications = '/notifications';
   static const String matchLive = '/match';
   static const String matchCricket = '/match/cricket';
   static const String matchChasseur = '/match/chasseur';
@@ -252,10 +254,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.playX01,
         parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (_, state) => NoTransitionPage(
-          key: state.pageKey,
-          child: const X01ModesScreen(),
-        ),
+        pageBuilder: (_, state) =>
+            NoTransitionPage(key: state.pageKey, child: const X01ModesScreen()),
       ),
       GoRoute(
         path: AppRoutes.playCricket,
@@ -348,6 +348,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: AppRoutes.notifications,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.matchHistory,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, state) => NoTransitionPage(
@@ -425,7 +433,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.about,
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (_, state) =>
-        NoTransitionPage(key: state.pageKey, child: const AboutScreen()),
+            NoTransitionPage(key: state.pageKey, child: const AboutScreen()),
       ),
       GoRoute(
         path: AppRoutes.badges,

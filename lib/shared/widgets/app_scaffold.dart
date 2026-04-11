@@ -110,7 +110,8 @@ class AppScaffold extends ConsumerWidget {
                       ),
                       InkWell(
                         borderRadius: BorderRadius.circular(99),
-                        onTap: () => context.push(AppRoutes.socialFeed),
+                        onTap: () =>
+                            GoRouter.of(context).go(AppRoutes.socialFeed),
                         child: Container(
                           width: 40,
                           height: 40,

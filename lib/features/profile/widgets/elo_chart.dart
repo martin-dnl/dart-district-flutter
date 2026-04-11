@@ -116,10 +116,8 @@ class EloChart extends StatelessWidget {
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: 40,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: AppColors.surfaceLight,
-                      strokeWidth: 0.5,
-                    ),
+                    getDrawingHorizontalLine: (value) =>
+                        FlLine(color: AppColors.surfaceLight, strokeWidth: 0.5),
                   ),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
@@ -139,7 +137,9 @@ class EloChart extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 26,
-                        interval: (values.length / 4).clamp(1, values.length).toDouble(),
+                        interval: (values.length / 4)
+                            .clamp(1, values.length)
+                            .toDouble(),
                         getTitlesWidget: (value, meta) {
                           final index = value.round();
                           if (index < 0 || index >= points.length) {
@@ -197,18 +197,19 @@ class EloChart extends StatelessWidget {
                     touchTooltipData: LineTouchTooltipData(
                       getTooltipItems: (touchedSpots) =>
                           touchedSpots.map((spot) {
-                        final index = spot.x.round();
-                        final label =
-                            index >= 0 && index < points.length ? points[index].label : '';
-                        return LineTooltipItem(
-                          'ELO ${spot.y.toInt()}\n$label',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        );
-                      }).toList(),
+                            final index = spot.x.round();
+                            final label = index >= 0 && index < points.length
+                                ? points[index].label
+                                : '';
+                            return LineTooltipItem(
+                              'ELO ${spot.y.toInt()}\n$label',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            );
+                          }).toList(),
                     ),
                   ),
                 ),
@@ -247,6 +248,31 @@ class _ChartToolbar extends StatelessWidget {
           children: [
             Expanded(
               child: SegmentedButton<EloPeriodMode>(
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return AppColors.primary.withValues(alpha: 0.16);
+                    }
+                    return AppColors.card;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return AppColors.primary;
+                    }
+                    return AppColors.textSecondary;
+                  }),
+                  side: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return const BorderSide(color: AppColors.primary);
+                    }
+                    return const BorderSide(color: AppColors.stroke);
+                  }),
+                  shape: WidgetStateProperty.all(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
                 segments: EloPeriodMode.values
                     .map(
                       (value) => ButtonSegment<EloPeriodMode>(
@@ -268,6 +294,14 @@ class _ChartToolbar extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.card,
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.stroke),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               onPressed: () => onShiftOffset(offset + 1),
               icon: const Icon(Icons.chevron_left),
               tooltip: t(
@@ -276,6 +310,14 @@ class _ChartToolbar extends StatelessWidget {
               ),
             ),
             IconButton(
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.card,
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.stroke),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               onPressed: offset > 0 ? () => onShiftOffset(offset - 1) : null,
               icon: const Icon(Icons.chevron_right),
               tooltip: t(

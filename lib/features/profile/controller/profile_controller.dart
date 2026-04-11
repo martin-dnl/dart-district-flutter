@@ -118,14 +118,20 @@ class ProfileController extends StateNotifier<ProfileState> {
       final currentUserId = _ref.read(currentUserProvider)?.id ?? '';
 
       final statsResponse = await api.get<Map<String, dynamic>>('/stats/me');
-      final eloResponse = await api.get<Map<String, dynamic>>('/stats/me/elo-history',
-          queryParameters: {
-            'mode': state.eloMode.name,
-            'offset': state.eloOffset,
-          });
+      final eloResponse = await api.get<Map<String, dynamic>>(
+        '/stats/me/elo-history',
+        queryParameters: {
+          'mode': state.eloMode.name,
+          'offset': state.eloOffset,
+        },
+      );
       final matchesResponse = await api.get<Map<String, dynamic>>(
         '/matches/me',
-        queryParameters: const {'limit': '20', 'status': 'completed'},
+        queryParameters: const {
+          'limit': '5',
+          'status': 'completed',
+          'ranked': 'true',
+        },
       );
 
       final statsData =
@@ -225,8 +231,9 @@ class ProfileController extends StateNotifier<ProfileState> {
     final matchesWon = (stats['matches_won'] as num?)?.toInt() ?? 0;
     final total180s = (stats['total_180s'] as num?)?.toInt() ?? 0;
     final count140Plus = (stats['count_140_plus'] as num?)?.toInt() ?? 0;
-    final count100Plus = (stats['count_100_plus'] as num?)?.toInt() ?? 0;
     final bestAvg = (stats['best_avg'] as num?)?.toDouble() ?? 0;
+    final highFinish = (stats['high_finish'] as num?)?.toInt() ?? 0;
+    final streakDays = (stats['consecutive_days_played'] as num?)?.toInt() ?? 0;
     final checkoutRate = (stats['checkout_rate'] as num?)?.toDouble() ?? 0;
     final earnedByKey = <String, AchievementBadge>{
       for (final b in earnedBadges) b.key: b,
@@ -244,7 +251,7 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '2',
-        key: 'grinder_10_matches',
+        key: 'grinder_10',
         name: 'Serie 10',
         description: 'Jouer 10 matchs classes',
         icon: '🧱',
@@ -253,7 +260,7 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '3',
-        key: 'marathon_100_matches',
+        key: 'centurion',
         name: 'Centurion',
         description: 'Jouer 100 matchs classes',
         icon: '🏛️',
@@ -262,7 +269,7 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '4',
-        key: 'first_victory',
+        key: 'first_win',
         name: 'Premiere Victoire',
         description: 'Gagner son premier match',
         icon: '🥇',
@@ -271,7 +278,7 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '5',
-        key: 'win_50',
+        key: 'win_machine',
         name: 'Machine a Gagner',
         description: 'Atteindre 50 victoires',
         icon: '🏆',
@@ -289,7 +296,7 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '7',
-        key: 'triple_180',
+        key: 'triple_thunder',
         name: 'Triple Foudre',
         description: 'Réaliser 3 fois 180',
         icon: '⚡',
@@ -298,21 +305,21 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '8',
-        key: 'demolition_140',
+        key: 'ton_80_master',
+        name: 'Ton-80 Master',
+        description: 'Realiser 10 fois 180',
+        icon: '💫',
+        difficulty: 'Diamant',
+        unlocked: total180s >= 10,
+      ),
+      AchievementBadge(
+        id: '9',
+        key: 'factory_140',
         name: '140+ Factory',
         description: 'Faire 25 scores a 140+',
         icon: '💥',
         difficulty: 'Argent',
         unlocked: count140Plus >= 25,
-      ),
-      AchievementBadge(
-        id: '9',
-        key: 'century_stream',
-        name: 'Century Stream',
-        description: 'Faire 80 scores a 100+',
-        icon: '📈',
-        difficulty: 'Argent',
-        unlocked: count100Plus >= 80,
       ),
       AchievementBadge(
         id: '10',
@@ -334,7 +341,25 @@ class ProfileController extends StateNotifier<ProfileState> {
       ),
       AchievementBadge(
         id: '12',
-        key: 'best_avg_75',
+        key: 'high_finish_100',
+        name: 'Big Fish',
+        description: 'Realiser un finish de 100+',
+        icon: '🐟',
+        difficulty: 'Argent',
+        unlocked: highFinish >= 100,
+      ),
+      AchievementBadge(
+        id: '13',
+        key: 'high_finish_150',
+        name: 'Finisseur Elite',
+        description: 'Realiser un finish de 150+',
+        icon: '🦈',
+        difficulty: 'Or',
+        unlocked: highFinish >= 150,
+      ),
+      AchievementBadge(
+        id: '14',
+        key: 'avg_75',
         name: 'Meme Lord 75',
         description: 'Signer une meilleure moyenne a 75+',
         icon: '🗿',
@@ -342,7 +367,16 @@ class ProfileController extends StateNotifier<ProfileState> {
         unlocked: bestAvg >= 75,
       ),
       AchievementBadge(
-        id: '13',
+        id: '15',
+        key: 'streak_3_days',
+        name: 'Regulier',
+        description: 'Jouer 3 jours d\'affilee',
+        icon: '📅',
+        difficulty: 'Bronze',
+        unlocked: streakDays >= 3,
+      ),
+      AchievementBadge(
+        id: '16',
         key: 'territory_warlord',
         name: 'Conquerant IRIS',
         description: 'Faire gagner une zone a son club',
@@ -351,7 +385,7 @@ class ProfileController extends StateNotifier<ProfileState> {
         unlocked: earnedByKey['territory_warlord'] != null,
       ),
       AchievementBadge(
-        id: '14',
+        id: '17',
         key: 'tournament_king',
         name: 'Roi du Tournoi',
         description: 'Remporter un tournoi officiel',
@@ -372,8 +406,9 @@ class ProfileController extends StateNotifier<ProfileState> {
             ? badge.description
             : earned.description,
         icon: earned.icon.isEmpty ? badge.icon : earned.icon,
-        difficulty:
-            earned.difficulty.isEmpty ? badge.difficulty : earned.difficulty,
+        difficulty: earned.difficulty.isEmpty
+            ? badge.difficulty
+            : earned.difficulty,
         unlocked: true,
         earnedAt: earned.earnedAt,
       );

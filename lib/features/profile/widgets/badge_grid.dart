@@ -73,12 +73,25 @@ class _BadgeItem extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            badge.icon,
-            style: TextStyle(
-              fontSize: 28,
-              color: badge.unlocked ? null : AppColors.textHint,
-            ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              ColorFiltered(
+                colorFilter: badge.unlocked
+                    ? const ColorFilter.mode(
+                        Colors.transparent,
+                        BlendMode.multiply,
+                      )
+                    : const ColorFilter.mode(Colors.grey, BlendMode.saturation),
+                child: _BadgeVisual(icon: badge.icon),
+              ),
+              if (!badge.unlocked)
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 15,
+                  color: AppColors.textHint.withValues(alpha: 0.85),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -96,12 +109,59 @@ class _BadgeItem extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Icon(
-            badge.unlocked ? Icons.verified_rounded : Icons.lock_outline_rounded,
+            badge.unlocked
+                ? Icons.verified_rounded
+                : Icons.lock_outline_rounded,
             size: 14,
             color: badge.unlocked ? AppColors.success : AppColors.textHint,
           ),
         ],
       ),
     );
+  }
+}
+
+class _BadgeVisual extends StatelessWidget {
+  const _BadgeVisual({required this.icon});
+
+  final String icon;
+
+  bool get _isRemote =>
+      icon.startsWith('http://') || icon.startsWith('https://');
+
+  bool get _looksLikeAssetPath {
+    return icon.contains('/') &&
+        (icon.endsWith('.png') ||
+            icon.endsWith('.jpg') ||
+            icon.endsWith('.jpeg') ||
+            icon.endsWith('.webp') ||
+            icon.endsWith('.gif'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isRemote) {
+      return Image.network(
+        icon,
+        width: 28,
+        height: 28,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) =>
+            const Text('🏅', style: TextStyle(fontSize: 28)),
+      );
+    }
+
+    if (_looksLikeAssetPath) {
+      return Image.asset(
+        icon,
+        width: 28,
+        height: 28,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) =>
+            const Text('🏅', style: TextStyle(fontSize: 28)),
+      );
+    }
+
+    return Text(icon, style: const TextStyle(fontSize: 28));
   }
 }

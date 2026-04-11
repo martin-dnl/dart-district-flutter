@@ -6,6 +6,11 @@ import 'package:flutter/material.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../shared/models/dartboard_heatmap_models.dart';
 
+const Color _heatLowColor = AppColors.info;
+const Color _heatMidLowColor = Color(0xFFF59A4A);
+const Color _heatMidHighColor = Color(0xFFFF8C00);
+const Color _heatHighColor = AppColors.error;
+
 class DartboardInputStats extends StatelessWidget {
   const DartboardInputStats({
     super.key,
@@ -120,10 +125,10 @@ class _HeatLegend extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               gradient: const LinearGradient(
                 colors: [
-                  AppColors.info,
-                  Color(0xFFF59A4A),
-                  Color(0xFFFF8C00),
-                  AppColors.error,
+                  _heatLowColor,
+                  _heatMidLowColor,
+                  _heatMidHighColor,
+                  _heatHighColor,
                 ],
               ),
             ),
@@ -408,27 +413,19 @@ class _DartboardHeatmapPainter extends CustomPainter {
 
   Color _heatColor(double t) {
     if (t < 0.34) {
-      return Color.lerp(
-            AppColors.info,
-            const Color(0xFFF59A4A),
-            t / 0.34,
-          ) ??
-          const Color(0xFFF59A4A);
+      return Color.lerp(_heatLowColor, _heatMidLowColor, t / 0.34) ??
+          _heatMidLowColor;
     }
     if (t < 0.68) {
       return Color.lerp(
-            const Color(0xFFF59A4A),
-            const Color(0xFFFF8C00),
+            _heatMidLowColor,
+            _heatMidHighColor,
             (t - 0.34) / 0.34,
           ) ??
-          const Color(0xFFFF8C00);
+          _heatMidHighColor;
     }
-    return Color.lerp(
-          const Color(0xFFFF8C00),
-          AppColors.error,
-          (t - 0.68) / 0.32,
-        ) ??
-        AppColors.error;
+    return Color.lerp(_heatMidHighColor, _heatHighColor, (t - 0.68) / 0.32) ??
+        _heatHighColor;
   }
 
   void _drawNumbers(

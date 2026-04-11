@@ -226,6 +226,6 @@ final ongoingMatchesControllerProvider =
         realtime: realtime,
         currentUserId: authState.user?.id,
         onInvitationReceived: () =>
-            ref.read(notificationsUnreadCountProvider.notifier).refresh(),
+            ref.read(notificationsStateProvider.notifier).refresh(),
       );
     });

@@ -61,9 +61,31 @@ let StatsService = class StatsService {
         if (matchData.highCheckout > stat.high_finish) {
             stat.high_finish = matchData.highCheckout;
         }
+        if (matchData.bestLegDarts != null &&
+            matchData.bestLegDarts > 0 &&
+            (stat.best_leg_darts === 0 || matchData.bestLegDarts < stat.best_leg_darts)) {
+            stat.best_leg_darts = matchData.bestLegDarts;
+        }
         stat.total_180s += matchData.count180s;
         stat.count_140_plus += matchData.count140Plus;
         stat.count_100_plus += matchData.count100Plus;
+        const endedAt = matchData.matchEndedAt ?? new Date();
+        const endedDay = endedAt.toISOString().slice(0, 10);
+        const lastPlayedDay = stat.last_played_date
+            ? stat.last_played_date.toISOString().slice(0, 10)
+            : null;
+        if (lastPlayedDay !== endedDay) {
+            const previousDay = new Date(endedAt);
+            previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+            const previousDayLabel = previousDay.toISOString().slice(0, 10);
+            if (lastPlayedDay === previousDayLabel) {
+                stat.consecutive_days_played += 1;
+            }
+            else {
+                stat.consecutive_days_played = 1;
+            }
+            stat.last_played_date = endedAt;
+        }
         if (matchData.checkoutAttempts > 0) {
             const matchRate = (matchData.checkoutHits / matchData.checkoutAttempts) * 100;
             stat.checkout_rate = this.weightedRate(stat.checkout_rate, stat.matches_played - 1, matchRate);

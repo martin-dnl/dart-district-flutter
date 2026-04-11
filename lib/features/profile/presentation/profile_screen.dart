@@ -218,7 +218,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (_isFriend) {
         final confirmed = await showConfirmDialog(
           context: context,
-          title: t('SCREEN.PROFILE.REMOVE_FRIEND', fallback: 'Retirer cet ami ?'),
+          title: t(
+            'SCREEN.PROFILE.REMOVE_FRIEND',
+            fallback: 'Retirer cet ami ?',
+          ),
           message: t(
             'SCREEN.PROFILE.REMOVE_FRIEND_CONFIRM',
             fallback: 'Cette personne sera retiree de votre liste d\'amis.',
@@ -359,13 +362,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = isOwnProfile ? currentUser : _visitorUser;
     final profileState = ref.watch(profileControllerProvider);
     final recentMatches = profileState.matchHistory.take(5).toList();
-    final wins = user?.stats.matchesWon ?? 0;
-    final losses = (user?.stats.matchesPlayed ?? 0) - wins;
+    final winRate = user?.stats.winRate ?? 0.0;
+    final est501 = (user?.stats.averageScore ?? 0) * 1.08;
+    final est301 = (user?.stats.averageScore ?? 0) * 0.98;
+    final estCricket = (user?.stats.checkoutRate ?? 0) * 0.85;
     final showProfileSkeleton =
-      isOwnProfile &&
-      profileState.isLoading &&
-      profileState.matchHistory.isEmpty &&
-      profileState.badges.isEmpty;
+        isOwnProfile &&
+        profileState.isLoading &&
+        profileState.matchHistory.isEmpty &&
+        profileState.badges.isEmpty;
 
     if (!isOwnProfile && _isLoadingVisitor) {
       return AppScaffold(
@@ -385,9 +390,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     if (showProfileSkeleton) {
-      return AppScaffold(
-        child: const _ProfileLoadingSkeleton(),
-      );
+      return AppScaffold(child: const _ProfileLoadingSkeleton());
     }
 
     return AppScaffold(
@@ -403,268 +406,374 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            if (isOwnProfile &&
-                                !(currentUser?.isGuest ?? false))
-                              IconButton(
-                                onPressed: _showMyQrCode,
-                                icon: const Icon(
-                                  Icons.qr_code_2,
-                                  color: AppColors.textSecondary,
-                                ),
-                              )
-                            else
-                              const SizedBox(width: 48),
-                            const Spacer(),
-                            if (isOwnProfile)
-                              IconButton(
-                                onPressed: () =>
-                                    context.push(AppRoutes.settings),
-                                icon: const Icon(
-                                  Icons.settings_outlined,
-                                  color: AppColors.textSecondary,
-                                ),
-                              )
-                            else ...[
-                              if (!_isFriend)
+                    child: _ProfileReveal(
+                      order: 0,
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              if (isOwnProfile &&
+                                  !(currentUser?.isGuest ?? false))
+                                IconButton(
+                                  onPressed: _showMyQrCode,
+                                  icon: const Icon(
+                                    Icons.qr_code_2,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                )
+                              else
+                                const SizedBox(width: 48),
+                              const Spacer(),
+                              if (isOwnProfile)
+                                IconButton(
+                                  onPressed: () =>
+                                      context.push(AppRoutes.settings),
+                                  icon: const Icon(
+                                    Icons.settings_outlined,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                )
+                              else ...[
+                                if (!_isFriend)
+                                  IconButton(
+                                    onPressed:
+                                        _isBlocked || _isMutatingVisitorAction
+                                        ? null
+                                        : () => _handleVisitorBlock(user!),
+                                    icon: const Icon(
+                                      Icons.block,
+                                      color: AppColors.error,
+                                    ),
+                                    tooltip: t(
+                                      'SCREEN.PROFILE.BLOCK',
+                                      fallback: 'Bloquer',
+                                    ),
+                                  ),
                                 IconButton(
                                   onPressed:
                                       _isBlocked || _isMutatingVisitorAction
                                       ? null
-                                      : () => _handleVisitorBlock(user!),
-                                  icon: const Icon(
-                                    Icons.block,
-                                    color: AppColors.error,
+                                      : () => _handleVisitorFriendAction(user!),
+                                  icon: Icon(
+                                    _isFriend
+                                        ? Icons.person_remove
+                                        : Icons.person_add,
+                                    color: _isFriend
+                                        ? AppColors.error
+                                        : AppColors.primary,
                                   ),
-                                  tooltip: t('SCREEN.PROFILE.BLOCK', fallback: 'Bloquer'),
+                                  tooltip: _isFriend
+                                      ? t(
+                                          'SCREEN.PROFILE.REMOVE_FRIEND_SHORT',
+                                          fallback: 'Retirer ami',
+                                        )
+                                      : (_hasPendingRequest
+                                            ? t(
+                                                'SCREEN.PROFILE.REQUEST_SENT',
+                                                fallback: 'Demande envoyee',
+                                              )
+                                            : t(
+                                                'SCREEN.PROFILE.ADD_FRIEND',
+                                                fallback: 'Ajouter ami',
+                                              )),
                                 ),
-                              IconButton(
-                                onPressed:
-                                    _isBlocked || _isMutatingVisitorAction
-                                    ? null
-                                    : () => _handleVisitorFriendAction(user!),
-                                icon: Icon(
-                                  _isFriend
-                                      ? Icons.person_remove
-                                      : Icons.person_add,
-                                  color: _isFriend
-                                      ? AppColors.error
-                                      : AppColors.primary,
-                                ),
-                                tooltip: _isFriend
-                                    ? t(
-                                        'SCREEN.PROFILE.REMOVE_FRIEND_SHORT',
-                                        fallback: 'Retirer ami',
-                                      )
-                                    : (_hasPendingRequest
-                                          ? t(
-                                              'SCREEN.PROFILE.REQUEST_SENT',
-                                              fallback: 'Demande envoyee',
-                                            )
-                                          : t(
-                                              'SCREEN.PROFILE.ADD_FRIEND',
-                                              fallback: 'Ajouter ami',
-                                            )),
-                              ),
+                              ],
                             ],
-                          ],
-                        ),
+                          ),
 
-                        GestureDetector(
-                          onTap: isOwnProfile ? _changeAvatar : null,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              PlayerAvatar(
-                                name: user?.username ?? 'Joueur',
-                                imageUrl: user?.avatarUrl,
-                                size: 90,
-                                showBorder: true,
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.card.withValues(alpha: 0.98),
+                                  AppColors.surfaceLight.withValues(alpha: 0.9),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              if (isOwnProfile)
-                                Positioned(
-                                  right: -2,
-                                  bottom: -2,
-                                  child: Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AppColors.surface,
-                                      border: Border.all(
-                                        color: AppColors.stroke,
-                                        width: 1.2,
+                              border: Border.all(
+                                color: AppColors.stroke.withValues(alpha: 0.9),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: isOwnProfile
+                                          ? _changeAvatar
+                                          : null,
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          PlayerAvatar(
+                                            name: user?.username ?? 'Joueur',
+                                            imageUrl: user?.avatarUrl,
+                                            size: 72,
+                                            showBorder: true,
+                                          ),
+                                          if (isOwnProfile)
+                                            Positioned(
+                                              right: -2,
+                                              bottom: -2,
+                                              child: Container(
+                                                width: 24,
+                                                height: 24,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: AppColors.surface,
+                                                  border: Border.all(
+                                                    color: AppColors.stroke,
+                                                    width: 1.1,
+                                                  ),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.photo_camera,
+                                                  size: 12,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
-                                    child: const Icon(
-                                      Icons.photo_camera,
-                                      size: 15,
-                                      color: AppColors.primary,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            user?.username ?? 'Joueur',
+                                            style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w900,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            user?.clubName ??
+                                                t(
+                                                  'SCREEN.PROFILE.NO_CLUB',
+                                                  fallback: 'Sans club',
+                                                ),
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.info,
+                                            ),
+                                          ),
+                                          if (isOwnProfile &&
+                                              (user?.email ?? '')
+                                                  .isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              user?.email ?? '',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.textHint,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Username
-                        Text(
-                          user?.username ?? 'Joueur',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (isOwnProfile && (user?.email ?? '').isNotEmpty)
-                          Text(
-                            user?.email ?? '',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        if (user?.clubName != null) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(
-                                alpha: 0.15,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              user!.clubName!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.secondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        SizedBox(
-                          width: (MediaQuery.of(context).size.width - 40) / 2,
-                          child: _ProfileStatTile(
-                            title: t('SCREEN.PROFILE.ELO', fallback: 'ELO'),
-                            child: Text(
-                              '${user?.elo ?? 1000}',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 30,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: (MediaQuery.of(context).size.width - 40) / 2,
-                          child: _ProfileStatTile(
-                            title: t('SCREEN.PROFILE.WIN_LOSS', fallback: 'V / D'),
-                            child: RichText(
-                              text: TextSpan(
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: '$wins',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w900,
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _CompactMetricTile(
+                                        label: t(
+                                          'SCREEN.PROFILE.MATCHES',
+                                          fallback: 'Matchs',
+                                        ),
+                                        value:
+                                            '${user?.stats.matchesPlayed ?? 0}',
+                                      ),
                                     ),
-                                  ),
-                                  const TextSpan(text: 'V / '),
-                                  TextSpan(
-                                    text: '$losses',
-                                    style: const TextStyle(
-                                      color: AppColors.error,
-                                      fontWeight: FontWeight.w900,
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _CompactMetricTile(
+                                        label: t(
+                                          'SCREEN.PROFILE.WINS',
+                                          fallback: 'Victoires',
+                                        ),
+                                        value: '${winRate.toStringAsFixed(0)}%',
+                                        valueColor: AppColors.success,
+                                      ),
                                     ),
-                                  ),
-                                  const TextSpan(text: 'D'),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: (MediaQuery.of(context).size.width - 40) / 3,
-                          child: _ProfileStatTile(
-                            title: t('SCREEN.PROFILE.AVERAGE', fallback: 'Moyenne'),
-                            child: Text(
-                              user?.stats.averageScore.toStringAsFixed(1) ?? '0',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: (MediaQuery.of(context).size.width - 40) / 3,
-                          child: _ProfileStatTile(
-                            title: t('SCREEN.PROFILE.CHECKOUT', fallback: 'Checkout'),
-                            child: Text(
-                              '${user?.stats.checkoutRate.toStringAsFixed(0) ?? 0}%',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: (MediaQuery.of(context).size.width - 40) / 3,
-                          child: _ProfileStatTile(
-                            title: t('SCREEN.PROFILE.SHOTS', fallback: 'Tirs'),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _ShotLine(
-                                  count: user?.stats.highest180s ?? 0,
-                                  label: '180',
-                                ),
-                                const SizedBox(height: 2),
-                                _ShotLine(
-                                  count: user?.stats.count140Plus ?? 0,
-                                  label: '140+',
-                                ),
-                                const SizedBox(height: 2),
-                                _ShotLine(
-                                  count: user?.stats.count100Plus ?? 0,
-                                  label: '100+',
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _CompactMetricTile(
+                                        label: t(
+                                          'SCREEN.PROFILE.AVERAGE',
+                                          fallback: 'Moyenne',
+                                        ),
+                                        value:
+                                            user?.stats.averageScore
+                                                .toStringAsFixed(1) ??
+                                            '0.0',
+                                        valueColor: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                SliverToBoxAdapter(
+                  child: _ProfileReveal(
+                    order: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t(
+                              'SCREEN.PROFILE.KEY_PERFORMANCES',
+                              fallback: 'Performances cles',
+                            ),
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            childAspectRatio: 1.26,
+                            children: [
+                              _ProfileStatTile(
+                                title: t(
+                                  'SCREEN.PROFILE.CHECKOUT',
+                                  fallback: 'Checkout %',
+                                ),
+                                accentIcon: Icons.adjust,
+                                child: Text(
+                                  '${user?.stats.checkoutRate.toStringAsFixed(1) ?? 0}%',
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              _ProfileStatTile(
+                                title: t(
+                                  'SCREEN.PROFILE.BEST_AVG',
+                                  fallback: 'Meilleure moyenne',
+                                ),
+                                accentIcon: Icons.bolt,
+                                child: Text(
+                                  user?.stats.bestAverage.toStringAsFixed(1) ??
+                                      '0.0',
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              _ProfileStatTile(
+                                title: t(
+                                  'SCREEN.PROFILE.SHOTS_180',
+                                  fallback: 'Total 180s',
+                                ),
+                                accentLabel: 'MAX',
+                                accentLabelColor: AppColors.error,
+                                child: Text(
+                                  '${user?.stats.highest180s ?? 0}',
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              _ProfileStatTile(
+                                title: t(
+                                  'SCREEN.PROFILE.HIGHEST_SCORE',
+                                  fallback: 'Highest score',
+                                ),
+                                accentIcon: Icons.local_fire_department,
+                                accentIconColor: AppColors.secondary,
+                                child: Text(
+                                  '${user?.stats.highFinish ?? 0}',
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.stroke),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t(
+                                    'SCREEN.PROFILE.FORMAT_PERFORMANCE',
+                                    fallback: 'Performance par format',
+                                  ),
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _FormatLine(
+                                  label: '501',
+                                  value: est501.clamp(0, 100).toDouble(),
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(height: 10),
+                                _FormatLine(
+                                  label: '301',
+                                  value: est301.clamp(0, 100).toDouble(),
+                                  color: AppColors.info,
+                                ),
+                                const SizedBox(height: 10),
+                                _FormatLine(
+                                  label: 'Cricket',
+                                  value: estCricket.clamp(0, 100).toDouble(),
+                                  color: AppColors.secondary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -672,77 +781,104 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 if (isOwnProfile)
                   SliverToBoxAdapter(
-                    child: SectionHeader(
-                      title: t(
-                        'SCREEN.PROFILE.ELO_PROGRESSION',
-                        fallback: 'Progression ELO',
+                    child: _ProfileReveal(
+                      order: 2,
+                      child: SectionHeader(
+                        title: t(
+                          'SCREEN.PROFILE.ELO_PROGRESSION',
+                          fallback: 'Progression ELO',
+                        ),
                       ),
                     ),
                   ),
                 if (isOwnProfile)
                   SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: EloChart(
-                        points: profileState.eloPoints,
-                        mode: profileState.eloMode,
-                        periodLabel: profileState.eloPeriodLabel,
-                        offset: profileState.eloOffset,
-                        isLoading: profileState.isEloLoading,
-                        onModeChanged: (mode) => ref
-                            .read(profileControllerProvider.notifier)
-                            .setEloMode(mode),
-                        onShiftOffset: (offset) => ref
-                            .read(profileControllerProvider.notifier)
-                            .shiftEloPeriod(offset - profileState.eloOffset),
+                    child: _ProfileReveal(
+                      order: 3,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: EloChart(
+                          points: profileState.eloPoints,
+                          mode: profileState.eloMode,
+                          periodLabel: profileState.eloPeriodLabel,
+                          offset: profileState.eloOffset,
+                          isLoading: profileState.isEloLoading,
+                          onModeChanged: (mode) => ref
+                              .read(profileControllerProvider.notifier)
+                              .setEloMode(mode),
+                          onShiftOffset: (offset) => ref
+                              .read(profileControllerProvider.notifier)
+                              .shiftEloPeriod(offset - profileState.eloOffset),
+                        ),
                       ),
                     ),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
                 SliverToBoxAdapter(
-                  child: PrecisionSection(
-                    userId: isOwnProfile ? null : user?.id,
+                  child: _ProfileReveal(
+                    order: 4,
+                    child: PrecisionSection(
+                      userId: isOwnProfile ? null : user?.id,
+                    ),
                   ),
                 ),
 
                 if (isOwnProfile)
                   SliverToBoxAdapter(
-                    child: SectionHeader(
-                      title: t(
-                        'SCREEN.PROFILE.HISTORY',
-                        fallback: 'Historique des matchs',
-                      ),
-                      actionText: t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout'),
-                      onAction: () => context.push(AppRoutes.matchHistory),
-                    ),
-                  ),
-                if (isOwnProfile)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: MatchHistoryList(
-                        matches: recentMatches,
-                        onMatchTap: (matchId) =>
-                            context.push('/match/$matchId/report'),
+                    child: _ProfileReveal(
+                      order: 5,
+                      child: SectionHeader(
+                        title: t(
+                          'SCREEN.PROFILE.HISTORY',
+                          fallback: 'Historique des matchs',
+                        ),
+                        actionText: t(
+                          'SCREEN.HOME.VIEW_ALL',
+                          fallback: 'Voir tout',
+                        ),
+                        onAction: () => context.push(AppRoutes.matchHistory),
                       ),
                     ),
                   ),
                 if (isOwnProfile)
                   SliverToBoxAdapter(
-                    child: SectionHeader(
-                      title: t('SCREEN.PROFILE.BADGES', fallback: 'Badges'),
-                      actionText: t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout'),
-                      onAction: () => context.push(AppRoutes.badges),
+                    child: _ProfileReveal(
+                      order: 6,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: MatchHistoryList(
+                          matches: recentMatches,
+                          onMatchTap: (matchId) =>
+                              context.push('/match/$matchId/report'),
+                        ),
+                      ),
                     ),
                   ),
                 if (isOwnProfile)
                   SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: BadgeGrid(
-                        badges: profileState.badges,
-                        maxDisplay: 4,
+                    child: _ProfileReveal(
+                      order: 7,
+                      child: SectionHeader(
+                        title: t('SCREEN.PROFILE.BADGES', fallback: 'Badges'),
+                        actionText: t(
+                          'SCREEN.HOME.VIEW_ALL',
+                          fallback: 'Voir tout',
+                        ),
+                        onAction: () => context.push(AppRoutes.badges),
+                      ),
+                    ),
+                  ),
+                if (isOwnProfile)
+                  SliverToBoxAdapter(
+                    child: _ProfileReveal(
+                      order: 8,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: BadgeGrid(
+                          badges: profileState.badges,
+                          maxDisplay: 4,
+                        ),
                       ),
                     ),
                   ),
@@ -757,10 +893,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 }
 
 class _ProfileStatTile extends StatelessWidget {
-  const _ProfileStatTile({required this.title, required this.child});
+  const _ProfileStatTile({
+    required this.title,
+    required this.child,
+    this.accentIcon,
+    this.accentIconColor,
+    this.accentLabel,
+    this.accentLabelColor,
+  });
 
   final String title;
   final Widget child;
+  final IconData? accentIcon;
+  final Color? accentIconColor;
+  final String? accentLabel;
+  final Color? accentLabelColor;
 
   @override
   Widget build(BuildContext context) {
@@ -768,50 +915,184 @@ class _ProfileStatTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.stroke),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (accentLabel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (accentLabelColor ?? AppColors.error).withValues(
+                      alpha: 0.2,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    accentLabel!,
+                    style: TextStyle(
+                      color: accentLabelColor ?? AppColors.error,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              if (accentIcon != null)
+                Icon(
+                  accentIcon,
+                  size: 16,
+                  color: accentIconColor ?? AppColors.warning,
+                ),
+            ],
           ),
-          const SizedBox(height: 8),
-          child,
+          const SizedBox(height: 6),
+          Expanded(
+            child: Align(alignment: Alignment.bottomLeft, child: child),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ShotLine extends StatelessWidget {
-  const _ShotLine({required this.count, required this.label});
+class _CompactMetricTile extends StatelessWidget {
+  const _CompactMetricTile({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
-  final int count;
   final String label;
+  final String value;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextSpan(text: '$label :'),
-          TextSpan(
-            text: '$count',
+          Text(
+            label,
             style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
             ),
-          )
-          
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              color: valueColor ?? AppColors.textPrimary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _FormatLine extends StatelessWidget {
+  const _FormatLine({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${value.toStringAsFixed(0)}%',
+              style: TextStyle(
+                color: color,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            minHeight: 9,
+            value: (value / 100).clamp(0, 1),
+            backgroundColor: AppColors.background.withValues(alpha: 0.8),
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileReveal extends StatelessWidget {
+  const _ProfileReveal({required this.order, required this.child});
+
+  final int order;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final delay = (order * 70).clamp(0, 560);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: Duration(milliseconds: 260 + delay),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, widget) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 10),
+            child: widget,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }
@@ -831,13 +1112,7 @@ class _ProfileLoadingSkeleton extends StatelessWidget {
           const SizedBox(height: 10),
           const CircleAvatar(radius: 45, backgroundColor: Colors.white),
           const SizedBox(height: 14),
-          Center(
-            child: Container(
-              width: 140,
-              height: 16,
-              color: Colors.white,
-            ),
-          ),
+          Center(child: Container(width: 140, height: 16, color: Colors.white)),
           const SizedBox(height: 18),
           Row(
             children: List.generate(

@@ -46,6 +46,12 @@ export class PlayerStat {
   @Column({ type: 'int', default: 0 })
   best_leg_darts: number;
 
+  @Column({ type: 'int', default: 0 })
+  consecutive_days_played: number;
+
+  @Column({ type: 'date', nullable: true })
+  last_played_date: Date | null;
+
   @Column({ type: 'numeric', precision: 5, scale: 2, default: 0 })
   precision_t20: number;
 

@@ -628,6 +628,17 @@ let MatchesService = class MatchesService {
                     });
                 }
             }
+            if (match.is_ranked) {
+                for (const mp of match.players) {
+                    const playerId = mp.user.id;
+                    const matchData = this.buildPlayerMatchStats(match, playerId);
+                    await this.statsService.updateAfterMatch(playerId, {
+                        ...matchData,
+                        won: mp.is_winner === true,
+                        matchEndedAt: match.ended_at ?? new Date(),
+                    });
+                }
+            }
         }
         else {
             const newSet = this.setRepo.create({
@@ -848,6 +859,152 @@ let MatchesService = class MatchesService {
         return (match.sets ?? [])
             .flatMap((s) => s.legs ?? [])
             .filter((l) => l.winner_id != null).length;
+    }
+    buildPlayerMatchStats(match, userId) {
+        const allLegs = (match.sets ?? []).flatMap((s) => s.legs ?? []);
+        const throwsForPlayer = allLegs
+            .flatMap((leg) => leg.throws ?? [])
+            .filter((t) => t.user_id === userId);
+        const totalScore = throwsForPlayer.reduce((sum, t) => sum + t.score, 0);
+        const avg = throwsForPlayer.length > 0
+            ? Number((totalScore / throwsForPlayer.length).toFixed(2))
+            : 0;
+        const highCheckout = throwsForPlayer
+            .filter((t) => t.is_checkout)
+            .reduce((max, t) => Math.max(max, t.score), 0);
+        const count180s = throwsForPlayer.filter((t) => t.score === 180).length;
+        const count140Plus = throwsForPlayer.filter((t) => t.score >= 140).length;
+        const count100Plus = throwsForPlayer.filter((t) => t.score >= 100).length;
+        const checkoutAttempts = throwsForPlayer.reduce((sum, t) => {
+            const encoded = this.extractDoubleAttemptsFromSegment(t.segment);
+            if (encoded > 0) {
+                return sum + encoded;
+            }
+            if (t.is_checkout) {
+                return sum + 1;
+            }
+            return sum;
+        }, 0);
+        const checkoutHits = throwsForPlayer.filter((t) => t.is_checkout).length;
+        let t20Attempts = 0;
+        let t20Hits = 0;
+        let t19Attempts = 0;
+        let t19Hits = 0;
+        let doubleAttempts = 0;
+        let doubleHits = 0;
+        for (const throwItem of throwsForPlayer) {
+            const segment = this.parseClassicSegment(throwItem.segment);
+            if (segment == null) {
+                const encodedDoubleAttempts = this.extractDoubleAttemptsFromSegment(throwItem.segment);
+                if (encodedDoubleAttempts > 0) {
+                    doubleAttempts += encodedDoubleAttempts;
+                    if (throwItem.is_checkout) {
+                        doubleHits += 1;
+                    }
+                }
+                continue;
+            }
+            const { multiplier, value } = segment;
+            if (value === 20) {
+                t20Attempts += 1;
+                if (throwItem.score === multiplier * 20) {
+                    t20Hits += 1;
+                }
+            }
+            if (value === 19) {
+                t19Attempts += 1;
+                if (throwItem.score === multiplier * 19) {
+                    t19Hits += 1;
+                }
+            }
+            if (multiplier === 2) {
+                doubleAttempts += 1;
+                if (throwItem.score === value * 2) {
+                    doubleHits += 1;
+                }
+            }
+        }
+        const bestLegDarts = this.computeBestLegDarts(allLegs, userId);
+        return {
+            avg,
+            highCheckout,
+            count180s,
+            count140Plus,
+            count100Plus,
+            checkoutHits,
+            checkoutAttempts,
+            t20Hits,
+            t20Attempts,
+            t19Hits,
+            t19Attempts,
+            doubleHits,
+            doubleAttempts,
+            bestLegDarts,
+        };
+    }
+    computeBestLegDarts(legs, userId) {
+        let best;
+        for (const leg of legs) {
+            if (leg.winner_id !== userId) {
+                continue;
+            }
+            const playerThrows = (leg.throws ?? [])
+                .filter((t) => t.user_id === userId)
+                .sort((a, b) => {
+                if (a.round_num !== b.round_num)
+                    return a.round_num - b.round_num;
+                if (a.dart_num !== b.dart_num)
+                    return a.dart_num - b.dart_num;
+                return a.created_at.getTime() - b.created_at.getTime();
+            });
+            if (playerThrows.length === 0) {
+                continue;
+            }
+            const looksLikeVisitFlow = playerThrows.every((throwItem) => {
+                const segment = throwItem.segment ?? '';
+                return segment.startsWith('VISIT_') ||
+                    segment.startsWith('CD') ||
+                    segment.startsWith('CHECKOUT_D') ||
+                    segment === 'BUST';
+            });
+            let totalDarts;
+            if (looksLikeVisitFlow) {
+                const checkoutThrow = [...playerThrows].reverse().find((t) => t.is_checkout);
+                const checkoutDarts = checkoutThrow == null
+                    ? 3
+                    : this.extractCheckoutDartsFromSegment(checkoutThrow.segment);
+                totalDarts = ((playerThrows.length - 1) * 3) + checkoutDarts;
+            }
+            else {
+                totalDarts = playerThrows.length;
+            }
+            if (best == null || totalDarts < best) {
+                best = totalDarts;
+            }
+        }
+        return best;
+    }
+    parseClassicSegment(segment) {
+        const match = /^(S|D|T)(\d{1,2}|25)$/.exec(segment);
+        if (!match) {
+            return null;
+        }
+        const multiplier = match[1] === 'S' ? 1 : (match[1] === 'D' ? 2 : 3);
+        const value = Number.parseInt(match[2], 10);
+        if (!Number.isFinite(value) || value <= 0) {
+            return null;
+        }
+        return { multiplier, value };
+    }
+    extractCheckoutDartsFromSegment(segment) {
+        const encoded = this.extractDoubleAttemptsFromSegment(segment);
+        if (encoded > 0) {
+            return Math.max(1, Math.min(3, encoded));
+        }
+        if (/^D(\d{1,2}|25)$/.test(segment)) {
+            return 1;
+        }
+        return 3;
     }
     computeCurrentPlayerIndex(match, activeLeg, playerCount) {
         const safePlayerCount = Math.max(1, playerCount);

@@ -419,5 +419,9 @@ export declare class MatchesService {
     private isInvitationFlow;
     private extractDoubleAttemptsFromSegment;
     private countCompletedLegs;
+    private buildPlayerMatchStats;
+    private computeBestLegDarts;
+    private parseClassicSegment;
+    private extractCheckoutDartsFromSegment;
     private computeCurrentPlayerIndex;
 }

@@ -118,6 +118,9 @@ class PlayerStats {
   final int count140Plus;
   final int count100Plus;
   final double bestAverage;
+  final int highFinish;
+  final int bestLegDarts;
+  final int consecutiveDaysPlayed;
 
   const PlayerStats({
     this.matchesPlayed = 0,
@@ -128,6 +131,9 @@ class PlayerStats {
     this.count140Plus = 0,
     this.count100Plus = 0,
     this.bestAverage = 0.0,
+    this.highFinish = 0,
+    this.bestLegDarts = 0,
+    this.consecutiveDaysPlayed = 0,
   });
 
   double get winRate =>
@@ -143,6 +149,9 @@ class PlayerStats {
       count140Plus: json['count140Plus'] as int? ?? 0,
       count100Plus: json['count100Plus'] as int? ?? 0,
       bestAverage: (json['bestAverage'] as num?)?.toDouble() ?? 0.0,
+      highFinish: json['highFinish'] as int? ?? 0,
+      bestLegDarts: json['bestLegDarts'] as int? ?? 0,
+      consecutiveDaysPlayed: json['consecutiveDaysPlayed'] as int? ?? 0,
     );
   }
 
@@ -156,6 +165,9 @@ class PlayerStats {
       count140Plus: _toInt(json['count_140_plus']),
       count100Plus: _toInt(json['count_100_plus']),
       bestAverage: _toDouble(json['best_avg']),
+      highFinish: _toInt(json['high_finish']),
+      bestLegDarts: _toInt(json['best_leg_darts']),
+      consecutiveDaysPlayed: _toInt(json['consecutive_days_played']),
     );
   }
 
@@ -184,5 +196,8 @@ class PlayerStats {
     'count140Plus': count140Plus,
     'count100Plus': count100Plus,
     'bestAverage': bestAverage,
+    'highFinish': highFinish,
+    'bestLegDarts': bestLegDarts,
+    'consecutiveDaysPlayed': consecutiveDaysPlayed,
   };
 }

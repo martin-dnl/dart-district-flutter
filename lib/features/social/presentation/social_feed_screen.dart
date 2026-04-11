@@ -61,86 +61,94 @@ class _SocialFeedScreenState extends ConsumerState<SocialFeedScreen> {
           t('SCREEN.SOCIAL.TITLE', fallback: 'Fil d\'actualite'),
           style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
         ),
+        actions: [
+          IconButton(
+            onPressed: () => context.push(AppRoutes.notifications),
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: t('SCREEN.NOTIFICATIONS.TITLE', fallback: 'Notifications'),
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.pageGradient),
         child: RefreshIndicator(
-          onRefresh: () => ref.read(socialFeedControllerProvider.notifier).refresh(),
+          onRefresh: () =>
+              ref.read(socialFeedControllerProvider.notifier).refresh(),
           child: state.isLoading
               ? const _FeedSkeletonList()
               : state.posts.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        const SizedBox(height: 120),
-                        Icon(
-                          Icons.newspaper_rounded,
-                          size: 62,
-                          color: AppColors.textHint.withValues(alpha: 0.7),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          t(
-                            'SCREEN.SOCIAL.EMPTY',
-                            fallback: 'Aucune activite de vos amis pour le moment.',
-                          ),
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    )
-                  : ListView(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-                      children: [
-                        if (state.error != null)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.13),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.error.withValues(alpha: 0.35),
-                              ),
-                            ),
-                            child: Text(
-                              state.error!,
-                              style: GoogleFonts.manrope(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        for (var i = 0; i < state.posts.length; i++)
-                          _AnimatedFeedItem(
-                            index: i,
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _FeedCard(post: state.posts[i]),
-                            ),
-                          ),
-                        if (state.isLoadingMore)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 20),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                      ],
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    const SizedBox(height: 120),
+                    Icon(
+                      Icons.newspaper_rounded,
+                      size: 62,
+                      color: AppColors.textHint.withValues(alpha: 0.7),
                     ),
+                    const SizedBox(height: 14),
+                    Text(
+                      t(
+                        'SCREEN.SOCIAL.EMPTY',
+                        fallback: 'Aucune activite de vos amis pour le moment.',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.manrope(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                )
+              : ListView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                  children: [
+                    if (state.error != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.error.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Text(
+                          state.error!,
+                          style: GoogleFonts.manrope(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    for (var i = 0; i < state.posts.length; i++)
+                      _AnimatedFeedItem(
+                        index: i,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _FeedCard(post: state.posts[i]),
+                        ),
+                      ),
+                    if (state.isLoadingMore)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
         ),
       ),
     );
@@ -321,7 +329,10 @@ class _FeedCard extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: post.resultLabel.toLowerCase().contains('vic')
                           ? AppColors.success.withValues(alpha: 0.15)
@@ -356,7 +367,10 @@ class _FeedCard extends StatelessWidget {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(

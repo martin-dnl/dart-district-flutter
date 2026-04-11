@@ -66,6 +66,8 @@ CREATE TABLE player_stats (
     total_180s          INTEGER NOT NULL DEFAULT 0,
     high_finish         INTEGER NOT NULL DEFAULT 0,
     best_leg_darts      INTEGER NOT NULL DEFAULT 0,
+    consecutive_days_played INTEGER NOT NULL DEFAULT 0,
+    last_played_date    DATE,
     precision_t20       NUMERIC(5,2) NOT NULL DEFAULT 0,
     precision_t19       NUMERIC(5,2) NOT NULL DEFAULT 0,
     precision_double    NUMERIC(5,2) NOT NULL DEFAULT 0,
@@ -347,6 +349,21 @@ CREATE TABLE notifications (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
+
+-- ── 20b. SOCIAL POSTS ──────────────────────────────────────
+CREATE TABLE social_posts (
+    id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    author_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    match_id     UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    mode         VARCHAR(16) NOT NULL,
+    sets_score   VARCHAR(32) NOT NULL,
+    result_label VARCHAR(32) NOT NULL,
+    description  TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_social_posts_author_created ON social_posts(author_id, created_at DESC);
+CREATE INDEX idx_social_posts_created_at ON social_posts(created_at DESC);
+CREATE INDEX idx_social_posts_match_id ON social_posts(match_id);
 
 -- ── 21. OFFLINE SYNC QUEUE ──────────────────────────────────
 CREATE TABLE offline_queue (

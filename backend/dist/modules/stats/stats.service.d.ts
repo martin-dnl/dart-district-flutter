@@ -33,7 +33,9 @@ export declare class StatsService {
         t19Attempts: number;
         doubleHits: number;
         doubleAttempts: number;
+        bestLegDarts?: number;
         won: boolean;
+        matchEndedAt?: Date;
     }): Promise<PlayerStat | undefined>;
     processElo(matchId: string, winnerId: string, loserId: string, isRanked?: boolean): Promise<{
         winner: {

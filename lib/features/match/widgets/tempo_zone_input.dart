@@ -44,6 +44,7 @@ class TempoScoreInput extends StatefulWidget {
     this.submitEachDartInstantly = false,
     this.displayDartLabels,
     this.displayCurrentDartIndex,
+    this.shouldAllowEarlySubmit,
     this.zones = const <int>[
       1,
       2,
@@ -80,6 +81,7 @@ class TempoScoreInput extends StatefulWidget {
   final bool submitEachDartInstantly;
   final List<String>? displayDartLabels;
   final int? displayCurrentDartIndex;
+  final bool Function(int visitTotal)? shouldAllowEarlySubmit;
 
   @override
   State<TempoScoreInput> createState() => _TempoScoreInputState();
@@ -101,6 +103,9 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
   bool get _canSubmit {
     if (_darts.length == _maxDarts) {
       return true;
+    }
+    if (widget.shouldAllowEarlySubmit?.call(_total) ?? false) {
+      return _darts.isNotEmpty;
     }
     final remaining = widget.remainingScore;
     if (remaining == null) {
@@ -222,7 +227,7 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
       widget.onSubmitVisit(
         TempoVisit(
           darts: <TempoDart>[dart],
-          total: dart.score.clamp(0, widget.maxScore),
+          total: dart.score,
           doubleAttempts:
               ((!dart.isMiss && dart.multiplier == 2) || dart.zone == 50)
               ? 1
@@ -291,7 +296,7 @@ class _TempoScoreInputState extends State<TempoScoreInput> {
 
     final visit = TempoVisit(
       darts: List<TempoDart>.from(_darts),
-      total: _total.clamp(0, widget.maxScore),
+      total: _total,
       doubleAttempts: _doubleAttempts,
     );
 

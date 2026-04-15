@@ -62,9 +62,10 @@ class MatchController extends StateNotifier<MatchModel> {
     final players = List<PlayerMatch>.from(state.players);
     final currentPlayer = players[state.currentPlayerIndex];
     final newScore = currentPlayer.score - score;
-    final bustOnDoubleOne = newScore == 1 && _isDoubleOutMode();
+    final bustOnOneRemaining =
+      newScore == 1 && (_isDoubleOutMode() || _isMasterOutMode());
 
-    if (bustOnDoubleOne) {
+    if (bustOnOneRemaining) {
       final roundHistory = [
         ...state.roundHistory,
         RoundScore(

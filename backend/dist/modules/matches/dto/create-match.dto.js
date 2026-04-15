@@ -30,6 +30,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(1),
+    (0, class_validator_1.IsIn)([1, 3, 5, 7]),
     __metadata("design:type", Number)
 ], CreateMatchDto.prototype, "best_of_legs", void 0);
 __decorate([

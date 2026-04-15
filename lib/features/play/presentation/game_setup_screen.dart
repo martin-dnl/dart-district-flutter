@@ -29,6 +29,7 @@ class GameSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
+  static const List<int> _allowedLegsPerSet = <int>[1, 3, 5, 7];
   FinishType _finishType = FinishType.doubleOut;
   int _legsPerSet = 3;
   int _setsToWin = 1;
@@ -490,11 +491,28 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                       ),
                     value: _legsPerSet,
                     onMinus: () {
-                      if (_legsPerSet > 1) {
-                        setState(() => _legsPerSet--);
+                      final currentIndex = _allowedLegsPerSet.indexOf(
+                        _legsPerSet,
+                      );
+                      if (currentIndex > 0) {
+                        setState(
+                          () => _legsPerSet =
+                              _allowedLegsPerSet[currentIndex - 1],
+                        );
                       }
                     },
-                    onPlus: () => setState(() => _legsPerSet++),
+                    onPlus: () {
+                      final currentIndex = _allowedLegsPerSet.indexOf(
+                        _legsPerSet,
+                      );
+                      final safeIndex = currentIndex < 0 ? 0 : currentIndex;
+                      if (safeIndex < _allowedLegsPerSet.length - 1) {
+                        setState(
+                          () => _legsPerSet =
+                              _allowedLegsPerSet[safeIndex + 1],
+                        );
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
                   _buildCounter(

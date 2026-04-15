@@ -49,7 +49,7 @@ let MatchesService = class MatchesService {
         const mode = this.normalizeMode(body.mode);
         const startingScore = body.starting_score ?? this.resolveStartingScore(mode);
         const setsToWin = Math.max(1, body.sets_to_win ?? 1);
-        const legsPerSet = Math.max(1, body.legs_per_set ?? 3);
+        const legsPerSet = this.normalizeBestOfLegs(body.legs_per_set);
         const finishType = this.normalizeFinishType(body.finish_type);
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
@@ -315,7 +315,7 @@ let MatchesService = class MatchesService {
                 mode: dto.mode,
                 finish: dto.finish_type === 'straight_out' ? 'single_out' : dto.finish_type,
                 total_sets: dto.best_of_sets,
-                legs_per_set: dto.best_of_legs,
+                legs_per_set: this.normalizeBestOfLegs(dto.best_of_legs),
                 is_territorial: dto.is_territorial ?? false,
                 is_ranked: dto.is_ranked ?? false,
                 territory_id: dto.territory_id ?? null,
@@ -584,9 +584,7 @@ let MatchesService = class MatchesService {
         if (!set)
             return;
         const match = await this.findById(set.match.id);
-        const legsToWin = this.isInvitationFlow(match)
-            ? match.legs_per_set
-            : Math.ceil(match.legs_per_set / 2);
+        const legsToWin = Math.ceil(match.legs_per_set / 2);
         const legsWon = set.legs.filter((l) => l.winner_id === winnerId).length;
         if (legsWon >= legsToWin) {
             await this.setRepo.update({ id: set.id }, { winner_id: winnerId });
@@ -831,6 +829,14 @@ let MatchesService = class MatchesService {
         if (mode === '701')
             return 701;
         return 501;
+    }
+    normalizeBestOfLegs(raw) {
+        const parsed = Math.floor(raw ?? 3);
+        const allowed = [1, 3, 5, 7];
+        if (!allowed.includes(parsed)) {
+            throw new common_1.BadRequestException('legs_per_set must be one of 1, 3, 5, 7');
+        }
+        return parsed;
     }
     toClientStatus(status) {
         switch (status) {

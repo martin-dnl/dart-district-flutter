@@ -63,6 +63,22 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
     return mode == '301' || mode == '501' || mode == '701';
   }
 
+  bool _shouldAllowEarlyVisitSubmit(MatchModel match, int visitTotal) {
+    final currentPlayer = match.players[match.currentPlayerIndex];
+    final remaining = currentPlayer.score - visitTotal;
+
+    if (remaining < 0) {
+      return true;
+    }
+
+    if ((_isDoubleOut(match.finishType) || _isMasterOut(match.finishType)) &&
+        remaining == 1) {
+      return true;
+    }
+
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -849,6 +865,11 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                                       .players[match.currentPlayerIndex]
                                       .score,
                                   fillAvailableHeight: true,
+                                  shouldAllowEarlySubmit: (visitTotal) =>
+                                      _shouldAllowEarlyVisitSubmit(
+                                        match,
+                                        visitTotal,
+                                      ),
                                   onSubmitVisit: (visit) {
                                     _submitScore(
                                       visit.total,
@@ -878,6 +899,11 @@ class _MatchLiveScreenState extends ConsumerState<MatchLiveScreen> {
                                       .players[match.currentPlayerIndex]
                                       .score,
                                   fillAvailableHeight: true,
+                                  shouldAllowEarlySubmit: (visitTotal) =>
+                                      _shouldAllowEarlyVisitSubmit(
+                                        match,
+                                        visitTotal,
+                                      ),
                                   zones: const [
                                     1,
                                     2,

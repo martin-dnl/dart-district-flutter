@@ -8,6 +8,7 @@ import {
   Min,
   IsString,
   Matches,
+  IsIn,
 } from 'class-validator';
 
 export class CreateMatchDto {
@@ -23,6 +24,7 @@ export class CreateMatchDto {
 
   @IsInt()
   @Min(1)
+  @IsIn([1, 3, 5, 7])
   best_of_legs: number;
 
   @IsArray()

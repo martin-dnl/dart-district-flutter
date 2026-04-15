@@ -51,6 +51,7 @@ class DartboardInput extends StatefulWidget {
     this.ringLabelResolver,
     this.outerBullColor,
     this.innerBullColor,
+    this.shouldAllowEarlySubmit,
   });
 
   final int maxScore;
@@ -64,6 +65,7 @@ class DartboardInput extends StatefulWidget {
   final String? Function(int sector, DartRing ring)? ringLabelResolver;
   final Color? outerBullColor;
   final Color? innerBullColor;
+  final bool Function(int visitTotal)? shouldAllowEarlySubmit;
 
   @override
   State<DartboardInput> createState() => _DartboardInputState();
@@ -127,6 +129,9 @@ class _DartboardInputState extends State<DartboardInput> {
   bool get _canSubmit {
     if (_darts.length == 3) {
       return true;
+    }
+    if (widget.shouldAllowEarlySubmit?.call(_total) ?? false) {
+      return _darts.isNotEmpty;
     }
     final remaining = widget.remainingScore;
     if (remaining == null) {
@@ -390,7 +395,7 @@ class _DartboardInputState extends State<DartboardInput> {
       widget.onSubmitVisit(
         DartboardVisit(
           darts: <int>[hit.score],
-          total: hit.score.clamp(0, widget.maxScore),
+          total: hit.score,
           doubleAttempts: hit.ring == DartRing.double ? 1 : 0,
           dartHits: <DartHit>[hit],
         ),
@@ -453,7 +458,7 @@ class _DartboardInputState extends State<DartboardInput> {
     widget.onSubmitVisit(
       DartboardVisit(
         darts: _darts.map((hit) => hit.score).toList(),
-        total: _total.clamp(0, widget.maxScore),
+        total: _total,
         doubleAttempts: _doubleAttempts,
         dartHits: List<DartHit>.from(_darts),
       ),

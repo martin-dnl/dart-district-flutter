@@ -415,6 +415,7 @@ export declare class MatchesService {
     private normalizeMode;
     private normalizeFinishType;
     private resolveStartingScore;
+    private normalizeBestOfLegs;
     private toClientStatus;
     private isInvitationFlow;
     private extractDoubleAttemptsFromSegment;

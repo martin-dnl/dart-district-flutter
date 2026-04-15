@@ -1166,9 +1166,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           final initialZoom = _currentZoom ?? config.centerZoom;
           _showZones = _shouldRenderZones(viewportWidthPx);
           final shouldRenderVectorZones =
-              !kIsWeb &&
-              _showZones &&
-              mapState.activeIrisCodes.isNotEmpty;
+              !kIsWeb && _showZones && mapState.activeIrisCodes.isNotEmpty;
           final clubMarkers = _getOrBuildClubMarkers(mapState.clubMarkers);
           final shouldRenderMarkers =
               ((_currentZoom ?? initialZoom) >= _markerMinZoom);
@@ -1274,6 +1272,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   ),
                   // City search bar (top)
                   SafeArea(
+                    top: false,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
                       child: Column(

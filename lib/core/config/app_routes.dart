@@ -237,6 +237,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               child: const TournamentsListScreen(),
             ),
           ),
+          GoRoute(
+            path: AppRoutes.socialFeed,
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SocialFeedScreen(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.notifications,
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const NotificationsScreen(),
+            ),
+          ),
         ],
       ),
       // ── Protected full-screen routes (displayed above shell) ──────────────
@@ -338,22 +352,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: ProfileScreen(userId: userId),
           );
         },
-      ),
-      GoRoute(
-        path: AppRoutes.socialFeed,
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (_, state) => NoTransitionPage(
-          key: state.pageKey,
-          child: const SocialFeedScreen(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.notifications,
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (_, state) => NoTransitionPage(
-          key: state.pageKey,
-          child: const NotificationsScreen(),
-        ),
       ),
       GoRoute(
         path: AppRoutes.matchHistory,

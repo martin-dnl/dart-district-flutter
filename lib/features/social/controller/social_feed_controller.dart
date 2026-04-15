@@ -49,8 +49,8 @@ class SocialFeedState {
 
 class SocialFeedController extends StateNotifier<SocialFeedState> {
   SocialFeedController(this._ref)
-      : _service = SocialFeedService(_ref.read(apiClientProvider)),
-        super(const SocialFeedState());
+    : _service = SocialFeedService(_ref.read(apiClientProvider)),
+      super(const SocialFeedState());
 
   final Ref _ref;
   final SocialFeedService _service;
@@ -132,7 +132,84 @@ class SocialFeedController extends StateNotifier<SocialFeedState> {
     return loadInitial();
   }
 
-  Future<bool> shareMatchReport(MatchReportData report, String description) async {
+  Future<void> toggleLike(String postId) async {
+    final previous = state.posts;
+
+    final optimistic = previous
+        .map((post) {
+          if (post.id != postId) {
+            return post;
+          }
+
+          final nextLiked = !post.isLikedByCurrentUser;
+          final nextLikes = (post.likesCount + (nextLiked ? 1 : -1)).clamp(
+            0,
+            999999,
+          );
+          return post.copyWith(
+            isLikedByCurrentUser: nextLiked,
+            likesCount: nextLikes,
+          );
+        })
+        .toList(growable: false);
+
+    state = state.copyWith(posts: optimistic, clearError: true);
+
+    final postAfterOptimistic = optimistic.firstWhere(
+      (post) => post.id == postId,
+      orElse: () => previous.firstWhere((post) => post.id == postId),
+    );
+
+    try {
+      if (postAfterOptimistic.isLikedByCurrentUser) {
+        await _service.likePost(postId);
+      } else {
+        await _service.unlikePost(postId);
+      }
+    } catch (_) {
+      state = state.copyWith(
+        posts: previous,
+        error: 'Action like indisponible pour le moment.',
+      );
+    }
+  }
+
+  Future<void> addComment({
+    required String postId,
+    required String message,
+  }) async {
+    final content = message.trim();
+    if (content.isEmpty) {
+      return;
+    }
+
+    try {
+      final comment = await _service.addComment(postId: postId, message: content);
+      final updated = state.posts
+          .map((post) {
+            if (post.id != postId) {
+              return post;
+            }
+
+            return post.copyWith(
+              comments: [comment, ...post.comments],
+              commentsCount: post.commentsCount + 1,
+            );
+          })
+          .toList(growable: false);
+
+      state = state.copyWith(posts: updated, clearError: true);
+    } catch (_) {
+      state = state.copyWith(
+        error: 'Commentaire indisponible pour le moment.',
+      );
+    }
+  }
+
+  Future<bool> shareMatchReport(
+    MatchReportData report,
+    String description,
+  ) async {
     final user = _ref.read(currentUserProvider);
     if (user == null) {
       return false;
@@ -167,6 +244,6 @@ class SocialFeedController extends StateNotifier<SocialFeedState> {
 
 final socialFeedControllerProvider =
     StateNotifierProvider<SocialFeedController, SocialFeedState>((ref) {
-  final controller = SocialFeedController(ref);
-  return controller;
-});
+      final controller = SocialFeedController(ref);
+      return controller;
+    });

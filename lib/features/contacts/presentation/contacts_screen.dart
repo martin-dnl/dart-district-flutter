@@ -67,6 +67,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     return Container(
       decoration: const BoxDecoration(gradient: AppColors.pageGradient),
       child: SafeArea(
+        top: false,
         child: Column(
           children: [
             Padding(
@@ -97,7 +98,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     onPressed: () => ref
                         .read(contactsControllerProvider.notifier)
                         .refreshContacts(),
-                    tooltip: t('SCREEN.CONTACTS.REFRESH', fallback: 'Rafraichir'),
+                    tooltip: t(
+                      'SCREEN.CONTACTS.REFRESH',
+                      fallback: 'Rafraichir',
+                    ),
                     icon: const Icon(
                       Icons.refresh_rounded,
                       color: AppColors.textSecondary,
@@ -505,9 +509,13 @@ class _IncomingRequestTile extends StatelessWidget {
                         '${t('SCREEN.CONTACTS.BLOCK', fallback: 'Bloquer')} ${request.user.username} ?',
                     message: t(
                       'SCREEN.CONTACTS.BLOCK_CONFIRM',
-                      fallback: 'Cet utilisateur ne pourra plus vous contacter.',
+                      fallback:
+                          'Cet utilisateur ne pourra plus vous contacter.',
                     ),
-                    confirmLabel: t('SCREEN.CONTACTS.BLOCK', fallback: 'Bloquer'),
+                    confirmLabel: t(
+                      'SCREEN.CONTACTS.BLOCK',
+                      fallback: 'Bloquer',
+                    ),
                     confirmColor: AppColors.error,
                   );
                   if (confirmed) {
@@ -525,7 +533,9 @@ class _IncomingRequestTile extends StatelessWidget {
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.background,
                   ),
-                  child: Text(t('SCREEN.CONTACTS.ACCEPT', fallback: 'Accepter')),
+                  child: Text(
+                    t('SCREEN.CONTACTS.ACCEPT', fallback: 'Accepter'),
+                  ),
                 ),
               ),
             ],

@@ -16,6 +16,7 @@ exports.SocialController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const create_social_comment_dto_1 = require("./dto/create-social-comment.dto");
 const create_social_post_dto_1 = require("./dto/create-social-post.dto");
 const social_service_1 = require("./social.service");
 let SocialController = class SocialController {
@@ -27,6 +28,15 @@ let SocialController = class SocialController {
     }
     createPost(req, dto) {
         return this.socialService.createPost(req.user.id, dto);
+    }
+    likePost(req, postId) {
+        return this.socialService.likePost(req.user.id, postId);
+    }
+    unlikePost(req, postId) {
+        return this.socialService.unlikePost(req.user.id, postId);
+    }
+    addComment(req, postId, dto) {
+        return this.socialService.addComment(req.user.id, postId, dto);
     }
 };
 exports.SocialController = SocialController;
@@ -47,6 +57,31 @@ __decorate([
     __metadata("design:paramtypes", [Object, create_social_post_dto_1.CreateSocialPostDto]),
     __metadata("design:returntype", void 0)
 ], SocialController.prototype, "createPost", null);
+__decorate([
+    (0, common_1.Post)('posts/:postId/likes'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('postId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SocialController.prototype, "likePost", null);
+__decorate([
+    (0, common_1.Delete)('posts/:postId/likes'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('postId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SocialController.prototype, "unlikePost", null);
+__decorate([
+    (0, common_1.Post)('posts/:postId/comments'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('postId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, create_social_comment_dto_1.CreateSocialCommentDto]),
+    __metadata("design:returntype", void 0)
+], SocialController.prototype, "addComment", null);
 exports.SocialController = SocialController = __decorate([
     (0, swagger_1.ApiTags)('social'),
     (0, swagger_1.ApiBearerAuth)(),

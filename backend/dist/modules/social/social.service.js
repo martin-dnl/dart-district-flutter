@@ -19,10 +19,14 @@ const typeorm_2 = require("typeorm");
 const normalize_limit_1 = require("../../common/utils/normalize-limit");
 const friendship_entity_1 = require("../contacts/entities/friendship.entity");
 const match_entity_1 = require("../matches/entities/match.entity");
+const social_post_comment_entity_1 = require("./entities/social-post-comment.entity");
+const social_post_like_entity_1 = require("./entities/social-post-like.entity");
 const social_post_entity_1 = require("./entities/social-post.entity");
 let SocialService = class SocialService {
-    constructor(socialPostRepo, friendshipRepo, matchRepo) {
+    constructor(socialPostRepo, socialPostLikeRepo, socialPostCommentRepo, friendshipRepo, matchRepo) {
         this.socialPostRepo = socialPostRepo;
+        this.socialPostLikeRepo = socialPostLikeRepo;
+        this.socialPostCommentRepo = socialPostCommentRepo;
         this.friendshipRepo = friendshipRepo;
         this.matchRepo = matchRepo;
     }
@@ -84,7 +88,127 @@ let SocialService = class SocialService {
             .skip(skip)
             .take(take)
             .getMany();
-        return posts.map((post) => this.serializePost(post));
+        const postIds = posts.map((post) => post.id);
+        const { likesCountByPost, likedByMePostIds, commentsByPost } = await this.loadInteractions(userId, postIds);
+        return posts.map((post) => this.serializePost(post, {
+            likesCount: likesCountByPost.get(post.id) ?? 0,
+            likedByMe: likedByMePostIds.has(post.id),
+            comments: commentsByPost.get(post.id) ?? [],
+        }));
+    }
+    async likePost(userId, postId) {
+        await this.ensurePostExists(postId);
+        try {
+            const like = this.socialPostLikeRepo.create({
+                post_id: postId,
+                user_id: userId,
+            });
+            await this.socialPostLikeRepo.save(like);
+        }
+        catch (error) {
+            const pgError = error;
+            if (pgError.code !== '23505') {
+                throw new common_1.ConflictException('Unable to like post');
+            }
+        }
+        const likesCount = await this.socialPostLikeRepo.count({
+            where: { post_id: postId },
+        });
+        return {
+            post_id: postId,
+            likes_count: likesCount,
+            liked_by_me: true,
+        };
+    }
+    async unlikePost(userId, postId) {
+        await this.ensurePostExists(postId);
+        await this.socialPostLikeRepo.delete({
+            post_id: postId,
+            user_id: userId,
+        });
+        const likesCount = await this.socialPostLikeRepo.count({
+            where: { post_id: postId },
+        });
+        return {
+            post_id: postId,
+            likes_count: likesCount,
+            liked_by_me: false,
+        };
+    }
+    async addComment(userId, postId, dto) {
+        await this.ensurePostExists(postId);
+        const message = dto.message?.trim();
+        if (!message) {
+            throw new common_1.BadRequestException('message is required');
+        }
+        const comment = this.socialPostCommentRepo.create({
+            post_id: postId,
+            author_id: userId,
+            message,
+        });
+        const saved = await this.socialPostCommentRepo.save(comment);
+        const row = await this.socialPostCommentRepo.findOne({
+            where: { id: saved.id },
+            relations: ['author'],
+        });
+        if (!row) {
+            throw new common_1.NotFoundException('Comment not found after creation');
+        }
+        const commentsCount = await this.socialPostCommentRepo.count({
+            where: { post_id: postId },
+        });
+        return {
+            post_id: postId,
+            comments_count: commentsCount,
+            comment: this.serializeComment(row),
+        };
+    }
+    async ensurePostExists(postId) {
+        const post = await this.socialPostRepo.findOne({ where: { id: postId } });
+        if (!post) {
+            throw new common_1.NotFoundException('Post not found');
+        }
+    }
+    async loadInteractions(userId, postIds) {
+        if (postIds.length == 0) {
+            return {
+                likesCountByPost: new Map(),
+                likedByMePostIds: new Set(),
+                commentsByPost: new Map(),
+            };
+        }
+        const likesRaw = await this.socialPostLikeRepo
+            .createQueryBuilder('l')
+            .select('l.post_id', 'post_id')
+            .addSelect('COUNT(*)::int', 'likes_count')
+            .where('l.post_id IN (:...postIds)', { postIds })
+            .groupBy('l.post_id')
+            .getRawMany();
+        const myLikes = await this.socialPostLikeRepo
+            .createQueryBuilder('l')
+            .select('l.post_id', 'post_id')
+            .where('l.user_id = :userId', { userId })
+            .andWhere('l.post_id IN (:...postIds)', { postIds })
+            .getRawMany();
+        const comments = await this.socialPostCommentRepo
+            .createQueryBuilder('c')
+            .leftJoinAndSelect('c.author', 'author')
+            .where('c.post_id IN (:...postIds)', { postIds })
+            .orderBy('c.created_at', 'DESC')
+            .getMany();
+        const likesCountByPost = new Map();
+        for (const row of likesRaw) {
+            likesCountByPost.set(row.post_id, Number(row.likes_count) || 0);
+        }
+        const postIdSet = new Set(postIds);
+        const likedByMePostIds = new Set(myLikes.map((like) => like.post_id).filter((postId) => postIdSet.has(postId)));
+        const commentsByPost = new Map();
+        for (const comment of comments) {
+            const existing = commentsByPost.get(comment.post_id) ?? [];
+            existing.push(this.serializeComment(comment));
+            commentsByPost.set(comment.post_id, existing);
+        }
+        return { likesCountByPost, likedByMePostIds, commentsByPost };
     }
     getOrderedPlayers(players) {
         const sideRank = (side) => (side === 'home' ? 0 : 1);
@@ -110,7 +234,7 @@ let SocialService = class SocialService {
                 : 'Defaite';
         return { setsScore, resultLabel };
     }
-    serializePost(post) {
+    serializePost(post, interactions) {
         return {
             id: post.id,
             match_id: post.match_id,
@@ -119,10 +243,26 @@ let SocialService = class SocialService {
             result_label: post.result_label,
             description: post.description,
             created_at: post.created_at,
+            likes_count: interactions?.likesCount ?? 0,
+            comments_count: interactions?.comments?.length ?? 0,
+            liked_by_me: interactions?.likedByMe ?? false,
+            comments: interactions?.comments ?? [],
             author: {
                 id: post.author?.id ?? post.author_id,
                 username: post.author?.username ?? 'Joueur',
                 avatar_url: post.author?.avatar_url ?? null,
+            },
+        };
+    }
+    serializeComment(comment) {
+        return {
+            id: comment.id,
+            message: comment.message,
+            created_at: comment.created_at,
+            author: {
+                id: comment.author?.id ?? comment.author_id,
+                username: comment.author?.username ?? 'Joueur',
+                avatar_url: comment.author?.avatar_url ?? null,
             },
         };
     }
@@ -131,9 +271,13 @@ exports.SocialService = SocialService;
 exports.SocialService = SocialService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(social_post_entity_1.SocialPost)),
-    __param(1, (0, typeorm_1.InjectRepository)(friendship_entity_1.Friendship)),
-    __param(2, (0, typeorm_1.InjectRepository)(match_entity_1.Match)),
+    __param(1, (0, typeorm_1.InjectRepository)(social_post_like_entity_1.SocialPostLike)),
+    __param(2, (0, typeorm_1.InjectRepository)(social_post_comment_entity_1.SocialPostComment)),
+    __param(3, (0, typeorm_1.InjectRepository)(friendship_entity_1.Friendship)),
+    __param(4, (0, typeorm_1.InjectRepository)(match_entity_1.Match)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])
 ], SocialService);

@@ -77,6 +77,32 @@ class SocialFeedService {
     }
   }
 
+  Future<void> likePost(String postId) async {
+    await _api.post<Map<String, dynamic>>('/social/posts/$postId/likes');
+  }
+
+  Future<void> unlikePost(String postId) async {
+    await _api.delete<Map<String, dynamic>>('/social/posts/$postId/likes');
+  }
+
+  Future<SocialFeedComment> addComment({
+    required String postId,
+    required String message,
+  }) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      '/social/posts/$postId/comments',
+      data: {'message': message},
+    );
+
+    final payload = response.data?['data'] as Map<String, dynamic>?;
+    final comment = payload?['comment'] as Map<String, dynamic>?;
+    if (comment == null) {
+      throw Exception('Invalid comment response');
+    }
+
+    return SocialFeedComment.fromApi(comment);
+  }
+
   Future<List<SocialFeedPost>> _fetchLocalFeed({
     required String currentUserId,
     required int limit,

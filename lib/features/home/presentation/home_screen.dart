@@ -8,6 +8,7 @@ import '../../../core/config/app_routes.dart';
 import '../../../core/config/translation_service.dart';
 import '../../match/controller/ongoing_matches_controller.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../notifications/controller/notifications_controller.dart';
 import '../controller/home_controller.dart';
 import '../controller/my_active_tournaments_provider.dart';
 import '../controller/recent_ranked_matches_provider.dart';
@@ -23,6 +24,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final homeState = ref.watch(homeControllerProvider);
+    final unreadNotifications = ref.watch(notificationsUnreadCountProvider);
     final recentRankedMatches = ref.watch(recentRankedMatchesProvider);
     final activeTournaments = ref.watch(myActiveTournamentsProvider);
     final showTournamentsSection = activeTournaments.maybeWhen(
@@ -57,6 +59,7 @@ class HomeScreen extends ConsumerWidget {
                       username: user?.username ?? 'Joueur',
                       clubName: user?.clubName,
                       avatarUrl: user?.avatarUrl,
+                      unreadNotifications: unreadNotifications,
                     ),
                   ),
                 ),
@@ -169,7 +172,10 @@ class HomeScreen extends ConsumerWidget {
                           'SCREEN.HOME.UPCOMING_TOURNAMENTS',
                           fallback: 'Prochains Tournois',
                         ),
-                        action: t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout'),
+                        action: t(
+                          'SCREEN.HOME.VIEW_ALL',
+                          fallback: 'Voir tout',
+                        ),
                         onActionTap: () => context.go(AppRoutes.tournaments),
                       ),
                     ),
@@ -188,23 +194,27 @@ class HomeScreen extends ConsumerWidget {
                           final tournament = tournaments.first;
                           return TournamentTile(
                             type: (tournament['is_territorial'] == true)
-                                  ? t(
-                                      'SCREEN.TOURNAMENTS.TYPE_TERRITORIAL',
-                                      fallback: 'Territorial',
-                                    )
-                                  : t('SCREEN.TOURNAMENTS.TYPE_LOCAL', fallback: 'Local'),
-                              name: (tournament['name'] ??
-                                      t(
-                                        'SCREEN.TOURNAMENTS.IN_PROGRESS',
-                                        fallback: 'Tournoi en cours',
-                                      ))
-                                .toString(),
+                                ? t(
+                                    'SCREEN.TOURNAMENTS.TYPE_TERRITORIAL',
+                                    fallback: 'Territorial',
+                                  )
+                                : t(
+                                    'SCREEN.TOURNAMENTS.TYPE_LOCAL',
+                                    fallback: 'Local',
+                                  ),
+                            name:
+                                (tournament['name'] ??
+                                        t(
+                                          'SCREEN.TOURNAMENTS.IN_PROGRESS',
+                                          fallback: 'Tournoi en cours',
+                                        ))
+                                    .toString(),
                             scheduleLabel:
-                                  (tournament['scheduled_at_label'] ??
-                                          t(
-                                            'SCREEN.TOURNAMENTS.IN_PROGRESS_SHORT',
-                                            fallback: 'En cours',
-                                          ))
+                                (tournament['scheduled_at_label'] ??
+                                        t(
+                                          'SCREEN.TOURNAMENTS.IN_PROGRESS_SHORT',
+                                          fallback: 'En cours',
+                                        ))
                                     .toString(),
                             slotsLabel:
                                 '${(tournament['enrolled_players'] ?? 0).toString()}/${(tournament['max_players'] ?? 0).toString()}',
@@ -247,11 +257,13 @@ class _HomeHeader extends StatelessWidget {
   final String username;
   final String? clubName;
   final String? avatarUrl;
+  final int unreadNotifications;
 
   const _HomeHeader({
     required this.username,
     required this.clubName,
     this.avatarUrl,
+    required this.unreadNotifications,
   });
 
   @override
@@ -303,17 +315,78 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
         ),
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.stroke),
+        InkWell(
+          borderRadius: BorderRadius.circular(99),
+          onTap: () => context.go(AppRoutes.socialFeed),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.stroke),
+            ),
+            child: const Icon(
+              Icons.rss_feed_rounded,
+              color: AppColors.textPrimary,
+            ),
           ),
-          child: const Icon(
-            Icons.notifications_none,
-            color: AppColors.textPrimary,
+        ),
+        const SizedBox(width: 8),
+        InkWell(
+          borderRadius: BorderRadius.circular(99),
+          onTap: () => context.go(AppRoutes.notifications),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.stroke),
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Center(
+                  child: Icon(
+                    Icons.notifications_none,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (unreadNotifications > 0)
+                  Positioned(
+                    right: -2,
+                    top: -3,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: AppColors.surface),
+                      ),
+                      child: Center(
+                        child: Text(
+                          unreadNotifications > 99
+                              ? '99+'
+                              : '$unreadNotifications',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
@@ -481,7 +554,10 @@ class _RecentFormCard extends StatelessWidget {
           const SizedBox(height: 12),
           if (recent.isEmpty)
             Text(
-              t('SCREEN.HOME.NO_RANKED_MATCH', fallback: 'Aucun match classe termine'),
+              t(
+                'SCREEN.HOME.NO_RANKED_MATCH',
+                fallback: 'Aucun match classe termine',
+              ),
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -534,7 +610,7 @@ class _QuickActions extends StatelessWidget {
             Expanded(
               child: _QuickActionTile(
                 icon: Icons.map,
-                  label: t('SCREEN.HOME.OPEN_MAP', fallback: 'Ouvrir\nCarte'),
+                label: t('SCREEN.HOME.OPEN_MAP', fallback: 'Ouvrir\nCarte'),
                 onTap: onOpenMap,
               ),
             ),

@@ -11,6 +11,8 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const friendship_entity_1 = require("../contacts/entities/friendship.entity");
 const match_entity_1 = require("../matches/entities/match.entity");
+const social_post_comment_entity_1 = require("./entities/social-post-comment.entity");
+const social_post_like_entity_1 = require("./entities/social-post-like.entity");
 const social_post_entity_1 = require("./entities/social-post.entity");
 const social_controller_1 = require("./social.controller");
 const social_service_1 = require("./social.service");
@@ -19,7 +21,15 @@ let SocialModule = class SocialModule {
 exports.SocialModule = SocialModule;
 exports.SocialModule = SocialModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([social_post_entity_1.SocialPost, friendship_entity_1.Friendship, match_entity_1.Match])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([
+                social_post_entity_1.SocialPost,
+                social_post_like_entity_1.SocialPostLike,
+                social_post_comment_entity_1.SocialPostComment,
+                friendship_entity_1.Friendship,
+                match_entity_1.Match,
+            ]),
+        ],
         controllers: [social_controller_1.SocialController],
         providers: [social_service_1.SocialService],
     })

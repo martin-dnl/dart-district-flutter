@@ -16,77 +16,73 @@ class NotificationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(notificationsStateProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: Text(
-          t('SCREEN.NOTIFICATIONS.TITLE', fallback: 'Notifications'),
-          style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
-        ),
-        actions: [
-          TextButton(
-            onPressed: state.unreadCount > 0
-                ? () => ref
-                      .read(notificationsStateProvider.notifier)
-                      .markAllAsRead()
-                : null,
-            child: Text(
-              t('SCREEN.NOTIFICATIONS.MARK_ALL_READ', fallback: 'Tout lire'),
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                color: state.unreadCount > 0
-                    ? AppColors.primary
-                    : AppColors.textHint,
+    return Container(
+      decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+      child: RefreshIndicator(
+        onRefresh: () => ref
+            .read(notificationsStateProvider.notifier)
+            .refresh(withLoader: false),
+        child: state.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : state.items.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                children: [
+                  const SizedBox(height: 120),
+                  Icon(
+                    Icons.notifications_none_rounded,
+                    size: 64,
+                    color: AppColors.textHint.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    t(
+                      'SCREEN.NOTIFICATIONS.EMPTY',
+                      fallback: 'Aucune notification pour le moment.',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              )
+            : ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
+                itemCount: state.items.length + 1,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: state.unreadCount > 0
+                            ? () => ref
+                                  .read(notificationsStateProvider.notifier)
+                                  .markAllAsRead()
+                            : null,
+                        child: Text(
+                          t(
+                            'SCREEN.NOTIFICATIONS.MARK_ALL_READ',
+                            fallback: 'Tout lire',
+                          ),
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w800,
+                            color: state.unreadCount > 0
+                                ? AppColors.primary
+                                : AppColors.textHint,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  final item = state.items[index - 1];
+                  return _NotificationCard(item: item);
+                },
               ),
-            ),
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
-        child: RefreshIndicator(
-          onRefresh: () => ref
-              .read(notificationsStateProvider.notifier)
-              .refresh(withLoader: false),
-          child: state.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : state.items.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    const SizedBox(height: 120),
-                    Icon(
-                      Icons.notifications_none_rounded,
-                      size: 64,
-                      color: AppColors.textHint.withValues(alpha: 0.7),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      t(
-                        'SCREEN.NOTIFICATIONS.EMPTY',
-                        fallback: 'Aucune notification pour le moment.',
-                      ),
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                )
-              : ListView.separated(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
-                  itemCount: state.items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final item = state.items[index];
-                    return _NotificationCard(item: item);
-                  },
-                ),
-        ),
       ),
     );
   }

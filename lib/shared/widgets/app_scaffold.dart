@@ -108,10 +108,37 @@ class AppScaffold extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       InkWell(
                         borderRadius: BorderRadius.circular(99),
                         onTap: () =>
                             GoRouter.of(context).go(AppRoutes.socialFeed),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.surface,
+                            border: Border.all(color: AppColors.stroke),
+                          ),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Center(
+                                child: Icon(
+                                  Icons.rss_feed_rounded,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(99),
+                        onTap: () =>
+                            GoRouter.of(context).go(AppRoutes.notifications),
                         child: Container(
                           width: 40,
                           height: 40,
@@ -270,10 +297,6 @@ class AppScaffold extends ConsumerWidget {
   bool _shouldShowPageHeader(String location) {
     if (location.startsWith(AppRoutes.home)) return false;
     if (location.startsWith(AppRoutes.profile)) return false;
-    if (location.startsWith(AppRoutes.map)) return false;
-    if (location.startsWith(AppRoutes.play)) return false;
-    if (location.startsWith(AppRoutes.club)) return false;
-    if (location.startsWith(AppRoutes.contacts)) return false;
     return true;
   }
 
@@ -284,6 +307,8 @@ class AppScaffold extends ConsumerWidget {
     if (location.startsWith(AppRoutes.contactsChat)) return 'Chat';
     if (location.startsWith(AppRoutes.contacts)) return 'Contacts';
     if (location.startsWith(AppRoutes.tournaments)) return 'Tournois';
+    if (location.startsWith(AppRoutes.socialFeed)) return 'Social';
+    if (location.startsWith(AppRoutes.notifications)) return 'Notifications';
     return 'Dart District';
   }
 }

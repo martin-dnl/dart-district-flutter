@@ -396,7 +396,7 @@ class _DartboardHeatmapPainter extends CustomPainter {
         kernelRadius,
         Paint()
           ..shader = shader
-          ..blendMode = BlendMode.screen,
+          ..blendMode = BlendMode.srcOver,
       );
     }
 

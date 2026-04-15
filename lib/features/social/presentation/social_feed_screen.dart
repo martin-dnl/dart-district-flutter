@@ -20,6 +20,7 @@ class SocialFeedScreen extends ConsumerStatefulWidget {
 
 class _SocialFeedScreenState extends ConsumerState<SocialFeedScreen> {
   late final ScrollController _scrollController;
+  final Set<String> _expandedComments = <String>{};
 
   @override
   void initState() {
@@ -49,107 +50,111 @@ class _SocialFeedScreenState extends ConsumerState<SocialFeedScreen> {
     }
   }
 
+  void _toggleComments(String postId) {
+    setState(() {
+      if (_expandedComments.contains(postId)) {
+        _expandedComments.remove(postId);
+      } else {
+        _expandedComments.add(postId);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(socialFeedControllerProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: Text(
-          t('SCREEN.SOCIAL.TITLE', fallback: 'Fil d\'actualite'),
-          style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => context.push(AppRoutes.notifications),
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: t('SCREEN.NOTIFICATIONS.TITLE', fallback: 'Notifications'),
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
-        child: RefreshIndicator(
-          onRefresh: () =>
-              ref.read(socialFeedControllerProvider.notifier).refresh(),
-          child: state.isLoading
-              ? const _FeedSkeletonList()
-              : state.posts.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    const SizedBox(height: 120),
-                    Icon(
-                      Icons.newspaper_rounded,
-                      size: 62,
-                      color: AppColors.textHint.withValues(alpha: 0.7),
+    return Container(
+      decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+      child: RefreshIndicator(
+        onRefresh: () =>
+            ref.read(socialFeedControllerProvider.notifier).refresh(),
+        child: state.isLoading
+            ? const _FeedSkeletonList()
+            : state.posts.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                children: [
+                  const SizedBox(height: 120),
+                  Icon(
+                    Icons.newspaper_rounded,
+                    size: 62,
+                    color: AppColors.textHint.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    t(
+                      'SCREEN.SOCIAL.EMPTY',
+                      fallback: 'Aucune activite de vos amis pour le moment.',
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      t(
-                        'SCREEN.SOCIAL.EMPTY',
-                        fallback: 'Aucune activite de vos amis pour le moment.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              )
+            : ListView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                children: [
+                  if (state.error != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        state.error!,
+                        style: GoogleFonts.manrope(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                  ],
-                )
-              : ListView(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-                  children: [
-                    if (state.error != null)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.error.withValues(alpha: 0.35),
-                          ),
-                        ),
-                        child: Text(
-                          state.error!,
-                          style: GoogleFonts.manrope(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                  for (var i = 0; i < state.posts.length; i++)
+                    _AnimatedFeedItem(
+                      index: i,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _TimelineFeedItem(
+                          index: i,
+                          isLast: i == state.posts.length - 1,
+                          child: _FeedCard(
+                            post: state.posts[i],
+                            commentsExpanded: _expandedComments.contains(
+                              state.posts[i].id,
+                            ),
+                            onToggleComments: () =>
+                                _toggleComments(state.posts[i].id),
                           ),
                         ),
                       ),
-                    for (var i = 0; i < state.posts.length; i++)
-                      _AnimatedFeedItem(
-                        index: i,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _FeedCard(post: state.posts[i]),
+                    ),
+                  if (state.isLoadingMore)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
                         ),
                       ),
-                    if (state.isLoadingMore)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-        ),
+                    ),
+                ],
+              ),
       ),
     );
   }
@@ -266,13 +271,82 @@ class _FeedSkeletonCard extends StatelessWidget {
   }
 }
 
-class _FeedCard extends StatelessWidget {
-  const _FeedCard({required this.post});
+class _TimelineFeedItem extends StatelessWidget {
+  const _TimelineFeedItem({
+    required this.index,
+    required this.isLast,
+    required this.child,
+  });
 
-  final SocialFeedPost post;
+  final int index;
+  final bool isLast;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 24,
+          child: Column(
+            children: [
+              Container(
+                width: 11,
+                height: 11,
+                margin: const EdgeInsets.only(top: 18),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.95),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+              if (!isLast)
+                Container(
+                  width: 2,
+                  height: 126 + (index.isEven ? 8 : 0),
+                  margin: const EdgeInsets.only(top: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.58),
+                        AppColors.secondary.withValues(alpha: 0.12),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
+class _FeedCard extends ConsumerWidget {
+  const _FeedCard({
+    required this.post,
+    required this.commentsExpanded,
+    required this.onToggleComments,
+  });
+
+  final SocialFeedPost post;
+  final bool commentsExpanded;
+  final VoidCallback onToggleComments;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: () {
@@ -399,6 +473,82 @@ class _FeedCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () => ref
+                        .read(socialFeedControllerProvider.notifier)
+                        .toggleLike(post.id),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            post.isLikedByCurrentUser
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: post.isLikedByCurrentUser
+                                ? AppColors.error
+                                : AppColors.textSecondary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${post.likesCount}',
+                            style: GoogleFonts.manrope(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: onToggleComments,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            commentsExpanded
+                                ? Icons.mode_comment
+                                : Icons.mode_comment_outlined,
+                            color: commentsExpanded
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${post.commentsCount}',
+                            style: GoogleFonts.manrope(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (commentsExpanded) ...[
+                const SizedBox(height: 10),
+                _CommentsPanel(post: post),
+              ],
             ],
           ),
         ),
@@ -436,5 +586,220 @@ class _FeedCard extends StatelessWidget {
       return '${diff.inHours} h';
     }
     return '${diff.inDays} j';
+  }
+}
+
+class _CommentsPanel extends ConsumerStatefulWidget {
+  const _CommentsPanel({required this.post});
+
+  final SocialFeedPost post;
+
+  @override
+  ConsumerState<_CommentsPanel> createState() => _CommentsPanelState();
+}
+
+class _CommentsPanelState extends ConsumerState<_CommentsPanel> {
+  late final TextEditingController _commentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitComment() async {
+    await ref
+        .read(socialFeedControllerProvider.notifier)
+        .addComment(
+          postId: widget.post.id,
+          message: _commentController.text,
+        );
+    _commentController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = ref.watch(
+      socialFeedControllerProvider.select(
+        (state) => state.posts.firstWhere(
+          (item) => item.id == widget.post.id,
+          orElse: () => widget.post,
+        ),
+      ),
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.stroke.withValues(alpha: 0.9)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (post.comments.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                t(
+                  'SCREEN.SOCIAL.NO_COMMENTS',
+                  fallback: 'Aucun commentaire pour le moment.',
+                ),
+                style: GoogleFonts.manrope(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            )
+          else ...[
+            for (var i = 0; i < post.comments.length; i++) ...[
+              _CommentRow(comment: post.comments[i]),
+              if (i != post.comments.length - 1)
+                Divider(
+                  height: 14,
+                  color: AppColors.stroke.withValues(alpha: 0.7),
+                ),
+            ],
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _commentController,
+                  minLines: 1,
+                  maxLines: 2,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: t(
+                      'SCREEN.SOCIAL.WRITE_COMMENT',
+                      fallback: 'Ecrire un commentaire...',
+                    ),
+                    hintStyle: GoogleFonts.manrope(
+                      color: AppColors.textHint,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    filled: true,
+                    fillColor: AppColors.card.withValues(alpha: 0.7),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: AppColors.stroke.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: AppColors.stroke.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                      borderSide: BorderSide(
+                        color: AppColors.primary,
+                        width: 1.1,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (_) => _submitComment(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: _submitComment,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentRow extends StatelessWidget {
+  const _CommentRow({required this.comment});
+
+  final SocialFeedComment comment;
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = DateTime.now().difference(comment.createdAt);
+    final timeLabel = diff.inMinutes < 1
+        ? t('SCREEN.SOCIAL.NOW', fallback: 'A l\'instant')
+        : (diff.inHours < 1 ? '${diff.inMinutes} min' : '${diff.inHours} h');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                comment.authorName,
+                style: GoogleFonts.manrope(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            Text(
+              timeLabel,
+              style: GoogleFonts.manrope(
+                color: AppColors.textHint,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          comment.message,
+          style: GoogleFonts.manrope(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
   }
 }

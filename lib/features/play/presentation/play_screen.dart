@@ -36,14 +36,11 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-            
-
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
             // X01 Modes
             const SliverToBoxAdapter(child: SectionHeader(title: 'Modes X01')),
             SliverToBoxAdapter(
@@ -123,8 +120,7 @@ class _PlayScreenState extends ConsumerState<PlayScreen> {
             // Ongoing Matches
             SliverToBoxAdapter(child: OngoingMatchesTile()),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
-          ),
+          ],
         ),
       ),
     );

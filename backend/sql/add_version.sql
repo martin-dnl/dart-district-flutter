@@ -1,4 +1,4 @@
-INSERT INTO app_version_policies (
+da  INSERT INTO app_version_policies (
   platform,
   min_version,
   recommended_version,

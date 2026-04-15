@@ -170,8 +170,9 @@ class _ClubDiscoveryScreenState extends ConsumerState<_ClubDiscoveryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
+        top: false,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

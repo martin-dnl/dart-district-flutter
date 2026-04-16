@@ -53,6 +53,9 @@ let MatchesController = class MatchesController {
     myMatches(req, limit, offset, status, ranked) {
         return this.matchesService.findByUser(req.user.id, limit, offset, status, ranked);
     }
+    userMatches(userId, limit, offset, status, ranked) {
+        return this.matchesService.findByUser(userId, limit, offset, status, ranked);
+    }
     report(id) {
         return this.matchesService.getMatchReport(id);
     }
@@ -153,6 +156,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, Number, String, String]),
     __metadata("design:returntype", void 0)
 ], MatchesController.prototype, "myMatches", null);
+__decorate([
+    (0, common_1.Get)('user/:userId'),
+    __param(0, (0, common_1.Param)('userId', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('offset')),
+    __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('ranked')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Number, String, String]),
+    __metadata("design:returntype", void 0)
+], MatchesController.prototype, "userMatches", null);
 __decorate([
     (0, common_1.Get)(':id/report'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),

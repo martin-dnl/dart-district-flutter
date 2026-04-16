@@ -7,6 +7,7 @@ import { Match } from '../matches/entities/match.entity';
 import { ClubMember } from '../clubs/entities/club-member.entity';
 import { ClubTerritoryPoints } from '../clubs/entities/club-territory-points.entity';
 import { Territory } from '../territories/entities/territory.entity';
+import { PlayerTerritoryPoints } from '../territories/entities/player-territory-points.entity';
 export declare class StatsService {
     private readonly statRepo;
     private readonly eloRepo;
@@ -15,8 +16,9 @@ export declare class StatsService {
     private readonly matchRepo;
     private readonly clubMemberRepo;
     private readonly ctpRepo;
+    private readonly ptpRepo;
     private readonly territoryRepo;
-    constructor(statRepo: Repository<PlayerStat>, eloRepo: Repository<EloHistory>, userRepo: Repository<User>, throwRepo: Repository<Throw>, matchRepo: Repository<Match>, clubMemberRepo: Repository<ClubMember>, ctpRepo: Repository<ClubTerritoryPoints>, territoryRepo: Repository<Territory>);
+    constructor(statRepo: Repository<PlayerStat>, eloRepo: Repository<EloHistory>, userRepo: Repository<User>, throwRepo: Repository<Throw>, matchRepo: Repository<Match>, clubMemberRepo: Repository<ClubMember>, ctpRepo: Repository<ClubTerritoryPoints>, ptpRepo: Repository<PlayerTerritoryPoints>, territoryRepo: Repository<Territory>);
     private readonly territoryControlMinPoints;
     getByUser(userId: string): Promise<PlayerStat>;
     updateAfterMatch(userId: string, matchData: {

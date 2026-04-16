@@ -1,5 +1,6 @@
 import { CreateSocialCommentDto } from './dto/create-social-comment.dto';
 import { CreateSocialPostDto } from './dto/create-social-post.dto';
+import { CreateSocialReportDto } from './dto/create-social-report.dto';
 import { SocialService } from './social.service';
 export declare class SocialController {
     private readonly socialService;
@@ -16,6 +17,13 @@ export declare class SocialController {
         result_label: string;
         description: string | null;
         created_at: Date;
+        player_1_name: string | null;
+        player_1_score: number | null;
+        player_2_name: string | null;
+        player_2_score: number | null;
+        winner_user_id: string | null;
+        match_average: number | null;
+        match_checkout_rate: number | null;
         likes_count: number;
         comments_count: number;
         liked_by_me: boolean;
@@ -47,6 +55,13 @@ export declare class SocialController {
         result_label: string;
         description: string | null;
         created_at: Date;
+        player_1_name: string | null;
+        player_1_score: number | null;
+        player_2_name: string | null;
+        player_2_score: number | null;
+        winner_user_id: string | null;
+        match_average: number | null;
+        match_checkout_rate: number | null;
         likes_count: number;
         comments_count: number;
         liked_by_me: boolean;
@@ -101,5 +116,13 @@ export declare class SocialController {
                 avatar_url: string | null;
             };
         };
+    }>;
+    reportPost(req: {
+        user: {
+            id: string;
+        };
+    }, postId: string, dto: CreateSocialReportDto): Promise<{
+        post_id: string;
+        reported: boolean;
     }>;
 }

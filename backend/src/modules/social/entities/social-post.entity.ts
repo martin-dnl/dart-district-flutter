@@ -35,6 +35,27 @@ export class SocialPost {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  player_1_name: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  player_1_score: number | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  player_2_name: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  player_2_score: number | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  winner_user_id: string | null;
+
+  @Column({ type: 'numeric', precision: 6, scale: 2, nullable: true })
+  match_average: number | null;
+
+  @Column({ type: 'numeric', precision: 6, scale: 2, nullable: true })
+  match_checkout_rate: number | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 

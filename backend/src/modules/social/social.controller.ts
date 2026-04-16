@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateSocialCommentDto } from './dto/create-social-comment.dto';
 import { CreateSocialPostDto } from './dto/create-social-post.dto';
+import { CreateSocialReportDto } from './dto/create-social-report.dto';
 import { SocialService } from './social.service';
 
 @ApiTags('social')
@@ -64,5 +65,14 @@ export class SocialController {
     @Body() dto: CreateSocialCommentDto,
   ) {
     return this.socialService.addComment(req.user.id, postId, dto);
+  }
+
+  @Post('posts/:postId/reports')
+  reportPost(
+    @Req() req: { user: { id: string } },
+    @Param('postId', ParseUUIDPipe) postId: string,
+    @Body() dto: CreateSocialReportDto,
+  ) {
+    return this.socialService.reportPost(req.user.id, postId, dto);
   }
 }

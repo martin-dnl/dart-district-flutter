@@ -22,11 +22,13 @@ const match_entity_1 = require("../matches/entities/match.entity");
 const social_post_comment_entity_1 = require("./entities/social-post-comment.entity");
 const social_post_like_entity_1 = require("./entities/social-post-like.entity");
 const social_post_entity_1 = require("./entities/social-post.entity");
+const social_post_report_entity_1 = require("./entities/social-post-report.entity");
 let SocialService = class SocialService {
-    constructor(socialPostRepo, socialPostLikeRepo, socialPostCommentRepo, friendshipRepo, matchRepo) {
+    constructor(socialPostRepo, socialPostLikeRepo, socialPostCommentRepo, socialPostReportRepo, friendshipRepo, matchRepo) {
         this.socialPostRepo = socialPostRepo;
         this.socialPostLikeRepo = socialPostLikeRepo;
         this.socialPostCommentRepo = socialPostCommentRepo;
+        this.socialPostReportRepo = socialPostReportRepo;
         this.friendshipRepo = friendshipRepo;
         this.matchRepo = matchRepo;
     }
@@ -37,7 +39,7 @@ let SocialService = class SocialService {
         }
         const match = await this.matchRepo.findOne({
             where: { id: matchId },
-            relations: ['players', 'players.user', 'sets'],
+            relations: ['players', 'players.user', 'sets', 'sets.legs', 'sets.legs.throws'],
         });
         if (!match) {
             throw new common_1.NotFoundException('Match not found');
@@ -47,7 +49,10 @@ let SocialService = class SocialService {
         if (!author) {
             throw new common_1.BadRequestException('You are not a player in this match');
         }
-        const { setsScore, resultLabel } = this.computeMatchResult(match, orderedPlayers, userId);
+        const { setsScore, resultLabel, winnerId, homeSets, awaySets } = this.computeMatchResult(match, orderedPlayers, userId);
+        const matchStats = this.computeMatchGlobalStats(match);
+        const home = orderedPlayers[0];
+        const away = orderedPlayers[1];
         const post = this.socialPostRepo.create({
             author_id: userId,
             match_id: match.id,
@@ -55,6 +60,13 @@ let SocialService = class SocialService {
             sets_score: setsScore,
             result_label: resultLabel,
             description: (body.description ?? '').trim() || null,
+            player_1_name: home?.user?.username ?? 'Joueur 1',
+            player_1_score: homeSets,
+            player_2_name: away?.user?.username ?? 'Joueur 2',
+            player_2_score: awaySets,
+            winner_user_id: winnerId,
+            match_average: matchStats.average,
+            match_checkout_rate: matchStats.checkoutRate,
         });
         const saved = await this.socialPostRepo.save(post);
         const row = await this.socialPostRepo.findOne({
@@ -163,11 +175,42 @@ let SocialService = class SocialService {
             comment: this.serializeComment(row),
         };
     }
+    async reportPost(userId, postId, dto) {
+        const post = await this.ensurePostExists(postId);
+        const reason = dto.reason?.trim();
+        if (!reason) {
+            throw new common_1.BadRequestException('reason is required');
+        }
+        if (post.author_id === userId) {
+            throw new common_1.BadRequestException('Cannot report your own post');
+        }
+        try {
+            const report = this.socialPostReportRepo.create({
+                post_id: postId,
+                reporter_id: userId,
+                author_id: post.author_id,
+                reason,
+            });
+            await this.socialPostReportRepo.save(report);
+        }
+        catch (error) {
+            const pgError = error;
+            if (pgError.code === '23505') {
+                throw new common_1.ConflictException('Post already reported by this user');
+            }
+            throw new common_1.ConflictException('Unable to report post');
+        }
+        return {
+            post_id: postId,
+            reported: true,
+        };
+    }
     async ensurePostExists(postId) {
         const post = await this.socialPostRepo.findOne({ where: { id: postId } });
         if (!post) {
             throw new common_1.NotFoundException('Post not found');
         }
+        return post;
     }
     async loadInteractions(userId, postIds) {
         if (postIds.length == 0) {
@@ -232,7 +275,34 @@ let SocialService = class SocialService {
             : winnerId === userId
                 ? 'Victoire'
                 : 'Defaite';
-        return { setsScore, resultLabel };
+        return { setsScore, resultLabel, winnerId, homeSets, awaySets };
+    }
+    computeMatchGlobalStats(match) {
+        const allLegs = (match.sets ?? []).flatMap((set) => set.legs ?? []);
+        const allThrows = allLegs.flatMap((leg) => leg.throws ?? []);
+        if (allThrows.length === 0) {
+            return { average: null, checkoutRate: null };
+        }
+        const totalScore = allThrows.reduce((sum, t) => sum + t.score, 0);
+        const checkoutAttempts = allThrows
+            .map((t) => this.extractDoubleAttemptsFromSegment(t.segment ?? ''))
+            .reduce((sum, value) => sum + value, 0);
+        const checkoutHits = allThrows.filter((t) => t.is_checkout).length;
+        return {
+            average: Number((totalScore / allThrows.length).toFixed(2)),
+            checkoutRate: checkoutAttempts > 0
+                ? Number(((checkoutHits / checkoutAttempts) * 100).toFixed(2))
+                : 0,
+        };
+    }
+    extractDoubleAttemptsFromSegment(segment) {
+        if (segment.startsWith('CD')) {
+            return Number.parseInt(segment.slice(2), 10) || 0;
+        }
+        if (segment.startsWith('CHECKOUT_D')) {
+            return Number.parseInt(segment.replace('CHECKOUT_D', ''), 10) || 0;
+        }
+        return 0;
     }
     serializePost(post, interactions) {
         return {
@@ -243,6 +313,13 @@ let SocialService = class SocialService {
             result_label: post.result_label,
             description: post.description,
             created_at: post.created_at,
+            player_1_name: post.player_1_name,
+            player_1_score: post.player_1_score,
+            player_2_name: post.player_2_name,
+            player_2_score: post.player_2_score,
+            winner_user_id: post.winner_user_id,
+            match_average: post.match_average,
+            match_checkout_rate: post.match_checkout_rate,
             likes_count: interactions?.likesCount ?? 0,
             comments_count: interactions?.comments?.length ?? 0,
             liked_by_me: interactions?.likedByMe ?? false,
@@ -273,9 +350,11 @@ exports.SocialService = SocialService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(social_post_entity_1.SocialPost)),
     __param(1, (0, typeorm_1.InjectRepository)(social_post_like_entity_1.SocialPostLike)),
     __param(2, (0, typeorm_1.InjectRepository)(social_post_comment_entity_1.SocialPostComment)),
-    __param(3, (0, typeorm_1.InjectRepository)(friendship_entity_1.Friendship)),
-    __param(4, (0, typeorm_1.InjectRepository)(match_entity_1.Match)),
+    __param(3, (0, typeorm_1.InjectRepository)(social_post_report_entity_1.SocialPostReport)),
+    __param(4, (0, typeorm_1.InjectRepository)(friendship_entity_1.Friendship)),
+    __param(5, (0, typeorm_1.InjectRepository)(match_entity_1.Match)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

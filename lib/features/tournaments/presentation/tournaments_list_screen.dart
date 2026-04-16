@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../play/presentation/qr_scan_screen.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/neon_modal.dart';
 import '../controller/tournament_controller.dart';

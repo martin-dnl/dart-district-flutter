@@ -169,13 +169,33 @@ let UsersService = class UsersService {
         }
         return qb.getMany();
     }
-    async leaderboard(limit = 50) {
+    async leaderboard(limit = 50, metric = 'elo', query) {
         const take = (0, normalize_limit_1.normalizeLimit)(limit, 50);
-        return this.repo.find({
-            order: { elo: 'DESC' },
-            take,
-            select: ['id', 'username', 'avatar_url', 'elo', 'level'],
-        });
+        const qb = this.repo
+            .createQueryBuilder('u')
+            .select([
+            'u.id',
+            'u.username',
+            'u.avatar_url',
+            'u.elo',
+            'u.conquest_score',
+            'u.level',
+        ])
+            .where('u.is_active = true')
+            .take(take);
+        const normalizedQuery = (query ?? '').trim();
+        if (normalizedQuery.length > 0) {
+            qb.andWhere('u.username ILIKE :query', {
+                query: `%${normalizedQuery}%`,
+            });
+        }
+        if (metric === 'conquest') {
+            qb.orderBy('u.conquest_score', 'DESC').addOrderBy('u.elo', 'DESC');
+        }
+        else {
+            qb.orderBy('u.elo', 'DESC').addOrderBy('u.conquest_score', 'DESC');
+        }
+        return qb.getMany();
     }
     async remove(id) {
         const user = await this.repo.findOne({ where: { id } });

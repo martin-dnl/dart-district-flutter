@@ -375,6 +375,24 @@ export declare class MatchesController {
             sets_won: number;
         }[];
     }[]>;
+    userMatches(userId: string, limit?: number, offset?: number, status?: string, ranked?: string): Promise<{
+        id: string;
+        mode: string;
+        status: string;
+        is_ranked: boolean;
+        created_at: Date;
+        started_at: Date | null;
+        completed_at: Date | null;
+        surrendered_by: string | null;
+        winner_id: string | null;
+        players: {
+            user_id: string;
+            username: string;
+            avatar_url: string | null;
+            is_winner: boolean | null;
+            sets_won: number;
+        }[];
+    }[]>;
     report(id: string): Promise<{
         match_id: string;
         mode: string;

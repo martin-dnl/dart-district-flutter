@@ -60,8 +60,9 @@ let UsersController = class UsersController {
         }
         return this.usersService.getSettings(req.user.id, key);
     }
-    leaderboard(limit) {
-        return this.usersService.leaderboard(limit);
+    leaderboard(limit, metric, q) {
+        const resolvedMetric = metric === 'conquest' ? 'conquest' : 'elo';
+        return this.usersService.leaderboard(limit, resolvedMetric, q);
     }
     search(req, q, limit) {
         return this.usersService.search(q, limit, req.user.id);
@@ -128,8 +129,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('leaderboard'),
     __param(0, (0, common_1.Query)('limit')),
+    __param(1, (0, common_1.Query)('metric')),
+    __param(2, (0, common_1.Query)('q')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, String, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "leaderboard", null);
 __decorate([

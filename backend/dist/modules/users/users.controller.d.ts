@@ -48,7 +48,7 @@ export declare class UsersController {
         key: string;
         value: string | null;
     }>;
-    leaderboard(limit?: number): Promise<import("./entities/user.entity").User[]>;
+    leaderboard(limit?: number, metric?: 'elo' | 'conquest', q?: string): Promise<import("./entities/user.entity").User[]>;
     search(req: {
         user: {
             id: string;

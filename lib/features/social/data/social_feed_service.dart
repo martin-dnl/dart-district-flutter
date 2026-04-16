@@ -103,6 +103,16 @@ class SocialFeedService {
     return SocialFeedComment.fromApi(comment);
   }
 
+  Future<void> reportPost({
+    required String postId,
+    required String reason,
+  }) async {
+    await _api.post<Map<String, dynamic>>(
+      '/social/posts/$postId/reports',
+      data: {'reason': reason},
+    );
+  }
+
   Future<List<SocialFeedPost>> _fetchLocalFeed({
     required String currentUserId,
     required int limit,

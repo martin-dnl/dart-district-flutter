@@ -34,7 +34,7 @@ export declare class UsersService {
         avatar_url: string;
     }>;
     search(query: string, limit?: number, excludeUserId?: string): Promise<User[]>;
-    leaderboard(limit?: number): Promise<User[]>;
+    leaderboard(limit?: number, metric?: 'elo' | 'conquest', query?: string): Promise<User[]>;
     remove(id: string): Promise<{
         success: boolean;
     }>;

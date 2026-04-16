@@ -14,6 +14,7 @@ const match_entity_1 = require("../matches/entities/match.entity");
 const social_post_comment_entity_1 = require("./entities/social-post-comment.entity");
 const social_post_like_entity_1 = require("./entities/social-post-like.entity");
 const social_post_entity_1 = require("./entities/social-post.entity");
+const social_post_report_entity_1 = require("./entities/social-post-report.entity");
 const social_controller_1 = require("./social.controller");
 const social_service_1 = require("./social.service");
 let SocialModule = class SocialModule {
@@ -26,6 +27,7 @@ exports.SocialModule = SocialModule = __decorate([
                 social_post_entity_1.SocialPost,
                 social_post_like_entity_1.SocialPostLike,
                 social_post_comment_entity_1.SocialPostComment,
+                social_post_report_entity_1.SocialPostReport,
                 friendship_entity_1.Friendship,
                 match_entity_1.Match,
             ]),

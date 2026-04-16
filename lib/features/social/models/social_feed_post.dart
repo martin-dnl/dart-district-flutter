@@ -10,6 +10,13 @@ class SocialFeedPost {
     required this.resultLabel,
     required this.description,
     required this.createdAt,
+    this.player1Name,
+    this.player1Score,
+    this.player2Name,
+    this.player2Score,
+    this.winnerUserId,
+    this.matchAverage,
+    this.matchCheckoutRate,
     this.likesCount = 0,
     this.commentsCount = 0,
     this.isLikedByCurrentUser = false,
@@ -27,6 +34,13 @@ class SocialFeedPost {
   final String resultLabel;
   final String description;
   final DateTime createdAt;
+  final String? player1Name;
+  final int? player1Score;
+  final String? player2Name;
+  final int? player2Score;
+  final String? winnerUserId;
+  final double? matchAverage;
+  final double? matchCheckoutRate;
   final int likesCount;
   final int commentsCount;
   final bool isLikedByCurrentUser;
@@ -50,6 +64,13 @@ class SocialFeedPost {
       resultLabel: resultLabel,
       description: description,
       createdAt: createdAt,
+      player1Name: player1Name,
+      player1Score: player1Score,
+      player2Name: player2Name,
+      player2Score: player2Score,
+      winnerUserId: winnerUserId,
+      matchAverage: matchAverage,
+      matchCheckoutRate: matchCheckoutRate,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
       isLikedByCurrentUser: isLikedByCurrentUser ?? this.isLikedByCurrentUser,
@@ -95,6 +116,13 @@ class SocialFeedPost {
       createdAt:
           DateTime.tryParse((json['created_at'] ?? '').toString()) ??
           DateTime.now(),
+          player1Name: json['player_1_name']?.toString(),
+          player1Score: (json['player_1_score'] as num?)?.toInt(),
+          player2Name: json['player_2_name']?.toString(),
+          player2Score: (json['player_2_score'] as num?)?.toInt(),
+          winnerUserId: json['winner_user_id']?.toString(),
+          matchAverage: _toDouble(json['match_average']),
+          matchCheckoutRate: _toDouble(json['match_checkout_rate']),
       likesCount: (json['likes_count'] as num?)?.toInt() ?? 0,
       commentsCount: fallbackCommentsCount,
       isLikedByCurrentUser: json['liked_by_me'] == true,
@@ -116,11 +144,31 @@ class SocialFeedPost {
       'result_label': resultLabel,
       'description': description,
       'created_at': createdAt.toIso8601String(),
+      'player_1_name': player1Name,
+      'player_1_score': player1Score,
+      'player_2_name': player2Name,
+      'player_2_score': player2Score,
+      'winner_user_id': winnerUserId,
+      'match_average': matchAverage,
+      'match_checkout_rate': matchCheckoutRate,
       'likes_count': likesCount,
       'comments_count': commentsCount,
       'liked_by_me': isLikedByCurrentUser,
       'comments': comments.map((comment) => comment.toJson()).toList(),
     };
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
   }
 }
 

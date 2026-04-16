@@ -18,6 +18,7 @@ const swagger_1 = require("@nestjs/swagger");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const create_social_comment_dto_1 = require("./dto/create-social-comment.dto");
 const create_social_post_dto_1 = require("./dto/create-social-post.dto");
+const create_social_report_dto_1 = require("./dto/create-social-report.dto");
 const social_service_1 = require("./social.service");
 let SocialController = class SocialController {
     constructor(socialService) {
@@ -37,6 +38,9 @@ let SocialController = class SocialController {
     }
     addComment(req, postId, dto) {
         return this.socialService.addComment(req.user.id, postId, dto);
+    }
+    reportPost(req, postId, dto) {
+        return this.socialService.reportPost(req.user.id, postId, dto);
     }
 };
 exports.SocialController = SocialController;
@@ -82,6 +86,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, create_social_comment_dto_1.CreateSocialCommentDto]),
     __metadata("design:returntype", void 0)
 ], SocialController.prototype, "addComment", null);
+__decorate([
+    (0, common_1.Post)('posts/:postId/reports'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('postId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, create_social_report_dto_1.CreateSocialReportDto]),
+    __metadata("design:returntype", void 0)
+], SocialController.prototype, "reportPost", null);
 exports.SocialController = SocialController = __decorate([
     (0, swagger_1.ApiTags)('social'),
     (0, swagger_1.ApiBearerAuth)(),

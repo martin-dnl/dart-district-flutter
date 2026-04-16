@@ -12,9 +12,12 @@ import { Friendship } from '../contacts/entities/friendship.entity';
 import { Match } from '../matches/entities/match.entity';
 import { MatchPlayer } from '../matches/entities/match-player.entity';
 import { CreateSocialCommentDto } from './dto/create-social-comment.dto';
+import { CreateSocialPostDto } from './dto/create-social-post.dto';
+import { CreateSocialReportDto } from './dto/create-social-report.dto';
 import { SocialPostComment } from './entities/social-post-comment.entity';
 import { SocialPostLike } from './entities/social-post-like.entity';
 import { SocialPost } from './entities/social-post.entity';
+import { SocialPostReport } from './entities/social-post-report.entity';
 
 type SerializedSocialComment = {
   id: string;
@@ -36,6 +39,8 @@ export class SocialService {
     private readonly socialPostLikeRepo: Repository<SocialPostLike>,
     @InjectRepository(SocialPostComment)
     private readonly socialPostCommentRepo: Repository<SocialPostComment>,
+    @InjectRepository(SocialPostReport)
+    private readonly socialPostReportRepo: Repository<SocialPostReport>,
     @InjectRepository(Friendship)
     private readonly friendshipRepo: Repository<Friendship>,
     @InjectRepository(Match)
@@ -44,7 +49,7 @@ export class SocialService {
 
   async createPost(
     userId: string,
-    body: { match_id: string; description?: string },
+    body: CreateSocialPostDto,
   ) {
     const matchId = body.match_id?.trim();
     if (!matchId) {
@@ -53,7 +58,7 @@ export class SocialService {
 
     const match = await this.matchRepo.findOne({
       where: { id: matchId },
-      relations: ['players', 'players.user', 'sets'],
+      relations: ['players', 'players.user', 'sets', 'sets.legs', 'sets.legs.throws'],
     });
 
     if (!match) {
@@ -66,11 +71,15 @@ export class SocialService {
       throw new BadRequestException('You are not a player in this match');
     }
 
-    const { setsScore, resultLabel } = this.computeMatchResult(
+    const { setsScore, resultLabel, winnerId, homeSets, awaySets } =
+      this.computeMatchResult(
       match,
       orderedPlayers,
       userId,
     );
+    const matchStats = this.computeMatchGlobalStats(match);
+    const home = orderedPlayers[0];
+    const away = orderedPlayers[1];
 
     const post = this.socialPostRepo.create({
       author_id: userId,
@@ -79,6 +88,13 @@ export class SocialService {
       sets_score: setsScore,
       result_label: resultLabel,
       description: (body.description ?? '').trim() || null,
+      player_1_name: home?.user?.username ?? 'Joueur 1',
+      player_1_score: homeSets,
+      player_2_name: away?.user?.username ?? 'Joueur 2',
+      player_2_score: awaySets,
+      winner_user_id: winnerId,
+      match_average: matchStats.average,
+      match_checkout_rate: matchStats.checkoutRate,
     });
 
     const saved = await this.socialPostRepo.save(post);
@@ -215,11 +231,44 @@ export class SocialService {
     };
   }
 
+  async reportPost(userId: string, postId: string, dto: CreateSocialReportDto) {
+    const post = await this.ensurePostExists(postId);
+    const reason = dto.reason?.trim();
+    if (!reason) {
+      throw new BadRequestException('reason is required');
+    }
+    if (post.author_id === userId) {
+      throw new BadRequestException('Cannot report your own post');
+    }
+
+    try {
+      const report = this.socialPostReportRepo.create({
+        post_id: postId,
+        reporter_id: userId,
+        author_id: post.author_id,
+        reason,
+      });
+      await this.socialPostReportRepo.save(report);
+    } catch (error: unknown) {
+      const pgError = error as { code?: string };
+      if (pgError.code === '23505') {
+        throw new ConflictException('Post already reported by this user');
+      }
+      throw new ConflictException('Unable to report post');
+    }
+
+    return {
+      post_id: postId,
+      reported: true,
+    };
+  }
+
   private async ensurePostExists(postId: string) {
     const post = await this.socialPostRepo.findOne({ where: { id: postId } });
     if (!post) {
       throw new NotFoundException('Post not found');
     }
+    return post;
   }
 
   private async loadInteractions(userId: string, postIds: string[]) {
@@ -311,7 +360,44 @@ export class SocialService {
         ? 'Victoire'
         : 'Defaite';
 
-    return { setsScore, resultLabel };
+    return { setsScore, resultLabel, winnerId, homeSets, awaySets };
+  }
+
+  private computeMatchGlobalStats(match: Match): {
+    average: number | null;
+    checkoutRate: number | null;
+  } {
+    const allLegs = (match.sets ?? []).flatMap((set) => set.legs ?? []);
+    const allThrows = allLegs.flatMap((leg) => leg.throws ?? []);
+    if (allThrows.length === 0) {
+      return { average: null, checkoutRate: null };
+    }
+
+    const totalScore = allThrows.reduce((sum, t) => sum + t.score, 0);
+    const checkoutAttempts = allThrows
+      .map((t) => this.extractDoubleAttemptsFromSegment(t.segment ?? ''))
+      .reduce((sum, value) => sum + value, 0);
+    const checkoutHits = allThrows.filter((t) => t.is_checkout).length;
+
+    return {
+      average: Number((totalScore / allThrows.length).toFixed(2)),
+      checkoutRate:
+        checkoutAttempts > 0
+          ? Number(((checkoutHits / checkoutAttempts) * 100).toFixed(2))
+          : 0,
+    };
+  }
+
+  private extractDoubleAttemptsFromSegment(segment: string) {
+    if (segment.startsWith('CD')) {
+      return Number.parseInt(segment.slice(2), 10) || 0;
+    }
+
+    if (segment.startsWith('CHECKOUT_D')) {
+      return Number.parseInt(segment.replace('CHECKOUT_D', ''), 10) || 0;
+    }
+
+    return 0;
   }
 
   private serializePost(
@@ -330,6 +416,13 @@ export class SocialService {
       result_label: post.result_label,
       description: post.description,
       created_at: post.created_at,
+      player_1_name: post.player_1_name,
+      player_1_score: post.player_1_score,
+      player_2_name: post.player_2_name,
+      player_2_score: post.player_2_score,
+      winner_user_id: post.winner_user_id,
+      match_average: post.match_average,
+      match_checkout_rate: post.match_checkout_rate,
       likes_count: interactions?.likesCount ?? 0,
       comments_count: interactions?.comments?.length ?? 0,
       liked_by_me: interactions?.likedByMe ?? false,

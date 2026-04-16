@@ -44,6 +44,34 @@ __decorate([
     __metadata("design:type", Object)
 ], SocialPost.prototype, "description", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], SocialPost.prototype, "player_1_name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], SocialPost.prototype, "player_1_score", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], SocialPost.prototype, "player_2_name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], SocialPost.prototype, "player_2_score", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], SocialPost.prototype, "winner_user_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'numeric', precision: 6, scale: 2, nullable: true }),
+    __metadata("design:type", Object)
+], SocialPost.prototype, "match_average", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'numeric', precision: 6, scale: 2, nullable: true }),
+    __metadata("design:type", Object)
+], SocialPost.prototype, "match_checkout_rate", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)({ type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], SocialPost.prototype, "created_at", void 0);

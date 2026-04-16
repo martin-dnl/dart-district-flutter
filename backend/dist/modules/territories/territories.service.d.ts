@@ -136,6 +136,13 @@ export declare class TerritoriesService {
             club_name: string;
             points: number;
         }[];
+        top_players: {
+            rank: number;
+            user_id: string;
+            username: string;
+            elo: number;
+            points: number;
+        }[];
     }>;
     history(codeIris: string): Promise<TerritoryHistory[]>;
     updateStatus(codeIris: string, dto: UpdateTerritoryStatusDto, actorUserId: string): Promise<Territory>;

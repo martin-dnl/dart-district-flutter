@@ -85,23 +85,32 @@ class _MatchReportView extends ConsumerWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          children: [
-                            PlayerAvatar(
-                              imageUrl: data.player1.avatarUrl,
-                              name: data.player1.name,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              data.player1.name,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: data.player1.userId.isNotEmpty
+                              ? () => context.push(
+                                  AppRoutes.profile,
+                                  extra: data.player1.userId,
+                                )
+                              : null,
+                          child: Column(
+                            children: [
+                              PlayerAvatar(
+                                imageUrl: data.player1.avatarUrl,
+                                name: data.player1.name,
+                                size: 48,
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                data.player1.name,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       Column(
@@ -141,23 +150,32 @@ class _MatchReportView extends ConsumerWidget {
                         ],
                       ),
                       Expanded(
-                        child: Column(
-                          children: [
-                            PlayerAvatar(
-                              imageUrl: data.player2.avatarUrl,
-                              name: data.player2.name,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              data.player2.name,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: data.player2.userId.isNotEmpty
+                              ? () => context.push(
+                                  AppRoutes.profile,
+                                  extra: data.player2.userId,
+                                )
+                              : null,
+                          child: Column(
+                            children: [
+                              PlayerAvatar(
+                                imageUrl: data.player2.avatarUrl,
+                                name: data.player2.name,
+                                size: 48,
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                data.player2.name,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

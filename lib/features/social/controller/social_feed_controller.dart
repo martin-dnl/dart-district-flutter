@@ -206,6 +206,27 @@ class SocialFeedController extends StateNotifier<SocialFeedState> {
     }
   }
 
+  Future<bool> reportPost({
+    required String postId,
+    required String reason,
+  }) async {
+    final content = reason.trim();
+    if (content.isEmpty) {
+      return false;
+    }
+
+    try {
+      await _service.reportPost(postId: postId, reason: content);
+      state = state.copyWith(clearError: true);
+      return true;
+    } catch (_) {
+      state = state.copyWith(
+        error: 'Signalement impossible pour le moment.',
+      );
+      return false;
+    }
+  }
+
   Future<bool> shareMatchReport(
     MatchReportData report,
     String description,

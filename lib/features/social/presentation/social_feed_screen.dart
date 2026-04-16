@@ -7,9 +7,12 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/config/translation_service.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../../../shared/widgets/player_avatar.dart';
 import '../controller/social_feed_controller.dart';
 import '../models/social_feed_post.dart';
+
+enum _PostQuickAction { report, openProfile }
 
 class SocialFeedScreen extends ConsumerStatefulWidget {
   const SocialFeedScreen({super.key});
@@ -373,55 +376,50 @@ class _FeedCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  PlayerAvatar(
-                    imageUrl: post.authorAvatarUrl,
-                    name: post.authorName,
-                    size: 38,
+                  InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () =>
+                        context.push(AppRoutes.profile, extra: post.authorId),
+                    child: PlayerAvatar(
+                      imageUrl: post.authorAvatarUrl,
+                      name: post.authorName,
+                      size: 38,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.authorName,
-                          style: GoogleFonts.manrope(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () =>
+                          context.push(AppRoutes.profile, extra: post.authorId),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.authorName,
+                            style: GoogleFonts.manrope(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
-                        Text(
-                          _relativeDate(post.createdAt),
-                          style: GoogleFonts.manrope(
-                            color: AppColors.textHint,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
+                          Text(
+                            _relativeDate(post.createdAt),
+                            style: GoogleFonts.manrope(
+                              color: AppColors.textHint,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: post.resultLabel.toLowerCase().contains('vic')
-                          ? AppColors.success.withValues(alpha: 0.15)
-                          : AppColors.error.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      post.resultLabel,
-                      style: GoogleFonts.manrope(
-                        color: post.resultLabel.toLowerCase().contains('vic')
-                            ? AppColors.success
-                            : AppColors.error,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                      ),
+                  IconButton(
+                    onPressed: () => _showPostActions(context, ref),
+                    icon: const Icon(
+                      Icons.more_horiz_rounded,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -457,20 +455,8 @@ class _FeedCard extends ConsumerWidget {
                   ),
                 ),
                 child: Row(
-                  children: [
-                    _pill(post.mode),
-                    const SizedBox(width: 8),
-                    _pill(post.setsScore),
-                    const Spacer(),
-                    Text(
-                      t('SCREEN.SOCIAL.OPEN_REPORT', fallback: 'Voir rapport'),
-                      style: GoogleFonts.manrope(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [_buildScoreContent()],
                 ),
               ),
               const SizedBox(height: 10),
@@ -572,6 +558,215 @@ class _FeedCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildScoreContent() {
+    final hasLine1 = post.player1Name != null &&
+        post.player2Name != null &&
+        post.player1Score != null &&
+        post.player2Score != null;
+    final hasLine2 = post.matchAverage != null && post.matchCheckoutRate != null;
+    final p1Winner = hasLine1 && post.player1Score! > post.player2Score!;
+    final p2Winner = hasLine1 && post.player2Score! > post.player1Score!;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasLine1)
+          RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              style: GoogleFonts.manrope(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+              children: [
+                TextSpan(
+                  text: '${post.player1Name} ${post.player1Score}',
+                  style: TextStyle(
+                    color: p1Winner ? AppColors.primary : AppColors.textPrimary,
+                  ),
+                ),
+                const TextSpan(text: ' - '),
+                TextSpan(
+                  text: '${post.player2Score} ${post.player2Name}',
+                  style: TextStyle(
+                    color: p2Winner ? AppColors.primary : AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _pill(post.mode),
+              const SizedBox(width: 8),
+              _pill(post.setsScore),
+            ],
+          ),
+        if (hasLine2) const SizedBox(height: 4),
+        if (hasLine2)
+          Text(
+            'Moyenne ${post.matchAverage!.toStringAsFixed(1)} • Checkout ${post.matchCheckoutRate!.toStringAsFixed(1)}%',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showPostActions(BuildContext context, WidgetRef ref) async {
+    final action = await showNeonDialog<_PostQuickAction>(
+      context: context,
+      builder: (dialogContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t('SCREEN.SOCIAL.POST_ACTIONS', fallback: 'Actions du post'),
+              style: GoogleFonts.manrope(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(dialogContext).pop(
+                  _PostQuickAction.report,
+                ),
+                icon: const Icon(Icons.flag_outlined),
+                label: Text(
+                  t('SCREEN.SOCIAL.REPORT_POST', fallback: 'Signaler'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.of(dialogContext).pop(
+                  _PostQuickAction.openProfile,
+                ),
+                icon: const Icon(Icons.person_outline),
+                label: Text(
+                  t('SCREEN.SOCIAL.OPEN_AUTHOR_PROFILE', fallback: 'Voir le profil'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!context.mounted || action == null) {
+      return;
+    }
+
+    if (action == _PostQuickAction.openProfile) {
+      context.push(AppRoutes.profile, extra: post.authorId);
+      return;
+    }
+
+    final reason = await _askReportReason(context);
+    if (!context.mounted || reason == null) {
+      return;
+    }
+
+    final ok = await ref
+        .read(socialFeedControllerProvider.notifier)
+        .reportPost(postId: post.id, reason: reason);
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? t('SCREEN.SOCIAL.REPORT_SUCCESS', fallback: 'Post signale.')
+              : t(
+                  'SCREEN.SOCIAL.REPORT_FAILED',
+                  fallback: 'Impossible de signaler ce post.',
+                ),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _askReportReason(BuildContext context) async {
+    final controller = TextEditingController();
+    final reason = await showNeonDialog<String>(
+      context: context,
+      builder: (dialogContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t('SCREEN.SOCIAL.REPORT_REASON_TITLE', fallback: 'Motif du signalement'),
+              style: GoogleFonts.manrope(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 500,
+              decoration: InputDecoration(
+                hintText: t(
+                  'SCREEN.SOCIAL.REPORT_REASON_HINT',
+                  fallback: 'Expliquez brievement le probleme...',
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () =>
+                        Navigator.of(dialogContext).pop(controller.text.trim()),
+                    child: Text(t('SCREEN.SOCIAL.REPORT_POST', fallback: 'Signaler')),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (reason == null || reason.trim().isEmpty) {
+      return null;
+    }
+    return reason.trim();
   }
 
   String _relativeDate(DateTime date) {

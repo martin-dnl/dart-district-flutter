@@ -25,9 +25,10 @@ const match_entity_1 = require("../matches/entities/match.entity");
 const club_member_entity_1 = require("../clubs/entities/club-member.entity");
 const club_territory_points_entity_1 = require("../clubs/entities/club-territory-points.entity");
 const territory_entity_1 = require("../territories/entities/territory.entity");
+const player_territory_points_entity_1 = require("../territories/entities/player-territory-points.entity");
 const K_FACTOR = 32;
 let StatsService = class StatsService {
-    constructor(statRepo, eloRepo, userRepo, throwRepo, matchRepo, clubMemberRepo, ctpRepo, territoryRepo) {
+    constructor(statRepo, eloRepo, userRepo, throwRepo, matchRepo, clubMemberRepo, ctpRepo, ptpRepo, territoryRepo) {
         this.statRepo = statRepo;
         this.eloRepo = eloRepo;
         this.userRepo = userRepo;
@@ -35,6 +36,7 @@ let StatsService = class StatsService {
         this.matchRepo = matchRepo;
         this.clubMemberRepo = clubMemberRepo;
         this.ctpRepo = ctpRepo;
+        this.ptpRepo = ptpRepo;
         this.territoryRepo = territoryRepo;
         this.territoryControlMinPoints = Math.max(1, Number(process.env.TERRITORY_CONTROL_MIN_POINTS ?? 200));
     }
@@ -269,6 +271,21 @@ let StatsService = class StatsService {
         }
         association.points += pointsToAdd;
         const saved = await this.ctpRepo.save(association);
+        let playerAssociation = await this.ptpRepo.findOne({
+            where: {
+                user_id: params.winnerId,
+                code_iris: codeIris,
+            },
+        });
+        if (!playerAssociation) {
+            playerAssociation = this.ptpRepo.create({
+                user_id: params.winnerId,
+                code_iris: codeIris,
+                points: 0,
+            });
+        }
+        playerAssociation.points += pointsToAdd;
+        await this.ptpRepo.save(playerAssociation);
         await this.userRepo
             .createQueryBuilder()
             .update(user_entity_1.User)
@@ -417,8 +434,10 @@ exports.StatsService = StatsService = __decorate([
     __param(4, (0, typeorm_1.InjectRepository)(match_entity_1.Match)),
     __param(5, (0, typeorm_1.InjectRepository)(club_member_entity_1.ClubMember)),
     __param(6, (0, typeorm_1.InjectRepository)(club_territory_points_entity_1.ClubTerritoryPoints)),
-    __param(7, (0, typeorm_1.InjectRepository)(territory_entity_1.Territory)),
+    __param(7, (0, typeorm_1.InjectRepository)(player_territory_points_entity_1.PlayerTerritoryPoints)),
+    __param(8, (0, typeorm_1.InjectRepository)(territory_entity_1.Territory)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

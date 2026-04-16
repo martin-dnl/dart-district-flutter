@@ -13,6 +13,7 @@ import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
+import '../../../shared/models/match_history_summary.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/match_history_list.dart';
 import '../../../shared/widgets/player_avatar.dart';

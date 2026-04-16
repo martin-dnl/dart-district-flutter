@@ -48,14 +48,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _hasPendingRequest = false;
 
   bool _isOwnProfile(UserModel? currentUser) {
-    return widget.userId == null || widget.userId == currentUser?.id;
+    final rawUserId = widget.userId?.trim();
+    if (rawUserId == null ||
+        rawUserId.isEmpty ||
+        rawUserId == 'null' ||
+        rawUserId == 'undefined') {
+      return true;
+    }
+    return rawUserId == currentUser?.id;
   }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _loadVisitorProfileIfNeeded();
       await _refreshProfileData();
     });
   }
@@ -64,7 +70,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void didUpdateWidget(covariant ProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId) {
-      _loadVisitorProfileIfNeeded();
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _refreshProfileData();
+      });
     }
   }
 
@@ -921,38 +929,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
 
-                if (recentMatches.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: _ProfileReveal(
-                      order: 5,
-                      child: SectionHeader(
-                        title: t(
-                          'SCREEN.PROFILE.HISTORY',
-                          fallback: 'Historique des matchs',
-                        ),
-                        actionText: isOwnProfile
-                            ? t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout')
-                            : null,
-                        onAction: isOwnProfile
-                            ? () => context.push(AppRoutes.matchHistory)
-                            : null,
+                SliverToBoxAdapter(
+                  child: _ProfileReveal(
+                    order: 5,
+                    child: SectionHeader(
+                      title: t(
+                        'SCREEN.PROFILE.HISTORY',
+                        fallback: 'Historique des matchs',
+                      ),
+                      actionText: isOwnProfile
+                          ? t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout')
+                          : null,
+                      onAction: isOwnProfile
+                          ? () => context.push(AppRoutes.matchHistory)
+                          : null,
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: _ProfileReveal(
+                    order: 6,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: MatchHistoryList(
+                        matches: recentMatches,
+                        onMatchTap: (matchId) =>
+                            context.push('/match/$matchId/report'),
                       ),
                     ),
                   ),
-                if (recentMatches.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: _ProfileReveal(
-                      order: 6,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: MatchHistoryList(
-                          matches: recentMatches,
-                          onMatchTap: (matchId) =>
-                              context.push('/match/$matchId/report'),
-                        ),
-                      ),
-                    ),
-                  ),
+                ),
                 if (isOwnProfile)
                   SliverToBoxAdapter(
                     child: _ProfileReveal(

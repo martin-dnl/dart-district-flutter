@@ -542,82 +542,82 @@ class _FeedCard extends ConsumerWidget {
     );
   }
 
-  Widget _pill(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.manrope(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
-        ),
-      ),
-    );
-  }
-
   Widget _buildScoreContent() {
-    final hasLine1 = post.player1Name != null &&
-        post.player2Name != null &&
-        post.player1Score != null &&
-        post.player2Score != null;
-    final hasLine2 = post.matchAverage != null && post.matchCheckoutRate != null;
-    final p1Winner = hasLine1 && post.player1Score! > post.player2Score!;
-    final p2Winner = hasLine1 && post.player2Score! > post.player1Score!;
+    final parsedScore = RegExp(r'^(\d+)\s*-\s*(\d+)$').firstMatch(
+      post.setsScore.trim(),
+    );
+    final fallbackP1Score = parsedScore != null
+        ? int.tryParse(parsedScore.group(1) ?? '')
+        : null;
+    final fallbackP2Score = parsedScore != null
+        ? int.tryParse(parsedScore.group(2) ?? '')
+        : null;
+
+    final leftName = (post.player1Name?.trim().isNotEmpty ?? false)
+        ? post.player1Name!.trim()
+        : post.authorName;
+    final rightName = (post.player2Name?.trim().isNotEmpty ?? false)
+        ? post.player2Name!.trim()
+        : t('SCREEN.SOCIAL.OPPONENT', fallback: 'Adversaire');
+
+    final leftScore = post.player1Score ?? fallbackP1Score;
+    final rightScore = post.player2Score ?? fallbackP2Score;
+    final hasLine1 = leftScore != null && rightScore != null;
+
+    final p1Winner = hasLine1
+        ? leftScore > rightScore
+        : post.resultLabel.toLowerCase() == 'victoire';
+    final p2Winner = hasLine1
+        ? rightScore > leftScore
+        : post.resultLabel.toLowerCase() == 'defaite';
+
+    final averageText = post.matchAverage == null
+        ? '--'
+        : post.matchAverage!.toStringAsFixed(1);
+    final checkoutText = post.matchCheckoutRate == null
+        ? '--'
+        : '${post.matchCheckoutRate!.toStringAsFixed(1)}%';
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (hasLine1)
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              style: GoogleFonts.manrope(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-              ),
-              children: [
-                TextSpan(
-                  text: '${post.player1Name} ${post.player1Score}',
-                  style: TextStyle(
-                    color: p1Winner ? AppColors.primary : AppColors.textPrimary,
-                  ),
-                ),
-                const TextSpan(text: ' - '),
-                TextSpan(
-                  text: '${post.player2Score} ${post.player2Name}',
-                  style: TextStyle(
-                    color: p2Winner ? AppColors.primary : AppColors.textPrimary,
-                  ),
-                ),
-              ],
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: GoogleFonts.manrope(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
             ),
-          )
-        else
-          Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              _pill(post.mode),
-              const SizedBox(width: 8),
-              _pill(post.setsScore),
+              TextSpan(
+                text: hasLine1
+                    ? '$leftName $leftScore'
+                    : '$leftName ${post.setsScore}',
+                style: TextStyle(
+                  color: p1Winner ? AppColors.primary : AppColors.textPrimary,
+                ),
+              ),
+              const TextSpan(text: ' - '),
+              TextSpan(
+                text: hasLine1 ? '$rightScore $rightName' : rightName,
+                style: TextStyle(
+                  color: p2Winner ? AppColors.primary : AppColors.textPrimary,
+                ),
+              ),
             ],
           ),
-        if (hasLine2) const SizedBox(height: 4),
-        if (hasLine2)
-          Text(
-            'Moyenne ${post.matchAverage!.toStringAsFixed(1)} • Checkout ${post.matchCheckoutRate!.toStringAsFixed(1)}%',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Moyenne $averageText • Checkout $checkoutText',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.manrope(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
           ),
+        ),
       ],
     );
   }

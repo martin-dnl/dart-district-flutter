@@ -26,6 +26,10 @@ class EloChart extends StatelessWidget {
   final ValueChanged<EloPeriodMode> onModeChanged;
   final ValueChanged<int> onShiftOffset;
 
+  static const double _loadingHeight = 250;
+  static const double _emptyHeight = 280;
+  static const double _chartHeight = 300;
+
   String _modeLabel(EloPeriodMode value) {
     switch (value) {
       case EloPeriodMode.week:
@@ -52,7 +56,7 @@ class EloChart extends StatelessWidget {
     if (isLoading) {
       return const GlassCard(
         child: SizedBox(
-          height: 190,
+          height: _loadingHeight,
           child: Center(child: CircularProgressIndicator()),
         ),
       );
@@ -61,23 +65,27 @@ class EloChart extends StatelessWidget {
     if (points.isEmpty) {
       return GlassCard(
         child: SizedBox(
-          height: 190,
+          height: _emptyHeight,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _ChartToolbar(
                 mode: mode,
-                offset: offset,
                 periodLabel: periodLabel,
                 onModeChanged: onModeChanged,
-                onShiftOffset: onShiftOffset,
                 modeLabelBuilder: _modeLabel,
               ),
-              const SizedBox(height: 12),
-              Text(
-                t('SCREEN.PROFILE.NO_DATA', fallback: 'Pas encore de donnees'),
-                style: const TextStyle(color: AppColors.textHint),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    t(
+                      'SCREEN.PROFILE.NO_DATA',
+                      fallback: 'Pas encore de donnees',
+                    ),
+                    style: const TextStyle(color: AppColors.textHint),
+                  ),
+                ),
               ),
+              _PeriodShiftRow(offset: offset, onShiftOffset: onShiftOffset),
             ],
           ),
         ),
@@ -97,15 +105,13 @@ class EloChart extends StatelessWidget {
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(8, 12, 16, 8),
       child: SizedBox(
-        height: 220,
+        height: _chartHeight,
         child: Column(
           children: [
             _ChartToolbar(
               mode: mode,
-              offset: offset,
               periodLabel: periodLabel,
               onModeChanged: onModeChanged,
-              onShiftOffset: onShiftOffset,
               modeLabelBuilder: _modeLabel,
             ),
             const SizedBox(height: 8),
@@ -215,6 +221,8 @@ class EloChart extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            _PeriodShiftRow(offset: offset, onShiftOffset: onShiftOffset),
           ],
         ),
       ),
@@ -225,18 +233,14 @@ class EloChart extends StatelessWidget {
 class _ChartToolbar extends StatelessWidget {
   const _ChartToolbar({
     required this.mode,
-    required this.offset,
     required this.periodLabel,
     required this.onModeChanged,
-    required this.onShiftOffset,
     required this.modeLabelBuilder,
   });
 
   final EloPeriodMode mode;
-  final int offset;
   final String periodLabel;
   final ValueChanged<EloPeriodMode> onModeChanged;
-  final ValueChanged<int> onShiftOffset;
   final String Function(EloPeriodMode) modeLabelBuilder;
 
   @override
@@ -247,29 +251,6 @@ class _ChartToolbar extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<EloPeriodMode>(
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.primary.withValues(alpha: 0.16);
-                }
-                return AppColors.card;
-              }),
-              foregroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.primary;
-                }
-                return AppColors.textSecondary;
-              }),
-              side: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return const BorderSide(color: AppColors.primary);
-                }
-                return const BorderSide(color: AppColors.stroke);
-              }),
-              shape: WidgetStateProperty.all(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
             segments: EloPeriodMode.values
                 .map(
                   (value) => ButtonSegment<EloPeriodMode>(
@@ -301,48 +282,58 @@ class _ChartToolbar extends StatelessWidget {
               ),
             ),
           ),
-        const SizedBox(height: 8),
-        Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.card,
-                  foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.stroke),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () => onShiftOffset(offset + 1),
-                icon: const Icon(Icons.chevron_left),
-                tooltip: t(
-                  'SCREEN.PROFILE.PREVIOUS_PERIOD',
-                  fallback: 'Periode precedente',
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.card,
-                  foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.stroke),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: offset > 0 ? () => onShiftOffset(offset - 1) : null,
-                icon: const Icon(Icons.chevron_right),
-                tooltip: t(
-                  'SCREEN.PROFILE.NEXT_PERIOD',
-                  fallback: 'Periode suivante',
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
+    );
+  }
+}
+
+class _PeriodShiftRow extends StatelessWidget {
+  const _PeriodShiftRow({required this.offset, required this.onShiftOffset});
+
+  final int offset;
+  final ValueChanged<int> onShiftOffset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.card,
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.stroke),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => onShiftOffset(offset + 1),
+            icon: const Icon(Icons.chevron_left),
+            tooltip: t(
+              'SCREEN.PROFILE.PREVIOUS_PERIOD',
+              fallback: 'Periode precedente',
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.card,
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.stroke),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: offset > 0 ? () => onShiftOffset(offset - 1) : null,
+            icon: const Icon(Icons.chevron_right),
+            tooltip: t(
+              'SCREEN.PROFILE.NEXT_PERIOD',
+              fallback: 'Periode suivante',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

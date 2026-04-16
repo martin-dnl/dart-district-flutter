@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'app_version_models.dart';
 import 'app_version_providers.dart';
+import '../../shared/widgets/neon_modal.dart';
 
 class VersionGate extends ConsumerStatefulWidget {
   const VersionGate({super.key, required this.child});
@@ -73,7 +74,7 @@ class _VersionGateState extends ConsumerState<VersionGate> {
   Future<void> _showSoftUpdateDialog(AppVersionPolicy policy) async {
     if (!mounted) return;
 
-    await showDialog<void>(
+    await showNeonDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {

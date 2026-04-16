@@ -9,12 +9,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_map_tiles_pmtiles/vector_map_tiles_pmtiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 import '../../../core/config/app_colors.dart';
+import '../../../core/config/app_routes.dart';
 import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../core/network/nominatim_service.dart';
@@ -788,63 +790,70 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         final rank = (club['rank'] as num?)?.toInt() ?? (index + 1);
         final name = (club['club_name'] ?? '').toString();
         final points = (club['points'] as num?)?.toInt() ?? 0;
+        final clubId = (club['club_id'] ?? '').toString();
 
         return Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$points pts',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 10,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                height: podiumHeights[index],
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: podiumColors[index].withValues(alpha: 0.3),
-                  border: Border.all(color: podiumColors[index]),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(8),
+          child: GestureDetector(
+            onTap: clubId.isEmpty ? null : () => context.push('/club/$clubId'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$rank',
-                  style: TextStyle(
-                    color: podiumColors[index],
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 4),
+                Text(
+                  '$points pts',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Container(
+                  height: podiumHeights[index],
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: podiumColors[index].withValues(alpha: 0.3),
+                    border: Border.all(color: podiumColors[index]),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(8),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$rank',
+                    style: TextStyle(
+                      color: podiumColors[index],
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }).toList(),
     );
   }
 
-  Future<void> _openPanelForTerritoryCode(String codeIris) async {
+  Future<_TerritoryPanelPayload> _fetchTerritoryPanelData(
+    String codeIris,
+  ) async {
     Map<String, dynamic>? territory;
     Map<String, dynamic>? activeDuel;
     List<Map<String, dynamic>> latestEvents = const [];
     List<Map<String, dynamic>> topClubs = const [];
+    List<Map<String, dynamic>> topPlayers = const [];
 
     try {
       final api = ref.read(apiClientProvider);
@@ -858,34 +867,33 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         latestEvents =
             (panelData['latest_events'] as List<dynamic>? ?? const <dynamic>[])
                 .whereType<Map<String, dynamic>>()
-                .toList();
+                .toList(growable: false);
         topClubs =
             (panelData['top_clubs'] as List<dynamic>? ?? const <dynamic>[])
                 .whereType<Map<String, dynamic>>()
-                .toList();
+                .toList(growable: false);
+        topPlayers =
+            (panelData['top_players'] as List<dynamic>? ?? const <dynamic>[])
+                .whereType<Map<String, dynamic>>()
+                .toList(growable: false);
       }
     } catch (_) {
       territory = null;
     }
 
-    if (!mounted) {
-      return;
-    }
+    return _TerritoryPanelPayload(
+      territory: territory,
+      activeDuel: activeDuel,
+      latestEvents: latestEvents,
+      topClubs: topClubs,
+      topPlayers: topPlayers,
+    );
+  }
 
-    final territoryData =
-        territory ??
-        <String, dynamic>{
-          'code_iris': codeIris,
-          'name': 'Territoire $codeIris',
-          'status': 'available',
-          'points_value': '–',
-        };
-
-    final status = (territoryData['status'] ?? 'available').toString();
-    final ownerClub = territoryData['owner_club'] as Map<String, dynamic>?;
-    final statusClr = _statusColor(status);
-
+  Future<void> _openPanelForTerritoryCode(String codeIris) async {
     if (!mounted) return;
+
+    final panelFuture = _fetchTerritoryPanelData(codeIris);
 
     await showModalBottomSheet<void>(
       context: context,
@@ -899,213 +907,335 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           minChildSize: 0.32,
           maxChildSize: 0.9,
           builder: (context, scrollController) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: ListView(
-                controller: scrollController,
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  12,
-                  20,
-                  MediaQuery.of(context).viewPadding.bottom + 16,
-                ),
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.stroke,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+            return FutureBuilder<_TerritoryPanelPayload>(
+              future: panelFuture,
+              builder: (context, snapshot) {
+                final territoryData =
+                    snapshot.data?.territory ??
+                    <String, dynamic>{
+                      'code_iris': codeIris,
+                      'name': 'Territoire $codeIris',
+                      'status': 'available',
+                      'points_value': '–',
+                    };
+                final activeDuel = snapshot.data?.activeDuel;
+                final latestEvents =
+                    snapshot.data?.latestEvents ??
+                    const <Map<String, dynamic>>[];
+                final topClubs =
+                    snapshot.data?.topClubs ?? const <Map<String, dynamic>>[];
+                final topPlayers =
+                    snapshot.data?.topPlayers ?? const <Map<String, dynamic>>[];
+
+                final status = (territoryData['status'] ?? 'available')
+                    .toString();
+                final ownerClub =
+                    territoryData['owner_club'] as Map<String, dynamic>?;
+                final statusClr = _statusColor(status);
+
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
                     ),
                   ),
-                  Row(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      12,
+                      20,
+                      MediaQuery.of(context).viewPadding.bottom + 16,
+                    ),
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              (territoryData['name'] ??
-                                      territoryData['code_iris'] ??
-                                      codeIris)
-                                  .toString(),
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Code IRIS: $codeIris',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusClr.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _statusLabel(status),
-                                style: TextStyle(
-                                  color: statusClr,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.stroke,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                      Column(
+                      Row(
                         children: [
-                          Text(
-                            (territoryData['points_value'] ?? '–').toString(),
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Text(
-                            'points',
-                            style: TextStyle(
-                              color: AppColors.textHint,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  if (ownerClub != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceLight.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              (ownerClub['name'] ?? '?')
-                                  .toString()
-                                  .substring(0, 1)
-                                  .toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  (ownerClub['name'] ?? '').toString(),
+                                  (territoryData['name'] ??
+                                          territoryData['code_iris'] ??
+                                          codeIris)
+                                      .toString(),
                                   style: const TextStyle(
                                     color: AppColors.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                const Text(
-                                  'Club propriétaire',
-                                  style: TextStyle(
-                                    color: AppColors.textHint,
-                                    fontSize: 10,
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Code IRIS: $codeIris',
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: statusClr.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _statusLabel(status),
+                                    style: TextStyle(
+                                      color: statusClr,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          if (status == 'conflict' || status == 'alert')
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFFEF4444,
-                                ).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'DÉFI EN COURS',
-                                style: TextStyle(
-                                  color: Color(0xFFEF4444),
-                                  fontSize: 9,
+                          Column(
+                            children: [
+                              Text(
+                                (territoryData['points_value'] ?? '–')
+                                    .toString(),
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
+                              const Text(
+                                'points',
+                                style: TextStyle(
+                                  color: AppColors.textHint,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                    ),
-                  ],
-                  if (topClubs.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Classement du territoire',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPodium(topClubs),
-                  ],
-                  const SizedBox(height: 16),
-                  Text(
-                    activeDuel == null
-                        ? 'Aucun duel actif'
-                        : 'Duel actif: ${(activeDuel['status'] ?? 'pending')}',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (latestEvents.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '${latestEvents.length} événement(s) récent(s)',
+                      if (snapshot.connectionState != ConnectionState.done)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      if (ownerClub != null) ...[
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: () {
+                            final clubId = (ownerClub['id'] ?? '').toString();
+                            if (clubId.isNotEmpty) {
+                              context.push('/club/$clubId');
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceLight.withValues(
+                                alpha: 0.5,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3B82F6),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    (ownerClub['name'] ?? '?')
+                                        .toString()
+                                        .substring(0, 1)
+                                        .toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        (ownerClub['name'] ?? '').toString(),
+                                        style: const TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const Text(
+                                        'Club proprietaire',
+                                        style: TextStyle(
+                                          color: AppColors.textHint,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (status == 'conflict' || status == 'alert')
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFEF4444,
+                                      ).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'DEFI EN COURS',
+                                      style: TextStyle(
+                                        color: Color(0xFFEF4444),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (topClubs.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Classement des clubs',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildPodium(topClubs),
+                      ],
+                      if (topPlayers.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Top joueurs (conquete)',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...topPlayers.map((player) {
+                          final userId = (player['user_id'] ?? '').toString();
+                          final username = (player['username'] ?? 'Joueur')
+                              .toString();
+                          final elo = (player['elo'] as num?)?.toInt() ?? 1000;
+                          final points =
+                              (player['points'] as num?)?.toInt() ?? 0;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: userId.isEmpty
+                                  ? null
+                                  : () => context.push(
+                                      AppRoutes.profile,
+                                      extra: userId,
+                                    ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceLight.withValues(
+                                    alpha: 0.38,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '$username  (ELO $elo)',
+                                        style: const TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.emoji_events,
+                                      size: 16,
+                                      color: AppColors.accent,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$points',
+                                      style: const TextStyle(
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                      const SizedBox(height: 16),
+                      Text(
+                        activeDuel == null
+                            ? 'Aucun duel actif'
+                            : 'Duel actif: ${(activeDuel['status'] ?? 'pending')}',
                         style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      if (latestEvents.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '${latestEvents.length} evenement(s) recent(s)',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             );
           },
         );
@@ -1615,4 +1745,20 @@ class _LegendItem extends StatelessWidget {
       ],
     );
   }
+}
+
+class _TerritoryPanelPayload {
+  const _TerritoryPanelPayload({
+    required this.territory,
+    required this.activeDuel,
+    required this.latestEvents,
+    required this.topClubs,
+    required this.topPlayers,
+  });
+
+  final Map<String, dynamic>? territory;
+  final Map<String, dynamic>? activeDuel;
+  final List<Map<String, dynamic>> latestEvents;
+  final List<Map<String, dynamic>> topClubs;
+  final List<Map<String, dynamic>> topPlayers;
 }

@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../../../shared/widgets/dart_button.dart';
 import '../controller/auth_controller.dart';
 
@@ -180,7 +181,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(width: 10),
                     Text(
                       'Se souvenir de moi',
-                      style: GoogleFonts.manrope(color: AppColors.textSecondary),
+                      style: GoogleFonts.manrope(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -280,7 +283,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showAuthFailureDialog(String message, String? details) {
-    showDialog<void>(
+    showNeonDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -334,7 +337,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     return;
                   }
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Logs copies dans le presse-papiers.')),
+                    const SnackBar(
+                      content: Text('Logs copies dans le presse-papiers.'),
+                    ),
                   );
                 },
                 child: Text(

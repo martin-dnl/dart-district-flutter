@@ -841,6 +841,13 @@ export class TerritoriesService {
       club_name: string;
       points: number;
     }> = [];
+    let topPlayers: Array<{
+      rank: number;
+      user_id: string;
+      username: string;
+      elo: number;
+      points: number;
+    }> = [];
 
     try {
       const rows = await this.dataSource.query(
@@ -867,11 +874,38 @@ export class TerritoriesService {
       }
     }
 
+    try {
+      const rows = await this.dataSource.query(
+        `
+          SELECT ptp.user_id, u.username, u.elo, ptp.points
+          FROM player_territory_points ptp
+          INNER JOIN users u ON u.id = ptp.user_id
+          WHERE ptp.code_iris = $1
+          ORDER BY ptp.points DESC, u.username ASC
+          LIMIT 5
+        `,
+        [territory.code_iris],
+      );
+
+      topPlayers = rows.map((row: Record<string, unknown>, index: number) => ({
+        rank: index + 1,
+        user_id: (row.user_id ?? '').toString(),
+        username: (row.username ?? 'Joueur').toString(),
+        elo: Number(row.elo ?? 1000),
+        points: Number(row.points ?? 0),
+      }));
+    } catch (error) {
+      if (!this.isMissingRelationError(error, 'player_territory_points')) {
+        throw error;
+      }
+    }
+
     return {
       territory,
       active_duel: activeDuel,
       latest_events: lastEvents,
       top_clubs: topClubs,
+      top_players: topPlayers,
     };
   }
 

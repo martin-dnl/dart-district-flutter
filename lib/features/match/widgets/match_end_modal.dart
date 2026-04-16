@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_colors.dart';
 import '../../../core/network/api_providers.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../../../shared/widgets/animated_counter_text.dart';
 
 class MatchEndResultDialog extends ConsumerStatefulWidget {
@@ -110,37 +111,169 @@ class _MatchEndResultDialogState extends ConsumerState<MatchEndResultDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text(
-        'Match termine',
-        style: TextStyle(color: AppColors.textPrimary),
-      ),
-      content: FutureBuilder<_MatchResultSummary?>(
-        future: _summaryFuture,
-        builder: (context, snapshot) {
-          final summary = snapshot.data;
+    return NeonModalContainer(
+      child: AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Match termine',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: FutureBuilder<_MatchResultSummary?>(
+          future: _summaryFuture,
+          builder: (context, snapshot) {
+            final summary = snapshot.data;
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const SizedBox(
-              height: 100,
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            );
-          }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 100,
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
 
-          if (summary == null) {
+            if (summary == null) {
+              return SizedBox(
+                width: 320,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Consulter le rapport de match ? ',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    _ActionRow(
+                      visible: _showActions,
+                      onLater: () => Navigator.pop(context, false),
+                      onOpenReport: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final eloColor = summary.eloDelta > 0
+                ? AppColors.primary
+                : (summary.eloDelta < 0
+                      ? Colors.redAccent
+                      : AppColors.textSecondary);
+            final showTerritorySection =
+                summary.isRanked &&
+                summary.isTerritorial &&
+                summary.territoryPointsGained > 0;
+
             return SizedBox(
               width: 320,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Consulter le rapport de match ? ',
-                    style: TextStyle(color: AppColors.textSecondary),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.92, end: 1),
+                    duration: const Duration(milliseconds: 450),
+                    curve: Curves.easeOutBack,
+                    builder: (context, scale, child) {
+                      return Transform.scale(scale: scale, child: child);
+                    },
+                    child: Text(
+                      summary.isWinner ? 'Victoire' : 'Defaite',
+                      style: TextStyle(
+                        color: summary.isWinner
+                            ? AppColors.primary
+                            : Colors.redAccent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 10),
+                  if (summary.isRanked)
+                    AnimatedOpacity(
+                      opacity: _showElo ? 1 : 0,
+                      duration: const Duration(milliseconds: 260),
+                      child: IgnorePointer(
+                        ignoring: !_showElo,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ELO',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            AnimatedCounterText(
+                              from: summary.eloBefore,
+                              to: summary.eloAfter,
+                              duration: const Duration(milliseconds: 1500),
+                              style: TextStyle(
+                                color: eloColor,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  summary.eloDelta >= 0
+                                      ? Icons.trending_up
+                                      : Icons.trending_down,
+                                  size: 16,
+                                  color: eloColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${summary.eloDelta >= 0 ? '+' : ''}${summary.eloDelta}',
+                                  style: TextStyle(
+                                    color: eloColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (showTerritorySection) ...[
+                    const SizedBox(height: 12),
+                    AnimatedOpacity(
+                      opacity: _showTerritoryPoints ? 1 : 0,
+                      duration: const Duration(milliseconds: 260),
+                      child: IgnorePointer(
+                        ignoring: !_showTerritoryPoints,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Points club${summary.territoryName == null ? '' : ' - ${summary.territoryName}'}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            AnimatedCounterText(
+                              from: 0,
+                              to: summary.territoryPointsGained,
+                              duration: const Duration(milliseconds: 1000),
+                              style: const TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                              ),
+                              prefix: '+',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   _ActionRow(
                     visible: _showActions,
@@ -150,138 +283,8 @@ class _MatchEndResultDialogState extends ConsumerState<MatchEndResultDialog> {
                 ],
               ),
             );
-          }
-
-          final eloColor = summary.eloDelta > 0
-              ? AppColors.primary
-              : (summary.eloDelta < 0
-                    ? Colors.redAccent
-                    : AppColors.textSecondary);
-          final showTerritorySection =
-              summary.isRanked &&
-              summary.isTerritorial &&
-              summary.territoryPointsGained > 0;
-
-          return SizedBox(
-            width: 320,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0.92, end: 1),
-                  duration: const Duration(milliseconds: 450),
-                  curve: Curves.easeOutBack,
-                  builder: (context, scale, child) {
-                    return Transform.scale(scale: scale, child: child);
-                  },
-                  child: Text(
-                    summary.isWinner ? 'Victoire' : 'Defaite',
-                    style: TextStyle(
-                      color: summary.isWinner
-                          ? AppColors.primary
-                          : Colors.redAccent,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (summary.isRanked)
-                  AnimatedOpacity(
-                    opacity: _showElo ? 1 : 0,
-                    duration: const Duration(milliseconds: 260),
-                    child: IgnorePointer(
-                      ignoring: !_showElo,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'ELO',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          AnimatedCounterText(
-                            from: summary.eloBefore,
-                            to: summary.eloAfter,
-                            duration: const Duration(milliseconds: 1500),
-                            style: TextStyle(
-                              color: eloColor,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                summary.eloDelta >= 0
-                                    ? Icons.trending_up
-                                    : Icons.trending_down,
-                                size: 16,
-                                color: eloColor,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${summary.eloDelta >= 0 ? '+' : ''}${summary.eloDelta}',
-                                style: TextStyle(
-                                  color: eloColor,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (showTerritorySection) ...[
-                  const SizedBox(height: 12),
-                  AnimatedOpacity(
-                    opacity: _showTerritoryPoints ? 1 : 0,
-                    duration: const Duration(milliseconds: 260),
-                    child: IgnorePointer(
-                      ignoring: !_showTerritoryPoints,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Points club${summary.territoryName == null ? '' : ' - ${summary.territoryName}'}',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          AnimatedCounterText(
-                            from: 0,
-                            to: summary.territoryPointsGained,
-                            duration: const Duration(milliseconds: 1000),
-                            style: const TextStyle(
-                              color: AppColors.accent,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                            ),
-                            prefix: '+',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                _ActionRow(
-                  visible: _showActions,
-                  onLater: () => Navigator.pop(context, false),
-                  onOpenReport: () => Navigator.pop(context, true),
-                ),
-              ],
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }

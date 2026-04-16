@@ -130,6 +130,17 @@ export class MatchesController {
     );
   }
 
+  @Get('user/:userId')
+  userMatches(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('status') status?: string,
+    @Query('ranked') ranked?: string,
+  ) {
+    return this.matchesService.findByUser(userId, limit, offset, status, ranked);
+  }
+
   @Get(':id/report')
   report(@Param('id', ParseUUIDPipe) id: string) {
     return this.matchesService.getMatchReport(id);

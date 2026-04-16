@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../shared/models/match_history_summary.dart';
 import '../../../shared/models/dartboard_heatmap_models.dart';
 import '../../auth/models/user_model.dart';
 import '../controller/profile_controller.dart';
@@ -39,8 +40,8 @@ class ProfileService {
   Future<String> uploadAvatar(File imageFile) async {
     final path = imageFile.path.toLowerCase();
     final filename = imageFile.uri.pathSegments.isNotEmpty
-      ? imageFile.uri.pathSegments.last
-      : 'avatar.jpg';
+        ? imageFile.uri.pathSegments.last
+        : 'avatar.jpg';
     final contentType = path.endsWith('.png')
         ? MediaType('image', 'png')
         : MediaType('image', 'jpeg');
@@ -142,5 +143,23 @@ class ProfileService {
         response.data ??
         const <String, dynamic>{};
     return DartboardHeatmapData.fromJson(raw);
+  }
+
+  Future<List<MatchHistorySummary>> fetchRecentMatches({
+    required String userId,
+    int limit = 5,
+  }) async {
+    final response = await _api.get<Map<String, dynamic>>(
+      '/matches/user/$userId',
+      queryParameters: {'limit': '$limit', 'status': 'completed'},
+    );
+
+    final rows = (response.data?['data'] as List<dynamic>? ?? <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+
+    return rows
+        .map((row) => MatchHistorySummary.fromApi(row, currentUserId: userId))
+        .toList(growable: false);
   }
 }

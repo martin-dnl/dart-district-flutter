@@ -301,9 +301,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, state) {
           final extra = state.extra as Map<String, dynamic>?;
           final scanMode = (extra?['mode'] ?? QrScanMode.user.name).toString();
-          final mode = scanMode == QrScanMode.club.name
-              ? QrScanMode.club
-              : QrScanMode.user;
+          final mode = switch (scanMode) {
+            'club' => QrScanMode.club,
+            'tournament' => QrScanMode.tournament,
+            _ => QrScanMode.user,
+          };
           return NoTransitionPage(
             key: state.pageKey,
             child: QrScanScreen(mode: mode),

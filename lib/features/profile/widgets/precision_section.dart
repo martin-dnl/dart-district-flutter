@@ -285,22 +285,36 @@ class _PrecisionSectionState extends ConsumerState<PrecisionSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _periodChip(
-              PrecisionPeriodMode.month,
-              'Mois',
-              enabled: _periods.hasData,
-            ),
-            _periodChip(
-              PrecisionPeriodMode.year,
-              'Annee',
-              enabled: _periods.hasData,
-            ),
-            _periodChip(PrecisionPeriodMode.all, 'Tout'),
-          ],
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<PrecisionPeriodMode>(
+            segments: const [
+              ButtonSegment(
+                value: PrecisionPeriodMode.month,
+                label: Text('Mois'),
+              ),
+              ButtonSegment(
+                value: PrecisionPeriodMode.year,
+                label: Text('Annee'),
+              ),
+              ButtonSegment(
+                value: PrecisionPeriodMode.all,
+                label: Text('Tout'),
+              ),
+            ],
+            selected: <PrecisionPeriodMode>{_mode},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              final selected = selection.first;
+              if (selected == PrecisionPeriodMode.month && !_periods.hasData) {
+                return;
+              }
+              if (selected == PrecisionPeriodMode.year && !_periods.hasData) {
+                return;
+              }
+              _updateMode(selected);
+            },
+          ),
         ),
         if (_mode != PrecisionPeriodMode.all) ...[
           const SizedBox(height: 12),
@@ -331,26 +345,6 @@ class _PrecisionSectionState extends ConsumerState<PrecisionSection> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _periodChip(
-    PrecisionPeriodMode mode,
-    String label, {
-    bool enabled = true,
-  }) {
-    final selected = _mode == mode;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: enabled ? (_) => _updateMode(mode) : null,
-      selectedColor: AppColors.primary.withValues(alpha: 0.2),
-      backgroundColor: AppColors.card,
-      labelStyle: TextStyle(
-        color: selected ? AppColors.primary : AppColors.textSecondary,
-        fontWeight: FontWeight.w700,
-      ),
-      side: BorderSide(color: selected ? AppColors.primary : AppColors.stroke),
     );
   }
 }

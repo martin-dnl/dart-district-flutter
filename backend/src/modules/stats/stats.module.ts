@@ -10,6 +10,7 @@ import { Match } from '../matches/entities/match.entity';
 import { ClubMember } from '../clubs/entities/club-member.entity';
 import { ClubTerritoryPoints } from '../clubs/entities/club-territory-points.entity';
 import { Territory } from '../territories/entities/territory.entity';
+import { PlayerTerritoryPoints } from '../territories/entities/player-territory-points.entity';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { Territory } from '../territories/entities/territory.entity';
       ClubMember,
       ClubTerritoryPoints,
       Territory,
+      PlayerTerritoryPoints,
     ]),
   ],
   controllers: [StatsController],

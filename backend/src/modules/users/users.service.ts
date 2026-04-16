@@ -192,14 +192,39 @@ export class UsersService {
     return qb.getMany();
   }
 
-  async leaderboard(limit = 50) {
+  async leaderboard(
+    limit = 50,
+    metric: 'elo' | 'conquest' = 'elo',
+    query?: string,
+  ) {
     const take = normalizeLimit(limit, 50);
+    const qb = this.repo
+      .createQueryBuilder('u')
+      .select([
+        'u.id',
+        'u.username',
+        'u.avatar_url',
+        'u.elo',
+        'u.conquest_score',
+        'u.level',
+      ])
+      .where('u.is_active = true')
+      .take(take);
 
-    return this.repo.find({
-      order: { elo: 'DESC' },
-      take,
-      select: ['id', 'username', 'avatar_url', 'elo', 'level'],
-    });
+    const normalizedQuery = (query ?? '').trim();
+    if (normalizedQuery.length > 0) {
+      qb.andWhere('u.username ILIKE :query', {
+        query: `%${normalizedQuery}%`,
+      });
+    }
+
+    if (metric === 'conquest') {
+      qb.orderBy('u.conquest_score', 'DESC').addOrderBy('u.elo', 'DESC');
+    } else {
+      qb.orderBy('u.elo', 'DESC').addOrderBy('u.conquest_score', 'DESC');
+    }
+
+    return qb.getMany();
   }
 
   async remove(id: string) {

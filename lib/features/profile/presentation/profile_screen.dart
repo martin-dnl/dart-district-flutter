@@ -39,6 +39,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   UserModel? _visitorUser;
+  List<MatchHistorySummary> _visitorRecentMatches = const [];
   bool _isLoadingVisitor = false;
   bool _isMutatingVisitorAction = false;
   bool _isFriend = false;
@@ -72,6 +73,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         setState(() {
           _visitorUser = null;
+          _visitorRecentMatches = const [];
           _isLoadingVisitor = false;
           _isFriend = false;
           _isBlocked = false;
@@ -86,13 +88,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final service = ProfileService(ref.read(apiClientProvider));
       final userFuture = service.fetchUserById(widget.userId!);
       final statusFuture = service.getFriendshipStatus(widget.userId!);
-      final results = await Future.wait([userFuture, statusFuture]);
+      final recentMatchesFuture = service.fetchRecentMatches(
+        userId: widget.userId!,
+      );
+      final results = await Future.wait([
+        userFuture,
+        statusFuture,
+        recentMatchesFuture,
+      ]);
       final user = results[0] as UserModel;
       final status = results[1] as Map<String, bool>;
+      final recentMatches = results[2] as List<MatchHistorySummary>;
 
       if (!mounted) return;
       setState(() {
         _visitorUser = user;
+        _visitorRecentMatches = recentMatches;
         _isFriend = status['is_friend'] ?? false;
         _isBlocked = status['is_blocked'] ?? false;
         _hasPendingRequest = status['has_pending_request'] ?? false;
@@ -102,6 +113,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       setState(() => _isLoadingVisitor = false);
     }
+  }
+
+  _StatDeltaData? _buildDelta({
+    required double viewerValue,
+    required double comparedValue,
+    required bool isPercent,
+    int digits = 1,
+  }) {
+    final delta = viewerValue - comparedValue;
+    if (delta.abs() < 0.001) {
+      return null;
+    }
+
+    final positive = delta > 0;
+    final absValue = delta.abs();
+    final valueLabel = digits == 0
+        ? absValue.toStringAsFixed(0)
+        : absValue.toStringAsFixed(digits);
+    return _StatDeltaData(
+      text: '${positive ? '+' : '-'}$valueLabel${isPercent ? '%' : ''}',
+      positive: positive,
+    );
   }
 
   Future<void> _refreshProfileData() async {
@@ -361,7 +394,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isOwnProfile = _isOwnProfile(currentUser);
     final user = isOwnProfile ? currentUser : _visitorUser;
     final profileState = ref.watch(profileControllerProvider);
-    final recentMatches = profileState.matchHistory.take(5).toList();
+    final recentMatches = isOwnProfile
+        ? profileState.matchHistory.take(5).toList(growable: false)
+        : _visitorRecentMatches;
+    final viewer = currentUser;
+    final showComparison = !isOwnProfile && viewer != null && user != null;
+    final matchesDelta = showComparison
+        ? _buildDelta(
+            viewerValue: viewer.stats.matchesPlayed.toDouble(),
+            comparedValue: user.stats.matchesPlayed.toDouble(),
+            isPercent: false,
+            digits: 0,
+          )
+        : null;
+    final winRateDelta = showComparison
+        ? _buildDelta(
+            viewerValue: viewer.stats.winRate,
+            comparedValue: user.stats.winRate,
+            isPercent: true,
+          )
+        : null;
+    final avgDelta = showComparison
+        ? _buildDelta(
+            viewerValue: viewer.stats.averageScore,
+            comparedValue: user.stats.averageScore,
+            isPercent: false,
+          )
+        : null;
+    final checkoutDelta = showComparison
+        ? _buildDelta(
+            viewerValue: viewer.stats.checkoutRate,
+            comparedValue: user.stats.checkoutRate,
+            isPercent: true,
+          )
+        : null;
+    final bestAvgDelta = showComparison
+        ? _buildDelta(
+            viewerValue: viewer.stats.bestAverage,
+            comparedValue: user.stats.bestAverage,
+            isPercent: false,
+          )
+        : null;
+    final total180Delta = showComparison
+        ? _buildDelta(
+            viewerValue: viewer.stats.highest180s.toDouble(),
+            comparedValue: user.stats.highest180s.toDouble(),
+            isPercent: false,
+            digits: 0,
+          )
+        : null;
+    final highestScoreDelta = showComparison
+        ? _buildDelta(
+            viewerValue: viewer.stats.highFinish.toDouble(),
+            comparedValue: user.stats.highFinish.toDouble(),
+            isPercent: false,
+            digits: 0,
+          )
+        : null;
     final winRate = user?.stats.winRate ?? 0.0;
     final est501 = (user?.stats.averageScore ?? 0) * 1.08;
     final est301 = (user?.stats.averageScore ?? 0) * 0.98;
@@ -597,6 +686,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         ),
                                         value:
                                             '${user?.stats.matchesPlayed ?? 0}',
+                                        delta: matchesDelta,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -608,6 +698,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         ),
                                         value: '${winRate.toStringAsFixed(0)}%',
                                         valueColor: AppColors.success,
+                                        delta: winRateDelta,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -622,6 +713,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                 .toStringAsFixed(1) ??
                                             '0.0',
                                         valueColor: AppColors.primary,
+                                        delta: avgDelta,
                                       ),
                                     ),
                                   ],
@@ -669,6 +761,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   fallback: 'Checkout %',
                                 ),
                                 accentIcon: Icons.adjust,
+                                delta: checkoutDelta,
                                 child: Text(
                                   '${user?.stats.checkoutRate.toStringAsFixed(1) ?? 0}%',
                                   style: const TextStyle(
@@ -684,6 +777,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   fallback: 'Meilleure moyenne',
                                 ),
                                 accentIcon: Icons.bolt,
+                                delta: bestAvgDelta,
                                 child: Text(
                                   user?.stats.bestAverage.toStringAsFixed(1) ??
                                       '0.0',
@@ -701,6 +795,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                                 accentLabel: 'MAX',
                                 accentLabelColor: AppColors.error,
+                                delta: total180Delta,
                                 child: Text(
                                   '${user?.stats.highest180s ?? 0}',
                                   style: const TextStyle(
@@ -717,6 +812,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                                 accentIcon: Icons.local_fire_department,
                                 accentIconColor: AppColors.secondary,
+                                delta: highestScoreDelta,
                                 child: Text(
                                   '${user?.stats.highFinish ?? 0}',
                                   style: const TextStyle(
@@ -824,7 +920,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
 
-                if (isOwnProfile)
+                if (recentMatches.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _ProfileReveal(
                       order: 5,
@@ -833,15 +929,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           'SCREEN.PROFILE.HISTORY',
                           fallback: 'Historique des matchs',
                         ),
-                        actionText: t(
-                          'SCREEN.HOME.VIEW_ALL',
-                          fallback: 'Voir tout',
-                        ),
-                        onAction: () => context.push(AppRoutes.matchHistory),
+                        actionText: isOwnProfile
+                            ? t('SCREEN.HOME.VIEW_ALL', fallback: 'Voir tout')
+                            : null,
+                        onAction: isOwnProfile
+                            ? () => context.push(AppRoutes.matchHistory)
+                            : null,
                       ),
                     ),
                   ),
-                if (isOwnProfile)
+                if (recentMatches.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _ProfileReveal(
                       order: 6,
@@ -900,6 +997,7 @@ class _ProfileStatTile extends StatelessWidget {
     this.accentIconColor,
     this.accentLabel,
     this.accentLabelColor,
+    this.delta,
   });
 
   final String title;
@@ -908,6 +1006,7 @@ class _ProfileStatTile extends StatelessWidget {
   final Color? accentIconColor;
   final String? accentLabel;
   final Color? accentLabelColor;
+  final _StatDeltaData? delta;
 
   @override
   Widget build(BuildContext context) {
@@ -966,6 +1065,11 @@ class _ProfileStatTile extends StatelessWidget {
           Expanded(
             child: Align(alignment: Alignment.bottomLeft, child: child),
           ),
+          if (delta != null)
+            Align(
+              alignment: Alignment.bottomRight,
+              child: _StatDeltaChip(data: delta!),
+            ),
         ],
       ),
     );
@@ -977,11 +1081,13 @@ class _CompactMetricTile extends StatelessWidget {
     required this.label,
     required this.value,
     this.valueColor,
+    this.delta,
   });
 
   final String label;
   final String value;
   final Color? valueColor;
+  final _StatDeltaData? delta;
 
   @override
   Widget build(BuildContext context) {
@@ -1012,8 +1118,49 @@ class _CompactMetricTile extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
+          if (delta != null)
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: _StatDeltaChip(data: delta!),
+              ),
+            ),
         ],
       ),
+    );
+  }
+}
+
+class _StatDeltaData {
+  const _StatDeltaData({required this.text, required this.positive});
+
+  final String text;
+  final bool positive;
+}
+
+class _StatDeltaChip extends StatelessWidget {
+  const _StatDeltaChip({required this.data});
+
+  final _StatDeltaData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = data.positive ? AppColors.success : AppColors.error;
+    final icon = data.positive ? Icons.arrow_drop_up : Icons.arrow_drop_down;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        Text(
+          data.text,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -76,8 +76,13 @@ export class UsersController {
   }
 
   @Get('leaderboard')
-  leaderboard(@Query('limit') limit?: number) {
-    return this.usersService.leaderboard(limit);
+  leaderboard(
+    @Query('limit') limit?: number,
+    @Query('metric') metric?: 'elo' | 'conquest',
+    @Query('q') q?: string,
+  ) {
+    const resolvedMetric = metric === 'conquest' ? 'conquest' : 'elo';
+    return this.usersService.leaderboard(limit, resolvedMetric, q);
   }
 
   @Get('search')

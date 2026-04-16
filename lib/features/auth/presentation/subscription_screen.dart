@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../shared/widgets/dart_button.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../controller/auth_controller.dart';
 
 class SubscriptionScreen extends ConsumerStatefulWidget {
@@ -55,7 +56,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
-    final showAppleButton = kIsWeb || defaultTargetPlatform != TargetPlatform.android;
+    final showAppleButton =
+        kIsWeb || defaultTargetPlatform != TargetPlatform.android;
 
     ref.listen<AuthState>(authControllerProvider, (prev, next) {
       if (next.status == AuthStatus.authenticated) {
@@ -84,7 +86,10 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     children: [
                       IconButton(
                         onPressed: () => context.go(AppRoutes.notLogged),
-                        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -117,7 +122,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     validator: (value) {
                       final v = (value ?? '').trim();
                       if (v.isEmpty) return 'L\'email est obligatoire';
-                      if (!_emailRegex.hasMatch(v)) return 'Format email invalide';
+                      if (!_emailRegex.hasMatch(v))
+                        return 'Format email invalide';
                       return null;
                     },
                   ),
@@ -133,7 +139,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         });
                       },
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                     ),
                     validator: (value) {
@@ -244,7 +252,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   }
 
   void _showAuthFailureDialog(String message, String? details) {
-    showDialog<void>(
+    showNeonDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -298,7 +306,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     return;
                   }
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Logs copies dans le presse-papiers.')),
+                    const SnackBar(
+                      content: Text('Logs copies dans le presse-papiers.'),
+                    ),
                   );
                 },
                 child: Text(
@@ -349,10 +359,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           obscureText: obscure,
           keyboardType: keyboard,
           validator: validator,
-          decoration: InputDecoration(
-            hintText: label,
-            suffixIcon: trailing,
-          ),
+          decoration: InputDecoration(hintText: label, suffixIcon: trailing),
         ),
       ],
     );

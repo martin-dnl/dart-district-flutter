@@ -14,6 +14,7 @@ import '../../match/controller/pending_invitation_controller.dart';
 import '../../match/controller/match_controller.dart';
 import '../../match/data/match_service.dart';
 import '../../../shared/widgets/dart_button.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../controller/play_controller.dart';
 import 'qr_scan_screen.dart';
 import '../../../core/network/api_providers.dart';
@@ -180,7 +181,10 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                       Expanded(
                         child: _OptionCard(
                           icon: Icons.person_add,
-                          label: t('SCREEN.PLAY.INVITE_PLAYER', fallback: 'Inviter'),
+                          label: t(
+                            'SCREEN.PLAY.INVITE_PLAYER',
+                            fallback: 'Inviter',
+                          ),
                           selected:
                               _startOption == GameStartOption.inviteFriend,
                           onTap: () async {
@@ -309,7 +313,10 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                       },
                       icon: const Icon(Icons.add),
                       label: Text(
-                        t('SCREEN.PLAY.INVITE_PLAYER', fallback: 'Ajouter un joueur'),
+                        t(
+                          'SCREEN.PLAY.INVITE_PLAYER',
+                          fallback: 'Ajouter un joueur',
+                        ),
                       ),
                     ),
                 ],
@@ -485,10 +492,10 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                 ],
                 if (!_isChasseurMode) ...[
                   _buildCounter(
-                      label: t(
-                        'SCREEN.PLAY.LEGS_PER_SET',
-                        fallback: 'Legs par set (BO)',
-                      ),
+                    label: t(
+                      'SCREEN.PLAY.LEGS_PER_SET',
+                      fallback: 'Legs par set (BO)',
+                    ),
                     value: _legsPerSet,
                     onMinus: () {
                       final currentIndex = _allowedLegsPerSet.indexOf(
@@ -508,18 +515,17 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
                       final safeIndex = currentIndex < 0 ? 0 : currentIndex;
                       if (safeIndex < _allowedLegsPerSet.length - 1) {
                         setState(
-                          () => _legsPerSet =
-                              _allowedLegsPerSet[safeIndex + 1],
+                          () => _legsPerSet = _allowedLegsPerSet[safeIndex + 1],
                         );
                       }
                     },
                   ),
                   const SizedBox(height: 16),
                   _buildCounter(
-                      label: t(
-                        'SCREEN.PLAY.SETS_TO_WIN',
-                        fallback: 'Sets pour gagner',
-                      ),
+                    label: t(
+                      'SCREEN.PLAY.SETS_TO_WIN',
+                      fallback: 'Sets pour gagner',
+                    ),
                     value: _setsToWin,
                     onMinus: () {
                       if (_setsToWin > 1) {
@@ -686,7 +692,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
   }
 
   void _showTerritoryError(String message) {
-    showDialog<void>(
+    showNeonDialog<void>(
       context: context,
       builder: (ctx) {
         return AlertDialog(

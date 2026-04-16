@@ -10,6 +10,7 @@ import { Match } from '../matches/entities/match.entity';
 import { ClubMember } from '../clubs/entities/club-member.entity';
 import { ClubTerritoryPoints } from '../clubs/entities/club-territory-points.entity';
 import { Territory } from '../territories/entities/territory.entity';
+import { PlayerTerritoryPoints } from '../territories/entities/player-territory-points.entity';
 
 const K_FACTOR = 32;
 
@@ -25,6 +26,8 @@ export class StatsService {
     private readonly clubMemberRepo: Repository<ClubMember>,
     @InjectRepository(ClubTerritoryPoints)
     private readonly ctpRepo: Repository<ClubTerritoryPoints>,
+    @InjectRepository(PlayerTerritoryPoints)
+    private readonly ptpRepo: Repository<PlayerTerritoryPoints>,
     @InjectRepository(Territory)
     private readonly territoryRepo: Repository<Territory>,
   ) {}
@@ -370,6 +373,24 @@ export class StatsService {
 
     association.points += pointsToAdd;
     const saved = await this.ctpRepo.save(association);
+
+    let playerAssociation = await this.ptpRepo.findOne({
+      where: {
+        user_id: params.winnerId,
+        code_iris: codeIris,
+      },
+    });
+
+    if (!playerAssociation) {
+      playerAssociation = this.ptpRepo.create({
+        user_id: params.winnerId,
+        code_iris: codeIris,
+        points: 0,
+      });
+    }
+
+    playerAssociation.points += pointsToAdd;
+    await this.ptpRepo.save(playerAssociation);
 
     await this.userRepo
       .createQueryBuilder()

@@ -13,6 +13,7 @@ import '../../../core/database/local_storage.dart';
 import '../../../core/network/dart_sense_service.dart';
 import '../../../core/network/api_providers.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../../auth/controller/auth_controller.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -227,7 +228,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            t('SCREEN.SETTINGS.LANGUAGE_UPDATED', fallback: 'Langue mise a jour.'),
+            t(
+              'SCREEN.SETTINGS.LANGUAGE_UPDATED',
+              fallback: 'Langue mise a jour.',
+            ),
           ),
         ),
       );
@@ -309,7 +313,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         break;
       }
 
-      final continueCapture = await showDialog<bool>(
+      final continueCapture = await showNeonDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(
@@ -333,10 +337,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ElevatedButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: Text(
-                t(
-                  'SCREEN.SETTINGS.CAPTURE_NEXT',
-                  fallback: 'Frame suivante',
-                ),
+                t('SCREEN.SETTINGS.CAPTURE_NEXT', fallback: 'Frame suivante'),
               ),
             ),
           ],
@@ -389,7 +390,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              t('SCREEN.SETTINGS.DART_SENSE_NO_DARTS', fallback: 'Aucune fleche detectee.'),
+              t(
+                'SCREEN.SETTINGS.DART_SENSE_NO_DARTS',
+                fallback: 'Aucune fleche detectee.',
+              ),
             ),
           ),
         );
@@ -420,7 +424,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    t('SCREEN.SETTINGS.DART_SENSE_RESULT', fallback: 'Resultat Dart Sense'),
+                    t(
+                      'SCREEN.SETTINGS.DART_SENSE_RESULT',
+                      fallback: 'Resultat Dart Sense',
+                    ),
                     style: Theme.of(dialogContext).textTheme.titleMedium
                         ?.copyWith(
                           color: AppColors.textPrimary,
@@ -459,19 +466,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: Text(
-                              t(
-                                'SCREEN.SETTINGS.RETAKE_PHOTO',
-                                fallback: 'Reprendre la photo',
-                              ),
+                          child: Text(
+                            t(
+                              'SCREEN.SETTINGS.RETAKE_PHOTO',
+                              fallback: 'Reprendre la photo',
                             ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () => Navigator.of(dialogContext).pop(),
-                          child: Text(t('COMMON.CONFIRM', fallback: 'Confirmer')),
+                          child: Text(
+                            t('COMMON.CONFIRM', fallback: 'Confirmer'),
+                          ),
                         ),
                       ),
                     ],
@@ -536,7 +545,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _runDartSenseTraining() async {
-    if (_dartSenseMode == mode.DartSenseMode.off || _isSendingDartSenseTraining) {
+    if (_dartSenseMode == mode.DartSenseMode.off ||
+        _isSendingDartSenseTraining) {
       if (_dartSenseMode == mode.DartSenseMode.off) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -563,100 +573,105 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final labelController = TextEditingController();
     final noteController = TextEditingController();
-    final parsed = await showDialog<({int zone, int multiplier, String? note})>(
-      context: context,
-      builder: (dialogContext) {
-        String? error;
-        return StatefulBuilder(
-          builder: (dialogContext, setModalState) {
-            return AlertDialog(
-              title: Text(
-                t(
-                  'SCREEN.SETTINGS.DART_SENSE_TRAINING',
-                  fallback: 'Entrainement Dart Sense',
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.file(
-                        File(photo.path),
-                        height: 170,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+    final parsed =
+        await showNeonDialog<({int zone, int multiplier, String? note})>(
+          context: context,
+          builder: (dialogContext) {
+            String? error;
+            return StatefulBuilder(
+              builder: (dialogContext, setModalState) {
+                return AlertDialog(
+                  title: Text(
+                    t(
+                      'SCREEN.SETTINGS.DART_SENSE_TRAINING',
+                      fallback: 'Entrainement Dart Sense',
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: labelController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        labelText: t(
-                          'SCREEN.SETTINGS.DART_VALUE',
-                          fallback: 'Valeur (ex: T20, D16, SB, DB)',
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(
+                            File(photo.path),
+                            height: 170,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                         ),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: noteController,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        labelText: t(
-                          'SCREEN.SETTINGS.DART_NOTE',
-                          fallback: 'Note (optionnel)',
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: labelController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            labelText: t(
+                              'SCREEN.SETTINGS.DART_VALUE',
+                              fallback: 'Valeur (ex: T20, D16, SB, DB)',
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
                         ),
-                        border: const OutlineInputBorder(),
-                      ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: noteController,
+                          maxLines: 2,
+                          decoration: InputDecoration(
+                            labelText: t(
+                              'SCREEN.SETTINGS.DART_NOTE',
+                              fallback: 'Note (optionnel)',
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        if (error != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            error!,
+                            style: const TextStyle(color: AppColors.error),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (error != null) ...[
-                      const SizedBox(height: 8),
-                      Text(error!, style: const TextStyle(color: AppColors.error)),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final parsedLabel = _parseDartLabel(labelController.text);
-                    if (parsedLabel == null) {
-                      setModalState(() {
-                        error = t(
-                          'SCREEN.SETTINGS.DART_VALUE_INVALID',
-                          fallback: 'Valeur invalide. Exemples: T20, D16, SB, DB',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: Text(t('COMMON.CANCEL', fallback: 'Annuler')),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        final parsedLabel = _parseDartLabel(
+                          labelController.text,
                         );
-                      });
-                      return;
-                    }
+                        if (parsedLabel == null) {
+                          setModalState(() {
+                            error = t(
+                              'SCREEN.SETTINGS.DART_VALUE_INVALID',
+                              fallback:
+                                  'Valeur invalide. Exemples: T20, D16, SB, DB',
+                            );
+                          });
+                          return;
+                        }
 
-                    Navigator.of(dialogContext).pop(
-                      (
-                        zone: parsedLabel.zone,
-                        multiplier: parsedLabel.multiplier,
-                        note: noteController.text.trim().isEmpty
-                            ? null
-                            : noteController.text.trim(),
-                      ),
-                    );
-                  },
-                  child: Text(t('COMMON.SAVE', fallback: 'Enregistrer')),
-                ),
-              ],
+                        Navigator.of(dialogContext).pop((
+                          zone: parsedLabel.zone,
+                          multiplier: parsedLabel.multiplier,
+                          note: noteController.text.trim().isEmpty
+                              ? null
+                              : noteController.text.trim(),
+                        ));
+                      },
+                      child: Text(t('COMMON.SAVE', fallback: 'Enregistrer')),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
-      },
-    );
 
     if (parsed == null || !mounted) {
       return;
@@ -706,7 +721,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _confirmAndSignOut() async {
-    final shouldSignOut = await showDialog<bool>(
+    final shouldSignOut = await showNeonDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(t('SCREEN.SETTINGS.SIGN_OUT', fallback: 'Deconnexion')),
@@ -753,13 +768,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _confirmAndDeleteAccount() async {
     final confirmed = await showConfirmDialog(
       context: context,
-      title: t('SCREEN.SETTINGS.DELETE_ACCOUNT', fallback: 'Supprimer votre compte'),
+      title: t(
+        'SCREEN.SETTINGS.DELETE_ACCOUNT',
+        fallback: 'Supprimer votre compte',
+      ),
       message: t(
         'SCREEN.SETTINGS.DELETE_ACCOUNT_CONFIRM',
         fallback:
             'Cette action est irreversible. Votre compte sera anonymise et vos amities supprimees.',
       ),
-      confirmLabel: t('SCREEN.SETTINGS.DELETE_ACCOUNT_ACTION', fallback: 'Supprimer'),
+      confirmLabel: t(
+        'SCREEN.SETTINGS.DELETE_ACCOUNT_ACTION',
+        fallback: 'Supprimer',
+      ),
       confirmColor: AppColors.error,
     );
     if (!confirmed || !mounted) {
@@ -825,7 +846,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   initialValue: _scoreMode,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: t('SCREEN.SETTINGS.SCORE_MODE', fallback: 'Score mode'),
+                    labelText: t(
+                      'SCREEN.SETTINGS.SCORE_MODE',
+                      fallback: 'Score mode',
+                    ),
                     border: OutlineInputBorder(),
                   ),
                   items: const [

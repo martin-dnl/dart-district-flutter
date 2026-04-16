@@ -8,7 +8,7 @@ import '../../../core/network/api_providers.dart';
 import '../../club/models/club_model.dart';
 import '../../contacts/models/contact_models.dart';
 
-enum QrScanMode { user, club }
+enum QrScanMode { user, club, tournament }
 
 class QrScanScreen extends ConsumerStatefulWidget {
   const QrScanScreen({super.key, required this.mode});
@@ -76,18 +76,36 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
           return;
         }
 
-        final response = await api.get<Map<String, dynamic>>('/clubs/$raw');
+        if (widget.mode == QrScanMode.club) {
+          final response = await api.get<Map<String, dynamic>>('/clubs/$raw');
+          final data =
+              response.data?['data'] as Map<String, dynamic>? ??
+              const <String, dynamic>{};
+          final club = ClubModel.fromApi(data);
+          if (!mounted) {
+            return;
+          }
+          context.pop(club);
+          return;
+        }
+
+        final response = await api.get<Map<String, dynamic>>(
+          '/tournaments/$raw',
+        );
         final data =
             response.data?['data'] as Map<String, dynamic>? ??
             const <String, dynamic>{};
-        final club = ClubModel.fromApi(data);
         if (!mounted) {
           return;
         }
-        context.pop(club);
+        context.pop(data);
         return;
       } catch (_) {
         if (!mounted) {
+          return;
+        }
+        if (widget.mode == QrScanMode.tournament) {
+          context.pop(<String, dynamic>{'not_found': true, 'value': raw});
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
@@ -95,7 +113,9 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
             content: Text(
               widget.mode == QrScanMode.user
                   ? 'QR invalide: utilisateur introuvable.'
-                  : 'QR invalide: club introuvable.',
+                  : widget.mode == QrScanMode.club
+                  ? 'QR invalide: club introuvable.'
+                  : 'QR invalide: tournoi introuvable.',
             ),
           ),
         );
@@ -108,9 +128,11 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.mode == QrScanMode.user
-        ? 'Scannez le QR code de votre adversaire'
-        : 'Scannez le QR code du club';
+    final title = switch (widget.mode) {
+      QrScanMode.user => 'Scannez le QR code de votre adversaire',
+      QrScanMode.club => 'Scannez le QR code du club',
+      QrScanMode.tournament => 'Scannez le QR code du tournoi',
+    };
 
     return Scaffold(
       backgroundColor: Colors.black,

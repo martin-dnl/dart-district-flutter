@@ -8,6 +8,7 @@ import '../../../core/config/app_routes.dart';
 import '../../../features/auth/controller/auth_controller.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/glass_card.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../../../shared/widgets/player_avatar.dart';
 import '../controller/tournament_controller.dart';
 import '../data/tournament_service.dart';
@@ -29,71 +30,72 @@ class TournamentDetailScreen extends ConsumerWidget {
 
     return AppScaffold(
       child: detailAsync.when(
-          data: (detail) {
-            final isCreator =
-                ref.read(currentUserProvider)?.id ==
-                detail.tournament.creatorId;
-            final canDisqualify =
-                isCreator && detail.tournament.currentPhase != 'registration';
+        data: (detail) {
+          final isCreator =
+              ref.read(currentUserProvider)?.id == detail.tournament.creatorId;
+          final canDisqualify =
+              isCreator && detail.tournament.currentPhase != 'registration';
 
-            return DefaultTabController(
-              length: 4,
-              child: Column(
-                children: [
-                  const TabBar(
-                    labelColor: AppColors.primary,
-                    unselectedLabelColor: AppColors.textSecondary,
-                    tabs: [
-                      Tab(text: 'Infos'),
-                      Tab(text: 'Joueurs'),
-                      Tab(text: 'Poules'),
-                      Tab(text: 'Bracket'),
+          return DefaultTabController(
+            length: 4,
+            child: Column(
+              children: [
+                const TabBar(
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  tabs: [
+                    Tab(text: 'Infos'),
+                    Tab(text: 'Joueurs'),
+                    Tab(text: 'Poules'),
+                    Tab(text: 'Bracket'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _InfoTab(
+                        tournament: detail.tournament,
+                        onRegisterToggle: () async {
+                          final service = ref.read(tournamentServiceProvider);
+                          if (detail.tournament.isRegistered) {
+                            await service.unregister(tournamentId);
+                          } else {
+                            await service.register(tournamentId);
+                          }
+                          ref.invalidate(
+                            tournamentDetailProvider(tournamentId),
+                          );
+                          ref.invalidate(tournamentsListProvider);
+                        },
+                      ),
+                      _PlayersTab(
+                        players: detail.players,
+                        tournamentId: tournamentId,
+                        canDisqualify: canDisqualify,
+                      ),
+                      _PoolsTab(poolsAsync: poolsAsync),
+                      _BracketTab(bracketAsync: bracketAsync),
                     ],
                   ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _InfoTab(
-                          tournament: detail.tournament,
-                          onRegisterToggle: () async {
-                            final service = ref.read(tournamentServiceProvider);
-                            if (detail.tournament.isRegistered) {
-                              await service.unregister(tournamentId);
-                            } else {
-                              await service.register(tournamentId);
-                            }
-                            ref.invalidate(tournamentDetailProvider(tournamentId));
-                            ref.invalidate(tournamentsListProvider);
-                          },
-                        ),
-                        _PlayersTab(
-                          players: detail.players,
-                          tournamentId: tournamentId,
-                          canDisqualify: canDisqualify,
-                        ),
-                        _PoolsTab(poolsAsync: poolsAsync),
-                        _BracketTab(bracketAsync: bracketAsync),
-                      ],
-                    ),
+                ),
+                if (isCreator)
+                  _AdminActions(
+                    tournamentId: tournamentId,
+                    phase: detail.tournament.currentPhase,
+                    enrolledPlayers: detail.tournament.enrolledPlayers,
                   ),
-                  if (isCreator)
-                    _AdminActions(
-                      tournamentId: tournamentId,
-                      phase: detail.tournament.currentPhase,
-                      enrolledPlayers: detail.tournament.enrolledPlayers,
-                    ),
-                ],
-              ),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const Center(
-            child: Text(
-              'Erreur de chargement du tournoi.',
-              style: TextStyle(color: AppColors.error),
+              ],
             ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => const Center(
+          child: Text(
+            'Erreur de chargement du tournoi.',
+            style: TextStyle(color: AppColors.error),
           ),
         ),
+      ),
     );
   }
 }
@@ -154,7 +156,7 @@ class _InfoTab extends ConsumerWidget {
 
     Future<void> handleRegisterToggle() async {
       if (!tournament.isRegistered) {
-        final confirmed = await showDialog<bool>(
+        final confirmed = await showNeonDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Rejoindre ce tournoi ?'),
@@ -224,14 +226,14 @@ class _InfoTab extends ConsumerWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: _phaseColor(tournament.currentPhase).withValues(
-                    alpha: 0.14,
-                  ),
+                  color: _phaseColor(
+                    tournament.currentPhase,
+                  ).withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: _phaseColor(tournament.currentPhase).withValues(
-                      alpha: 0.42,
-                    ),
+                    color: _phaseColor(
+                      tournament.currentPhase,
+                    ).withValues(alpha: 0.42),
                   ),
                 ),
                 child: Text(
@@ -293,9 +295,8 @@ class _InfoTab extends ConsumerWidget {
                 _InfoRow(
                   label: 'Adresse',
                   value: tournament.venueAddress!.trim(),
-                  onTap: () => _launchMapsNavigation(
-                    tournament.venueAddress!.trim(),
-                  ),
+                  onTap: () =>
+                      _launchMapsNavigation(tournament.venueAddress!.trim()),
                 ),
               const SizedBox(height: 16),
               if (!isGuest)
@@ -351,7 +352,9 @@ class _InfoRow extends StatelessWidget {
               child: Text(
                 value,
                 style: TextStyle(
-                  color: onTap == null ? AppColors.textPrimary : AppColors.primary,
+                  color: onTap == null
+                      ? AppColors.textPrimary
+                      : AppColors.primary,
                   decoration: onTap == null
                       ? TextDecoration.none
                       : TextDecoration.underline,
@@ -422,7 +425,7 @@ class _PlayersTab extends ConsumerWidget {
                     tooltip: 'Disqualifier ${player.username}',
                     onPressed: () async {
                       final reasonCtrl = TextEditingController();
-                      final confirmed = await showDialog<bool>(
+                      final confirmed = await showNeonDialog<bool>(
                         context: context,
                         builder: (_) => AlertDialog(
                           title: Text('Disqualifier ${player.username}'),

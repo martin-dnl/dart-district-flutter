@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'neon_modal.dart';
+
 Future<bool> showConfirmDialog({
   required BuildContext context,
   required String title,
@@ -8,24 +10,43 @@ Future<bool> showConfirmDialog({
   String cancelLabel = 'Annuler',
   Color? confirmColor,
 }) async {
-  final result = await showDialog<bool>(
+  final result = await showNeonDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(cancelLabel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          style: confirmColor != null
-              ? FilledButton.styleFrom(backgroundColor: confirmColor)
-              : null,
-          child: Text(confirmLabel),
-        ),
-      ],
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          Text(message),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: Text(cancelLabel),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  style: confirmColor != null
+                      ? FilledButton.styleFrom(backgroundColor: confirmColor)
+                      : null,
+                  child: Text(confirmLabel),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     ),
   );
   return result ?? false;

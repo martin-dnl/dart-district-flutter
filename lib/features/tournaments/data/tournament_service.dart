@@ -49,6 +49,29 @@ class TournamentDetailModel {
   final List<TournamentPlayerModel> players;
 }
 
+class PlayerLeaderboardEntry {
+  const PlayerLeaderboardEntry({
+    required this.id,
+    required this.username,
+    required this.elo,
+    required this.conquestScore,
+  });
+
+  final String id;
+  final String username;
+  final int elo;
+  final int conquestScore;
+
+  factory PlayerLeaderboardEntry.fromApi(Map<String, dynamic> json) {
+    return PlayerLeaderboardEntry(
+      id: (json['id'] ?? '').toString(),
+      username: (json['username'] ?? 'Joueur').toString(),
+      elo: (json['elo'] as num?)?.toInt() ?? 1000,
+      conquestScore: (json['conquest_score'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class TournamentService {
   TournamentService(this.ref);
 
@@ -226,6 +249,33 @@ class TournamentService {
   Future<void> createTournament(Map<String, dynamic> payload) async {
     final api = ref.read(apiClientProvider);
     await api.post<Map<String, dynamic>>('/tournaments', data: payload);
+  }
+
+  Future<List<PlayerLeaderboardEntry>> fetchPlayerLeaderboard({
+    required String metric,
+    int limit = 50,
+    String? query,
+  }) async {
+    final api = ref.read(apiClientProvider);
+    final queryParameters = <String, dynamic>{
+      'metric': metric,
+      'limit': '$limit',
+      if ((query ?? '').trim().isNotEmpty) 'q': query!.trim(),
+    };
+
+    final response = await api.get<Map<String, dynamic>>(
+      '/users/leaderboard',
+      queryParameters: queryParameters,
+    );
+
+    final rows = (response.data?['data'] as List<dynamic>? ?? <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+
+    return rows
+        .map(PlayerLeaderboardEntry.fromApi)
+        .where((entry) => entry.id.isNotEmpty)
+        .toList(growable: false);
   }
 }
 

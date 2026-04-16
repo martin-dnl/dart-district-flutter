@@ -127,11 +127,7 @@ class ProfileController extends StateNotifier<ProfileState> {
       );
       final matchesResponse = await api.get<Map<String, dynamic>>(
         '/matches/me',
-        queryParameters: const {
-          'limit': '5',
-          'status': 'completed',
-          'ranked': 'true',
-        },
+        queryParameters: const {'limit': '5', 'status': 'completed'},
       );
 
       final statsData =

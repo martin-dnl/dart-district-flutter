@@ -244,88 +244,50 @@ class _ChartToolbar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SegmentedButton<EloPeriodMode>(
-                style: ButtonStyle(
-                  backgroundColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return AppColors.primary.withValues(alpha: 0.16);
-                    }
-                    return AppColors.card;
-                  }),
-                  foregroundColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return AppColors.primary;
-                    }
-                    return AppColors.textSecondary;
-                  }),
-                  side: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return const BorderSide(color: AppColors.primary);
-                    }
-                    return const BorderSide(color: AppColors.stroke);
-                  }),
-                  shape: WidgetStateProperty.all(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<EloPeriodMode>(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppColors.primary.withValues(alpha: 0.16);
+                }
+                return AppColors.card;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppColors.primary;
+                }
+                return AppColors.textSecondary;
+              }),
+              side: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const BorderSide(color: AppColors.primary);
+                }
+                return const BorderSide(color: AppColors.stroke);
+              }),
+              shape: WidgetStateProperty.all(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            segments: EloPeriodMode.values
+                .map(
+                  (value) => ButtonSegment<EloPeriodMode>(
+                    value: value,
+                    label: Text(modeLabelBuilder(value)),
                   ),
-                ),
-                segments: EloPeriodMode.values
-                    .map(
-                      (value) => ButtonSegment<EloPeriodMode>(
-                        value: value,
-                        label: Text(modeLabelBuilder(value)),
-                      ),
-                    )
-                    .toList(growable: false),
-                selected: <EloPeriodMode>{mode},
-                showSelectedIcon: false,
-                onSelectionChanged: (selection) {
-                  final selected = selection.first;
-                  if (selected == mode) {
-                    return;
-                  }
-                  onModeChanged(selected);
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.card,
-                foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.stroke),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () => onShiftOffset(offset + 1),
-              icon: const Icon(Icons.chevron_left),
-              tooltip: t(
-                'SCREEN.PROFILE.PREVIOUS_PERIOD',
-                fallback: 'Periode precedente',
-              ),
-            ),
-            IconButton(
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.card,
-                foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.stroke),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: offset > 0 ? () => onShiftOffset(offset - 1) : null,
-              icon: const Icon(Icons.chevron_right),
-              tooltip: t(
-                'SCREEN.PROFILE.NEXT_PERIOD',
-                fallback: 'Periode suivante',
-              ),
-            ),
-          ],
+                )
+                .toList(growable: false),
+            selected: <EloPeriodMode>{mode},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              final selected = selection.first;
+              if (selected == mode) {
+                return;
+              }
+              onModeChanged(selected);
+            },
+          ),
         ),
         if (periodLabel.isNotEmpty)
           Padding(
@@ -339,6 +301,47 @@ class _ChartToolbar extends StatelessWidget {
               ),
             ),
           ),
+        const SizedBox(height: 8),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.card,
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.stroke),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => onShiftOffset(offset + 1),
+                icon: const Icon(Icons.chevron_left),
+                tooltip: t(
+                  'SCREEN.PROFILE.PREVIOUS_PERIOD',
+                  fallback: 'Periode precedente',
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.card,
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.stroke),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: offset > 0 ? () => onShiftOffset(offset - 1) : null,
+                icon: const Icon(Icons.chevron_right),
+                tooltip: t(
+                  'SCREEN.PROFILE.NEXT_PERIOD',
+                  fallback: 'Periode suivante',
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

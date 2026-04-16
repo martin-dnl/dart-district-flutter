@@ -8,6 +8,7 @@ import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../../auth/controller/auth_controller.dart';
 import '../controller/cricket_match_controller.dart';
 import '../controller/match_controller.dart';
@@ -58,7 +59,10 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
       }
     });
 
-    ref.listen<OngoingMatchesState>(ongoingMatchesControllerProvider, (_, next) {
+    ref.listen<OngoingMatchesState>(ongoingMatchesControllerProvider, (
+      _,
+      next,
+    ) {
       final current = ref.read(matchControllerProvider);
       if (!_isRemoteCricket(current)) {
         return;
@@ -66,7 +70,9 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
       for (final candidate in next.matches) {
         if (candidate.id == current.id) {
           ref.read(matchControllerProvider.notifier).loadMatch(candidate);
-          ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(candidate);
+          ref
+              .read(cricketMatchControllerProvider.notifier)
+              .loadRemoteMatch(candidate);
           break;
         }
       }
@@ -84,7 +90,9 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
           if (!mounted) {
             return;
           }
-          ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(remoteMatch);
+          ref
+              .read(cricketMatchControllerProvider.notifier)
+              .loadRemoteMatch(remoteMatch);
         });
       }
     }
@@ -125,7 +133,8 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                         fillAvailableHeight: true,
                         submitEachDartInstantly: true,
                         ringColorResolver: (sector, ring) {
-                          final currentPlayer = state.players[state.currentPlayerIndex];
+                          final currentPlayer =
+                              state.players[state.currentPlayerIndex];
                           if (cricketZones.contains(sector)) {
                             if ((currentPlayer.hits[sector] ?? 0) >= 3) {
                               return AppColors.primary.withValues(alpha: 0.78);
@@ -141,31 +150,50 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                           if (!cricketZones.contains(sector)) {
                             return null;
                           }
-                          final currentPlayer = state.players[state.currentPlayerIndex];
-                          final remaining = (3 - (currentPlayer.hits[sector] ?? 0)).clamp(0, 3);
+                          final currentPlayer =
+                              state.players[state.currentPlayerIndex];
+                          final remaining =
+                              (3 - (currentPlayer.hits[sector] ?? 0)).clamp(
+                                0,
+                                3,
+                              );
                           return remaining > 0 ? '$remaining' : '';
                         },
-                        outerBullColor: (state.players[state.currentPlayerIndex].hits[25] ?? 0) >= 3
+                        outerBullColor:
+                            (state.players[state.currentPlayerIndex].hits[25] ??
+                                    0) >=
+                                3
                             ? AppColors.primary.withValues(alpha: 0.78)
                             : AppColors.warning.withValues(alpha: 0.72),
-                        innerBullColor: (state.players[state.currentPlayerIndex].hits[25] ?? 0) >= 3
+                        innerBullColor:
+                            (state.players[state.currentPlayerIndex].hits[25] ??
+                                    0) >=
+                                3
                             ? AppColors.primary.withValues(alpha: 0.86)
                             : AppColors.warning.withValues(alpha: 0.82),
                         onSubmitVisit: (visit) {
-                          final hit = visit.dartHits.isNotEmpty ? visit.dartHits.first : null;
+                          final hit = visit.dartHits.isNotEmpty
+                              ? visit.dartHits.first
+                              : null;
                           if (hit == null || hit.score == 0) {
                             final remote = ref.read(matchControllerProvider);
                             if (_isRemoteCricket(remote)) {
-                              unawaited(_submitRemoteCricketDart(remote, -1, 1));
+                              unawaited(
+                                _submitRemoteCricketDart(remote, -1, 1),
+                              );
                             } else {
-                              ref.read(cricketMatchControllerProvider.notifier).registerDart(-1, 1);
+                              ref
+                                  .read(cricketMatchControllerProvider.notifier)
+                                  .registerDart(-1, 1);
                             }
                             return;
                           }
 
                           final parsed = _toCricketDart(hit);
                           if (parsed == null) {
-                            ref.read(cricketMatchControllerProvider.notifier).registerDart(-1, 1);
+                            ref
+                                .read(cricketMatchControllerProvider.notifier)
+                                .registerDart(-1, 1);
                             return;
                           }
 
@@ -185,10 +213,7 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                           }
                         },
                       )
-                    : _CricketGrid(
-                        state: state,
-                        onTapZone: _onTapZone,
-                      ),
+                    : _CricketGrid(state: state, onTapZone: _onTapZone),
               ),
             ),
           ],
@@ -204,7 +229,10 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
     }
 
     if (_pendingZone == zone) {
-      _pendingMultiplier = (_pendingMultiplier + 1).clamp(1, zone == 25 ? 2 : 3);
+      _pendingMultiplier = (_pendingMultiplier + 1).clamp(
+        1,
+        zone == 25 ? 2 : 3,
+      );
     } else {
       _commitPendingShot();
       _pendingZone = zone;
@@ -212,7 +240,10 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
     }
 
     _pendingShotTimer?.cancel();
-    _pendingShotTimer = Timer(const Duration(milliseconds: 520), _commitPendingShot);
+    _pendingShotTimer = Timer(
+      const Duration(milliseconds: 520),
+      _commitPendingShot,
+    );
   }
 
   void _commitPendingShot() {
@@ -232,7 +263,9 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
       return;
     }
 
-    ref.read(cricketMatchControllerProvider.notifier).registerDart(zone, multiplier);
+    ref
+        .read(cricketMatchControllerProvider.notifier)
+        .registerDart(zone, multiplier);
   }
 
   bool _isRemoteCricket(MatchModel match) {
@@ -273,19 +306,16 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
         playerIndex: match.currentPlayerIndex,
         score: score,
         dartPositions: <Map<String, dynamic>>[
-          {
-            'x': 0.0,
-            'y': 0.0,
-            'score': score,
-            'label': 'C:$zone:$multiplier',
-          },
+          {'x': 0.0, 'y': 0.0, 'score': score, 'label': 'C:$zone:$multiplier'},
         ],
       );
       if (!mounted) {
         return;
       }
       ref.read(matchControllerProvider.notifier).loadMatch(updated);
-      ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(updated);
+      ref
+          .read(cricketMatchControllerProvider.notifier)
+          .loadRemoteMatch(updated);
     } catch (_) {
       if (!mounted) {
         return;
@@ -340,8 +370,14 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: _manualMode, child: Text('MANUAL')),
-                      DropdownMenuItem(value: _dartboardMode, child: Text('DARTBOARD')),
+                      DropdownMenuItem(
+                        value: _manualMode,
+                        child: Text('MANUAL'),
+                      ),
+                      DropdownMenuItem(
+                        value: _dartboardMode,
+                        child: Text('DARTBOARD'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) {
@@ -355,7 +391,10 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                   const SizedBox(height: 12),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.undo, color: AppColors.textSecondary),
+                    leading: const Icon(
+                      Icons.undo,
+                      color: AppColors.textSecondary,
+                    ),
                     title: Text(
                       t(
                         'SCREEN.CRICKET.UNDO_ROUND',
@@ -366,8 +405,13 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                   ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.flag_outlined, color: AppColors.warning),
-                    title: Text(t('SCREEN.CRICKET.SURRENDER', fallback: 'Abandonner')),
+                    leading: const Icon(
+                      Icons.flag_outlined,
+                      color: AppColors.warning,
+                    ),
+                    title: Text(
+                      t('SCREEN.CRICKET.SURRENDER', fallback: 'Abandonner'),
+                    ),
                     onTap: () => Navigator.pop(ctx, 'abandon'),
                   ),
                   const SizedBox(height: 8),
@@ -421,7 +465,9 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
         return;
       }
       ref.read(matchControllerProvider.notifier).loadMatch(current);
-      ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(current);
+      ref
+          .read(cricketMatchControllerProvider.notifier)
+          .loadRemoteMatch(current);
     } catch (_) {
       if (!mounted) {
         return;
@@ -463,7 +509,9 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
           return;
         }
         ref.read(matchControllerProvider.notifier).loadMatch(updated);
-        ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(updated);
+        ref
+            .read(cricketMatchControllerProvider.notifier)
+            .loadRemoteMatch(updated);
         await ref.read(ongoingMatchesControllerProvider.notifier).refresh();
       } catch (_) {
         if (!mounted) {
@@ -501,12 +549,16 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
     }
 
     final winnerIndex = state.winnerIndex;
-    if (winnerIndex == null || winnerIndex < 0 || winnerIndex >= state.players.length) {
+    if (winnerIndex == null ||
+        winnerIndex < 0 ||
+        winnerIndex >= state.players.length) {
       return;
     }
 
-    final loserIndex = List<int>.generate(state.players.length, (i) => i)
-        .firstWhere((i) => i != winnerIndex, orElse: () => -1);
+    final loserIndex = List<int>.generate(
+      state.players.length,
+      (i) => i,
+    ).firstWhere((i) => i != winnerIndex, orElse: () => -1);
     if (loserIndex < 0) {
       return;
     }
@@ -523,7 +575,9 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
       }
       _completionSynced = true;
       ref.read(matchControllerProvider.notifier).loadMatch(updated);
-      ref.read(cricketMatchControllerProvider.notifier).loadRemoteMatch(updated);
+      ref
+          .read(cricketMatchControllerProvider.notifier)
+          .loadRemoteMatch(updated);
       await ref.read(ongoingMatchesControllerProvider.notifier).refresh();
     } catch (_) {
       // Keep unsynced to retry on next state update.
@@ -531,10 +585,12 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
   }
 
   Future<void> _showEndDialog(CricketMatchState state) async {
-    final winner = state.winnerIndex != null ? state.players[state.winnerIndex!] : null;
+    final winner = state.winnerIndex != null
+        ? state.players[state.winnerIndex!]
+        : null;
     final recent = state.roundHistory.reversed.take(4).toList(growable: false);
 
-    await showDialog<void>(
+    await showNeonDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
@@ -551,8 +607,11 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                    winner == null
-                      ? t('SCREEN.CRICKET.END_MESSAGE', fallback: 'Fin de partie.')
+                  winner == null
+                      ? t(
+                          'SCREEN.CRICKET.END_MESSAGE',
+                          fallback: 'Fin de partie.',
+                        )
                       : '${winner.name} ${t('SCREEN.CRICKET.WINS_MESSAGE', fallback: 'remporte la partie de Cricket.')}',
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
@@ -560,7 +619,10 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                 for (var i = 0; i < state.players.length; i++) ...[
                   Text(
                     '${state.players[i].name}: ${cricketZones.where((z) => state.players[i].isClosed(z)).length}/7 zones fermees - ${state.players[i].score} pts',
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                    ),
                   ),
                   if (i < state.players.length - 1) const SizedBox(height: 4),
                 ],
@@ -577,7 +639,10 @@ class _CricketMatchScreenState extends ConsumerState<CricketMatchScreen> {
                   for (final round in recent)
                     Text(
                       'R${round.round} · ${state.players[round.playerIndex].name}: ${round.darts.map((d) => d.multiplier == 1 ? 'S${d.zone == 25 ? 'B' : d.zone}' : (d.multiplier == 2 ? 'D${d.zone == 25 ? 'B' : d.zone}' : 'T${d.zone == 25 ? 'B' : d.zone}')).join(' - ')}',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                 ],
               ],
@@ -627,7 +692,8 @@ class _CricketScoreboard extends StatelessWidget {
             Expanded(
               child: _PlayerPanel(
                 player: state.players[i],
-                isActive: state.currentPlayerIndex == i &&
+                isActive:
+                    state.currentPlayerIndex == i &&
                     state.status == MatchStatus.inProgress,
                 compact: playerCount > 2,
               ),
@@ -655,7 +721,9 @@ class _PlayerPanel extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(compact ? 6 : 10),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primary.withValues(alpha: 0.14) : AppColors.surface,
+        color: isActive
+            ? AppColors.primary.withValues(alpha: 0.14)
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isActive ? AppColors.primary : AppColors.surfaceLight,
@@ -698,10 +766,7 @@ class _PlayerPanel extends StatelessWidget {
 }
 
 class _CricketGrid extends StatelessWidget {
-  const _CricketGrid({
-    required this.state,
-    required this.onTapZone,
-  });
+  const _CricketGrid({required this.state, required this.onTapZone});
 
   final CricketMatchState state;
   final ValueChanged<int> onTapZone;
@@ -789,9 +854,11 @@ class _CricketGrid extends StatelessWidget {
                   Expanded(
                     child: _CricketCell(
                       hits: state.players[0].hits[zone] ?? 0,
-                      active: state.currentPlayerIndex == 0 &&
+                      active:
+                          state.currentPlayerIndex == 0 &&
                           state.status == MatchStatus.inProgress,
-                      scoringOpen: state.players[0].isClosed(zone) &&
+                      scoringOpen:
+                          state.players[0].isClosed(zone) &&
                           state.players
                               .asMap()
                               .entries
@@ -829,9 +896,11 @@ class _CricketGrid extends StatelessWidget {
                     Expanded(
                       child: _CricketCell(
                         hits: state.players[p].hits[zone] ?? 0,
-                        active: state.currentPlayerIndex == p &&
+                        active:
+                            state.currentPlayerIndex == p &&
                             state.status == MatchStatus.inProgress,
-                        scoringOpen: state.players[p].isClosed(zone) &&
+                        scoringOpen:
+                            state.players[p].isClosed(zone) &&
                             state.players
                                 .asMap()
                                 .entries
@@ -912,8 +981,8 @@ class _CricketCell extends StatelessWidget {
     final cellColor = fullyClosed
         ? AppColors.surface
         : scoringOpen
-            ? AppColors.primary.withValues(alpha: 0.12)
-            : (active ? AppColors.card : AppColors.surface);
+        ? AppColors.primary.withValues(alpha: 0.12)
+        : (active ? AppColors.card : AppColors.surface);
 
     final paintColor = fullyClosed ? AppColors.textHint : AppColors.textPrimary;
 
@@ -925,7 +994,9 @@ class _CricketCell extends StatelessWidget {
           color: cellColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: active ? AppColors.primary.withValues(alpha: 0.6) : AppColors.surfaceLight,
+            color: active
+                ? AppColors.primary.withValues(alpha: 0.6)
+                : AppColors.surfaceLight,
           ),
         ),
         child: Center(

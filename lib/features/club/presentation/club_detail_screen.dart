@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/app_colors.dart';
 import '../../../core/network/api_providers.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../models/club_model.dart';
 import '../widgets/member_list_tile.dart';
 
@@ -179,7 +180,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showNeonDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
@@ -237,7 +238,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showNeonDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,

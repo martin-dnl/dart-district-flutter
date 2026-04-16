@@ -8,6 +8,7 @@ import '../../../core/config/app_colors.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/config/translation_service.dart';
 import '../../../core/network/api_providers.dart';
+import '../../../shared/widgets/neon_modal.dart';
 import '../controller/chasseur_match_controller.dart';
 import '../controller/match_controller.dart';
 import '../controller/ongoing_matches_controller.dart';
@@ -21,7 +22,8 @@ class ChasseurMatchScreen extends ConsumerStatefulWidget {
   const ChasseurMatchScreen({super.key});
 
   @override
-  ConsumerState<ChasseurMatchScreen> createState() => _ChasseurMatchScreenState();
+  ConsumerState<ChasseurMatchScreen> createState() =>
+      _ChasseurMatchScreenState();
 }
 
 class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
@@ -34,7 +36,10 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<ChasseurMatchState>(chasseurMatchControllerProvider, (prev, next) {
+    ref.listen<ChasseurMatchState>(chasseurMatchControllerProvider, (
+      prev,
+      next,
+    ) {
       if (next.status == MatchStatus.finished) {
         unawaited(_submitRemoteCompletionIfNeeded(next));
       }
@@ -49,7 +54,10 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       }
     });
 
-    ref.listen<OngoingMatchesState>(ongoingMatchesControllerProvider, (_, next) {
+    ref.listen<OngoingMatchesState>(ongoingMatchesControllerProvider, (
+      _,
+      next,
+    ) {
       final current = ref.read(matchControllerProvider);
       if (!_isRemoteChasseur(current)) {
         return;
@@ -57,7 +65,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       for (final candidate in next.matches) {
         if (candidate.id == current.id) {
           ref.read(matchControllerProvider.notifier).loadMatch(candidate);
-          ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(candidate);
+          ref
+              .read(chasseurMatchControllerProvider.notifier)
+              .loadRemoteMatch(candidate);
           break;
         }
       }
@@ -76,7 +86,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
           if (!mounted) {
             return;
           }
-          ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(remoteMatch);
+          ref
+              .read(chasseurMatchControllerProvider.notifier)
+              .loadRemoteMatch(remoteMatch);
         });
       }
     }
@@ -121,7 +133,8 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                         final player = state.players[index];
                         return _PlayerCard(
                           player: player,
-                          isActive: state.currentPlayerIndex == index &&
+                          isActive:
+                              state.currentPlayerIndex == index &&
                               state.status == MatchStatus.inProgress,
                           compact: true,
                         );
@@ -138,7 +151,8 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                           ),
                           child: _PlayerCard(
                             player: player,
-                            isActive: state.currentPlayerIndex == index &&
+                            isActive:
+                                state.currentPlayerIndex == index &&
                                 state.status == MatchStatus.inProgress,
                           ),
                         );
@@ -175,26 +189,46 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                     maxScore: 180,
                                     fillAvailableHeight: true,
                                     submitEachDartInstantly: true,
-                                    displayDartLabels: _currentTurnDartLabels(state),
-                                    displayCurrentDartIndex: state.currentDartInTurn,
+                                    displayDartLabels: _currentTurnDartLabels(
+                                      state,
+                                    ),
+                                    displayCurrentDartIndex:
+                                        state.currentDartInTurn,
                                     ringColorResolver: (sector, ring) {
-                                      if (_isChasseurTargetSector(state, sector)) {
-                                        return AppColors.warning.withValues(alpha: 0.70);
+                                      if (_isChasseurTargetSector(
+                                        state,
+                                        sector,
+                                      )) {
+                                        return AppColors.warning.withValues(
+                                          alpha: 0.70,
+                                        );
                                       }
                                       return null;
                                     },
                                     outerBullColor: _isChasseurTargetBull(state)
-                                        ? AppColors.warning.withValues(alpha: 0.70)
+                                        ? AppColors.warning.withValues(
+                                            alpha: 0.70,
+                                          )
                                         : null,
                                     innerBullColor: _isChasseurTargetBull(state)
-                                        ? AppColors.warning.withValues(alpha: 0.82)
+                                        ? AppColors.warning.withValues(
+                                            alpha: 0.82,
+                                          )
                                         : null,
                                     onSubmitVisit: (visit) {
-                                      final hit = visit.dartHits.isNotEmpty ? visit.dartHits.first : null;
+                                      final hit = visit.dartHits.isNotEmpty
+                                          ? visit.dartHits.first
+                                          : null;
                                       if (hit == null || hit.score == 0) {
-                                        final remote = ref.read(matchControllerProvider);
+                                        final remote = ref.read(
+                                          matchControllerProvider,
+                                        );
                                         if (_isRemoteChasseur(remote)) {
-                                          _submitRemoteSingleChasseurDart(remote, -1, 1);
+                                          _submitRemoteSingleChasseurDart(
+                                            remote,
+                                            -1,
+                                            1,
+                                          );
                                         } else {
                                           controller.registerDart(-1, 1);
                                         }
@@ -207,7 +241,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                         return;
                                       }
 
-                                      final remote = ref.read(matchControllerProvider);
+                                      final remote = ref.read(
+                                        matchControllerProvider,
+                                      );
                                       if (_isRemoteChasseur(remote)) {
                                         _submitRemoteSingleChasseurDart(
                                           remote,
@@ -215,7 +251,10 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                           parsed.multiplier,
                                         );
                                       } else {
-                                        controller.registerDart(parsed.zone, parsed.multiplier);
+                                        controller.registerDart(
+                                          parsed.zone,
+                                          parsed.multiplier,
+                                        );
                                       }
                                     },
                                   )
@@ -227,8 +266,10 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                           maxScore: 180,
                                           fillAvailableHeight: true,
                                           submitEachDartInstantly: true,
-                                          displayDartLabels: _currentTurnDartLabels(state),
-                                          displayCurrentDartIndex: state.currentDartInTurn,
+                                          displayDartLabels:
+                                              _currentTurnDartLabels(state),
+                                          displayCurrentDartIndex:
+                                              state.currentDartInTurn,
                                           gridCrossAxisCount: 4,
                                           zones: const [
                                             1,
@@ -254,20 +295,32 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                                             25,
                                             50,
                                           ],
-                                          canSelectZone: (zone) => _canSelectTempoZone(state, zone),
+                                          canSelectZone: (zone) =>
+                                              _canSelectTempoZone(state, zone),
                                           onSubmitVisit: (visit) {
-                                            final remote = ref.read(matchControllerProvider);
+                                            final remote = ref.read(
+                                              matchControllerProvider,
+                                            );
                                             if (_isRemoteChasseur(remote)) {
-                                              _submitRemoteChasseurVisit(remote, visit);
+                                              _submitRemoteChasseurVisit(
+                                                remote,
+                                                visit,
+                                              );
                                               return;
                                             }
                                             for (final shot in visit.darts) {
-                                              if (shot.isMiss || shot.score == 0) {
+                                              if (shot.isMiss ||
+                                                  shot.score == 0) {
                                                 controller.registerDart(-1, 1);
                                                 continue;
                                               }
-                                              final zone = shot.zone == 50 ? 25 : shot.zone;
-                                              controller.registerDart(zone, shot.multiplier);
+                                              final zone = shot.zone == 50
+                                                  ? 25
+                                                  : shot.zone;
+                                              controller.registerDart(
+                                                zone,
+                                                shot.multiplier,
+                                              );
                                             }
                                           },
                                         ),
@@ -360,10 +413,15 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
     return hasRemoteContext && match.mode.toLowerCase() == 'chasseur';
   }
 
-  Future<void> _submitRemoteChasseurVisit(MatchModel match, TempoVisit visit) async {
+  Future<void> _submitRemoteChasseurVisit(
+    MatchModel match,
+    TempoVisit visit,
+  ) async {
     final api = ref.read(apiClientProvider);
     final service = MatchService(api);
-    final throwerIndex = ref.read(chasseurMatchControllerProvider).currentPlayerIndex;
+    final throwerIndex = ref
+        .read(chasseurMatchControllerProvider)
+        .currentPlayerIndex;
 
     try {
       MatchModel current = match;
@@ -393,7 +451,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
         return;
       }
       ref.read(matchControllerProvider.notifier).loadMatch(current);
-      ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(current);
+      ref
+          .read(chasseurMatchControllerProvider.notifier)
+          .loadRemoteMatch(current);
     } catch (_) {
       if (!mounted) {
         return;
@@ -418,7 +478,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
   ) async {
     final api = ref.read(apiClientProvider);
     final service = MatchService(api);
-    final throwerIndex = ref.read(chasseurMatchControllerProvider).currentPlayerIndex;
+    final throwerIndex = ref
+        .read(chasseurMatchControllerProvider)
+        .currentPlayerIndex;
     final score = zone <= 0 ? 0 : zone * multiplier;
     try {
       final updated = await service.updateMatchScore(
@@ -426,19 +488,16 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
         playerIndex: throwerIndex,
         score: score,
         dartPositions: <Map<String, dynamic>>[
-          {
-            'x': 0.0,
-            'y': 0.0,
-            'score': score,
-            'label': 'H:$zone:$multiplier',
-          },
+          {'x': 0.0, 'y': 0.0, 'score': score, 'label': 'H:$zone:$multiplier'},
         ],
       );
       if (!mounted) {
         return;
       }
       ref.read(matchControllerProvider.notifier).loadMatch(updated);
-      ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(updated);
+      ref
+          .read(chasseurMatchControllerProvider.notifier)
+          .loadRemoteMatch(updated);
     } catch (_) {
       if (!mounted) {
         return;
@@ -494,7 +553,10 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                     ),
                     items: const [
                       DropdownMenuItem(value: _tempoMode, child: Text('TEMPO')),
-                      DropdownMenuItem(value: _dartboardMode, child: Text('DARTBOARD')),
+                      DropdownMenuItem(
+                        value: _dartboardMode,
+                        child: Text('DARTBOARD'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) {
@@ -508,7 +570,10 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                   const SizedBox(height: 12),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.undo, color: AppColors.textSecondary),
+                    leading: const Icon(
+                      Icons.undo,
+                      color: AppColors.textSecondary,
+                    ),
                     title: Text(
                       t(
                         'SCREEN.CHASSEUR.UNDO_ROUND',
@@ -519,8 +584,13 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
                   ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.flag_outlined, color: AppColors.warning),
-                    title: Text(t('SCREEN.CHASSEUR.SURRENDER', fallback: 'Abandonner')),
+                    leading: const Icon(
+                      Icons.flag_outlined,
+                      color: AppColors.warning,
+                    ),
+                    title: Text(
+                      t('SCREEN.CHASSEUR.SURRENDER', fallback: 'Abandonner'),
+                    ),
                     onTap: () => Navigator.pop(ctx, 'abandon'),
                   ),
                   const SizedBox(height: 8),
@@ -574,7 +644,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
         return;
       }
       ref.read(matchControllerProvider.notifier).loadMatch(current);
-      ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(current);
+      ref
+          .read(chasseurMatchControllerProvider.notifier)
+          .loadRemoteMatch(current);
     } catch (_) {
       if (!mounted) {
         return;
@@ -609,7 +681,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
           return;
         }
         ref.read(matchControllerProvider.notifier).loadMatch(updated);
-        ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(updated);
+        ref
+            .read(chasseurMatchControllerProvider.notifier)
+            .loadRemoteMatch(updated);
         await ref.read(ongoingMatchesControllerProvider.notifier).refresh();
       } catch (_) {
         if (!mounted) {
@@ -629,7 +703,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       return;
     }
 
-    ref.read(chasseurMatchControllerProvider.notifier).abandonMatch(playerIndex);
+    ref
+        .read(chasseurMatchControllerProvider.notifier)
+        .abandonMatch(playerIndex);
   }
 
   Future<void> _submitRemoteCompletionIfNeeded(ChasseurMatchState state) async {
@@ -647,12 +723,16 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
     }
 
     final winnerIndex = state.winnerIndex;
-    if (winnerIndex == null || winnerIndex < 0 || winnerIndex >= state.players.length) {
+    if (winnerIndex == null ||
+        winnerIndex < 0 ||
+        winnerIndex >= state.players.length) {
       return;
     }
 
-    final surrenderedIndex = List<int>.generate(state.players.length, (i) => i)
-        .firstWhere((i) => i != winnerIndex, orElse: () => -1);
+    final surrenderedIndex = List<int>.generate(
+      state.players.length,
+      (i) => i,
+    ).firstWhere((i) => i != winnerIndex, orElse: () => -1);
     if (surrenderedIndex < 0) {
       return;
     }
@@ -669,7 +749,9 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
       }
       _completionSynced = true;
       ref.read(matchControllerProvider.notifier).loadMatch(updated);
-      ref.read(chasseurMatchControllerProvider.notifier).loadRemoteMatch(updated);
+      ref
+          .read(chasseurMatchControllerProvider.notifier)
+          .loadRemoteMatch(updated);
       await ref.read(ongoingMatchesControllerProvider.notifier).refresh();
     } catch (_) {
       // Keep unsynced to retry on next state update.
@@ -677,9 +759,11 @@ class _ChasseurMatchScreenState extends ConsumerState<ChasseurMatchScreen> {
   }
 
   Future<void> _showEndDialog(ChasseurMatchState state) async {
-    final winner = state.winnerIndex != null ? state.players[state.winnerIndex!] : null;
+    final winner = state.winnerIndex != null
+        ? state.players[state.winnerIndex!]
+        : null;
 
-    await showDialog<void>(
+    await showNeonDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
@@ -772,7 +856,9 @@ class _PlayerCard extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 6 : 10),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primary.withValues(alpha: 0.14) : AppColors.card,
+        color: isActive
+            ? AppColors.primary.withValues(alpha: 0.14)
+            : AppColors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive ? AppColors.primary : AppColors.surfaceLight,
@@ -839,7 +925,11 @@ class _PlayerCard extends StatelessWidget {
               if (player.isEliminated) {
                 return Padding(
                   padding: const EdgeInsets.only(left: 1),
-                  child: Icon(Icons.close, size: compact ? 12 : 16, color: AppColors.error),
+                  child: Icon(
+                    Icons.close,
+                    size: compact ? 12 : 16,
+                    color: AppColors.error,
+                  ),
                 );
               }
               return Padding(
@@ -847,7 +937,9 @@ class _PlayerCard extends StatelessWidget {
                 child: Icon(
                   i < player.lives ? Icons.favorite : Icons.favorite_border,
                   size: compact ? 12 : 16,
-                  color: i < player.lives ? AppColors.error : AppColors.textHint,
+                  color: i < player.lives
+                      ? AppColors.error
+                      : AppColors.textHint,
                 ),
               );
             }),
@@ -905,11 +997,16 @@ class _ChasseurGuidelineTab extends StatelessWidget {
               itemCount: state.roundHistory.length,
               reverse: true,
               itemBuilder: (context, index) {
-                final item = state.roundHistory[state.roundHistory.length - 1 - index];
+                final item =
+                    state.roundHistory[state.roundHistory.length - 1 - index];
                 final player = state.players[item.playerIndex];
                 final darts = item.darts
                     .map((d) {
-                      final prefix = d.multiplier == 1 ? 'S' : d.multiplier == 2 ? 'D' : 'T';
+                      final prefix = d.multiplier == 1
+                          ? 'S'
+                          : d.multiplier == 2
+                          ? 'D'
+                          : 'T';
                       final zoneText = d.zone == 25 ? 'Bull' : '${d.zone}';
                       return '$prefix$zoneText';
                     })
@@ -917,7 +1014,10 @@ class _ChasseurGuidelineTab extends StatelessWidget {
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(10),
@@ -927,13 +1027,18 @@ class _ChasseurGuidelineTab extends StatelessWidget {
                     children: [
                       Text(
                         'R${item.round}',
-                        style: const TextStyle(color: AppColors.textHint, fontSize: 11),
+                        style: const TextStyle(
+                          color: AppColors.textHint,
+                          fontSize: 11,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           '${player.name}: $darts',
-                          style: const TextStyle(color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ],

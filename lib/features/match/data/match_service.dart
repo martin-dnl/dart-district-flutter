@@ -12,6 +12,7 @@ class MatchService {
     required String inviteeId,
     required String mode,
     required int startingScore,
+    required int startingPlayerIndex,
     required List<String> playerNames,
     required int setsToWin,
     required int legsPerSet,
@@ -26,6 +27,7 @@ class MatchService {
         'invitee_id': inviteeId,
         'mode': mode,
         'starting_score': startingScore,
+        'starting_player_index': startingPlayerIndex,
         'player_names': playerNames,
         'sets_to_win': setsToWin,
         'legs_per_set': legsPerSet,
@@ -40,10 +42,7 @@ class MatchService {
         payload['territory_code_iris'] = territoryCodeIris;
       }
 
-      final response = await _api.post(
-        '/matches/invitation',
-        data: payload,
-      );
+      final response = await _api.post('/matches/invitation', data: payload);
 
       return matchFromJson(response.data['data']);
     } catch (e) {

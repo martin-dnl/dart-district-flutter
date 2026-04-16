@@ -48,6 +48,7 @@ let MatchesService = class MatchesService {
         }
         const mode = this.normalizeMode(body.mode);
         const startingScore = body.starting_score ?? this.resolveStartingScore(mode);
+        const initialStarterIndex = body.starting_player_index === 1 ? 1 : 0;
         const setsToWin = Math.max(1, body.sets_to_win ?? 1);
         const legsPerSet = this.normalizeBestOfLegs(body.legs_per_set);
         const finishType = this.normalizeFinishType(body.finish_type);
@@ -69,6 +70,7 @@ let MatchesService = class MatchesService {
                 invitee_id: body.invitee_id,
                 invitation_status: 'pending',
                 invitation_created_at: new Date(),
+                initial_starter_index: initialStarterIndex,
             });
             await queryRunner.manager.save(match);
             const home = queryRunner.manager.create(match_player_entity_1.MatchPlayer, {
@@ -189,7 +191,8 @@ let MatchesService = class MatchesService {
             throw new common_1.BadRequestException('You are not a player in this match');
         }
         const { leg: activeLeg } = this.getActiveSetAndLeg(match);
-        const expectedPlayerIndex = this.computeCurrentPlayerIndex(match, activeLeg, players.length);
+        const initialStarterIndex = this.resolveInitialStarterIndex(match, players.length);
+        const expectedPlayerIndex = this.computeCurrentPlayerIndex(match, activeLeg, players.length, initialStarterIndex);
         const targetPlayer = players[expectedPlayerIndex];
         const playerThrows = (activeLeg.throws ?? []).filter((t) => t.user_id === targetPlayer.user_id);
         const thrownTotal = playerThrows.reduce((sum, t) => sum + t.score, 0);
@@ -734,9 +737,10 @@ let MatchesService = class MatchesService {
             };
         });
         const completedLegs = this.countCompletedLegs(match);
-        const starterIndex = completedLegs % playerCount;
+        const initialStarterIndex = this.resolveInitialStarterIndex(match, playerCount);
+        const starterIndex = (initialStarterIndex + completedLegs) % playerCount;
         const currentPlayerIndex = match.status === 'in_progress'
-            ? this.computeCurrentPlayerIndex(match, activeLeg, playerCount)
+            ? this.computeCurrentPlayerIndex(match, activeLeg, playerCount, initialStarterIndex)
             : starterIndex;
         const abandonedByIndex = players.findIndex((p) => p.user_id === match.surrendered_by);
         const roundHistory = allThrows.map((t) => {
@@ -1012,12 +1016,24 @@ let MatchesService = class MatchesService {
         }
         return 3;
     }
-    computeCurrentPlayerIndex(match, activeLeg, playerCount) {
+    computeCurrentPlayerIndex(match, activeLeg, playerCount, initialStarterIndex) {
         const safePlayerCount = Math.max(1, playerCount);
         const completedLegs = this.countCompletedLegs(match);
-        const starterIndex = completedLegs % safePlayerCount;
+        const starterIndex = (initialStarterIndex + completedLegs) % safePlayerCount;
         const throwsInLeg = activeLeg?.throws?.length ?? 0;
         return (starterIndex + (throwsInLeg % safePlayerCount)) % safePlayerCount;
+    }
+    resolveInitialStarterIndex(match, playerCount) {
+        const safePlayerCount = Math.max(1, playerCount);
+        const raw = match.initial_starter_index;
+        if (!Number.isFinite(raw)) {
+            return 0;
+        }
+        const normalized = Math.trunc(raw);
+        if (safePlayerCount <= 1) {
+            return 0;
+        }
+        return normalized === 1 ? 1 : 0;
     }
 };
 exports.MatchesService = MatchesService;

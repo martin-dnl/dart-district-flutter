@@ -41,6 +41,7 @@ export class MatchesService {
       invitee_id: string;
       mode?: string;
       starting_score?: number;
+      starting_player_index?: number;
       sets_to_win?: number;
       legs_per_set?: number;
       finish_type?: string;
@@ -59,6 +60,8 @@ export class MatchesService {
 
     const mode = this.normalizeMode(body.mode);
     const startingScore = body.starting_score ?? this.resolveStartingScore(mode);
+    const initialStarterIndex =
+      body.starting_player_index === 1 ? 1 : 0;
     const setsToWin = Math.max(1, body.sets_to_win ?? 1);
     const legsPerSet = this.normalizeBestOfLegs(body.legs_per_set);
     const finishType = this.normalizeFinishType(body.finish_type);
@@ -82,6 +85,7 @@ export class MatchesService {
         invitee_id: body.invitee_id,
         invitation_status: 'pending',
         invitation_created_at: new Date(),
+        initial_starter_index: initialStarterIndex,
       });
       await queryRunner.manager.save(match);
 
@@ -261,10 +265,15 @@ export class MatchesService {
     }
 
     const { leg: activeLeg } = this.getActiveSetAndLeg(match);
+    const initialStarterIndex = this.resolveInitialStarterIndex(
+      match,
+      players.length,
+    );
     const expectedPlayerIndex = this.computeCurrentPlayerIndex(
       match,
       activeLeg,
       players.length,
+      initialStarterIndex,
     );
     // Server remains authoritative on turn order; client-provided player_index is ignored.
     const targetPlayer = players[expectedPlayerIndex];
@@ -951,10 +960,19 @@ export class MatchesService {
     });
 
     const completedLegs = this.countCompletedLegs(match);
-    const starterIndex = completedLegs % playerCount;
+    const initialStarterIndex = this.resolveInitialStarterIndex(
+      match,
+      playerCount,
+    );
+    const starterIndex = (initialStarterIndex + completedLegs) % playerCount;
     const currentPlayerIndex =
       match.status === 'in_progress'
-        ? this.computeCurrentPlayerIndex(match, activeLeg, playerCount)
+        ? this.computeCurrentPlayerIndex(
+            match,
+            activeLeg,
+            playerCount,
+            initialStarterIndex,
+          )
         : starterIndex;
     const abandonedByIndex = players.findIndex(
       (p) => p.user_id === match.surrendered_by,
@@ -1282,11 +1300,26 @@ export class MatchesService {
     match: Match,
     activeLeg: Leg | undefined,
     playerCount: number,
+    initialStarterIndex: number,
   ) {
     const safePlayerCount = Math.max(1, playerCount);
     const completedLegs = this.countCompletedLegs(match);
-    const starterIndex = completedLegs % safePlayerCount;
+    const starterIndex =
+      (initialStarterIndex + completedLegs) % safePlayerCount;
     const throwsInLeg = activeLeg?.throws?.length ?? 0;
     return (starterIndex + (throwsInLeg % safePlayerCount)) % safePlayerCount;
+  }
+
+  private resolveInitialStarterIndex(match: Match, playerCount: number) {
+    const safePlayerCount = Math.max(1, playerCount);
+    const raw = match.initial_starter_index;
+    if (!Number.isFinite(raw)) {
+      return 0;
+    }
+    const normalized = Math.trunc(raw);
+    if (safePlayerCount <= 1) {
+      return 0;
+    }
+    return normalized === 1 ? 1 : 0;
   }
 }

@@ -34,7 +34,7 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
-  static const double _targetVisibleWidthKm = 20;
+  static const double _targetVisibleWidthKm = 3;
   static const double _markerMinZoom = 4;
   static const double _cityDefaultZoom = 12;
   static const double _searchResultZoom = 13.5;

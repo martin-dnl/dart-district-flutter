@@ -830,6 +830,7 @@ class _GameSetupScreenState extends ConsumerState<GameSetupScreen> {
         inviteeId: selectedOpponent.id,
         mode: _modeLabel(gameMode),
         startingScore: invitationStartingScore,
+        startingPlayerIndex: _startingPlayerIndex,
         playerNames: [currentUser.username, selectedOpponent.username],
         setsToWin: _setsToWin,
         legsPerSet: _legsPerSet,

@@ -13,12 +13,43 @@ Future<T?> showNeonDialog<T>({
     context: context,
     barrierDismissible: barrierDismissible,
     builder: (dialogContext) {
+      final builtChild = builder(dialogContext);
       return Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: NeonModalContainer(child: builder(dialogContext)),
+        child: NeonModalContainer(child: _normalizeNeonChild(builtChild)),
       );
     },
+  );
+}
+
+Widget _normalizeNeonChild(Widget child) {
+  if (child is! AlertDialog) {
+    return child;
+  }
+
+  return ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 460),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (child.title != null) child.title!,
+          if (child.title != null && child.content != null)
+            const SizedBox(height: 10),
+          if (child.content != null) child.content!,
+          if (child.actions != null && child.actions!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OverflowBar(spacing: 8, children: child.actions!),
+            ),
+          ],
+        ],
+      ),
+    ),
   );
 }
 

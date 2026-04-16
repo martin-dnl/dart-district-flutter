@@ -91,6 +91,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Match.prototype, "is_offline", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], Match.prototype, "initial_starter_index", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], Match.prototype, "is_ranked", void 0);

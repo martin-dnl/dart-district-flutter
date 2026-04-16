@@ -8,6 +8,7 @@ export declare class MatchesController {
         invitee_id: string;
         mode: string;
         starting_score?: number;
+        starting_player_index?: number;
         player_names?: string[];
         sets_to_win?: number;
         legs_per_set?: number;

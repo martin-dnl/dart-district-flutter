@@ -70,6 +70,9 @@ export class Match {
   @Column({ type: 'boolean', default: false })
   is_offline: boolean;
 
+  @Column({ type: 'int', default: 0 })
+  initial_starter_index: number;
+
   @Column({ type: 'boolean', default: false })
   is_ranked: boolean;
 

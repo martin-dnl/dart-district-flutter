@@ -19,6 +19,7 @@ export declare class Match {
     is_territorial: boolean;
     tournament_id: string | null;
     is_offline: boolean;
+    initial_starter_index: number;
     is_ranked: boolean;
     surrendered_by: string | null;
     validated_by_home: boolean;

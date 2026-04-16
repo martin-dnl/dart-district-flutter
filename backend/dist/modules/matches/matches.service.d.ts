@@ -26,6 +26,7 @@ export declare class MatchesService {
         invitee_id: string;
         mode?: string;
         starting_score?: number;
+        starting_player_index?: number;
         sets_to_win?: number;
         legs_per_set?: number;
         finish_type?: string;
@@ -425,4 +426,5 @@ export declare class MatchesService {
     private parseClassicSegment;
     private extractCheckoutDartsFromSegment;
     private computeCurrentPlayerIndex;
+    private resolveInitialStarterIndex;
 }
